@@ -2,6 +2,7 @@
 # BACKEND (Python)
 # ========================
 backend/__pycache__/
+backend/services/__pycache__/*
 backend/*.py[cod]
 backend/*$py.class
 backend/venv/
