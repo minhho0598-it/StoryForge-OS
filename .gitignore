@@ -1,0 +1,31 @@
+# ========================
+# BACKEND (Python)
+# ========================
+/backend/__pycache__/
+/backend/*.py[cod]
+/backend/*$py.class
+/backend/venv/
+/backend/env/
+/backend/.env               # CỰC KỲ QUAN TRỌNG: Không bao giờ push file chứa API Key lên
+/backend/.env.*             # Bỏ qua mọi file có đuôi .env
+! /backend/.env.example     # NGOẠI TRỪ file mẫu
+
+# Bỏ qua thư mục chứa dữ liệu video render ra (Nặng máy)
+backend/data/output/
+backend/data/temp/
+
+# ========================
+# FRONTEND (Next.js/React)
+# ========================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# Các file log và cấu hình hệ thống
+.DS_Store          # Của Mac OS
+Thumbs.db          # Của Windows
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
