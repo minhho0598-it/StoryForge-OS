@@ -288,7 +288,7 @@ Nguyên tắc:
 - Cách thể hiện nên **gợi cảm, chân thực và tinh tế** (show, don't tell) hơn là mô tả trần trụi, chi tiết tường tận — ưu tiên khắc họa cảm xúc, sự run rẩy, im lặng, hơi thở, ánh mắt... và có thể "fade to black" (chuyển cảnh) ở đoạn cao điểm nếu câu chuyện không cần đi sâu hơn.
 - Mức độ cởi mở về thân mật nên được điều chỉnh theo vibe: Idealized Healing Romance thiên về ấm áp, dịu dàng; Rivals-to-Lovers thiên về căng thẳng, dồn nén rồi bùng nổ; Digital-age Romance thường có sự tương phản giữa vỏ ngoài và khoảnh khắc riêng tư dễ tổn thương; Second-Chance Romance thiên về hoài niệm, quen thuộc cũ va vào cảm xúc mới.
 
-Trong JSON output, với mỗi cặp đôi chính thuộc vibe có romance, hãy bổ sung field `physical_intimacy_arc` trong `relationship_dynamics` (xem mục OUTPUT FORMAT) để định hướng cho các bước viết truyện sau này.
+Trong JSON output, với mỗi cặp đôi chính thuộc vibe có romance (bao gồm cả trường hợp Grounded Realistic Fiction có romance sẵn trong premise), BẮT BUỘC phải bổ sung field `physical_intimacy_arc` trong `relationship_dynamics`, và object `intimacy_guidance` BẮT BUỘC phải được điền đầy đủ với `applicable: true`. Đây không phải field tùy chọn — bỏ sót field này là lỗi vi phạm mục 7A.
 
 ---
 
@@ -497,55 +497,79 @@ Không sử dụng văn phong dịch thuật phương Tây.
 
 # OUTPUT FORMAT
 
+
 Chỉ trả về **JSON hợp lệ duy nhất**. Không Markdown. Không code fence. Không giải thích. Không thêm bất kỳ text nào ngoài JSON.
+Toàn bộ giá trị string trong JSON phải viết bằng tiếng Việt, kể cả khi Story Seed đầu vào có lẫn tiếng Anh hoặc thuật ngữ nước ngoài (trừ các từ mượn tự nhiên trong văn phong Việt như "deadline", "OT", "KPI" nếu phù hợp ngữ cảnh).
+
 Cấu trúc:
 {
     "story_identity": {
         "title": "Tên truyện",
         "vibe": "Phải giữ đúng nguyên văn giá trị vibe từ Story Seed — một trong: 'Grounded Realistic Fiction' | 'Idealized Healing Romance' | 'Rivals-to-Lovers' | 'Digital-age Romance' | 'Second-Chance Romance'",
-        "core_premise": "Tiền đề cốt lõi được mở rộng từ Story Seed.",
+        "core_premise": "Tiền đề cốt lõi được mở rộng từ Story Seed (2-4 câu).",
         "timeline_structure": "Linear (Tuyến tính) HOẶC Dual-Timeline (Quá khứ & Hiện tại) HOẶC Multi-Era (Trải dài nhiều năm)",
-        "story_engine": "Cơ chế đời sống khiến câu chuyện tiếp tục."
+        "story_engine": "Cơ chế đời sống khiến câu chuyện tiếp tục phát triển qua nhiều chương.",
+        "central_theme": "Chủ đề chính (xem mục 11).",
+        "sub_themes": ["Chủ đề phụ 1 (1-2 mục)"],
+        "thematic_question": "Câu hỏi cảm xúc mà câu chuyện muốn đặt ra — không viết thành khẩu hiệu đạo đức.",
+        "emotional_promise": "Cảm giác người đọc nên nhận được, nhất quán với vibe (xem mục 12)."
     },
     "world_building": {
-        "primary_setting": "Bối cảnh chính (Hiện tại)",
-        "past_setting": "Bối cảnh quá khứ (NẾU CÓ, nếu không thì để rỗng)",
-        "socio_economic_pressures": ["Áp lực 1"]
+        "primary_setting": "Không gian vật lý chính (hiện tại) — cụ thể, chi tiết đời thường (ánh sáng, mùi, âm thanh...).",
+        "past_setting": "Bối cảnh quá khứ (NẾU CÓ time-jump/dual-timeline, nếu không thì để rỗng)",
+        "location": "Thành phố/tỉnh + khu vực cụ thể (VD: phố Chân Cầm, Hà Nội).",
+        "daily_life": "Nhịp sống hàng ngày của nhân vật chính: giờ giấc, di chuyển, thói quen — phải ảnh hưởng đến cốt truyện.",
+        "social_circles": "Vòng quan hệ xã hội xung quanh nhân vật chính (đồng nghiệp, hàng xóm, cộng đồng...).",
+        "cultural_context": "Nét văn hóa/tâm lý vùng miền cụ thể liên quan trực tiếp đến hành vi nhân vật.",
+        "socio_economic_pressures": ["Áp lực vật chất cụ thể 1", "Áp lực vật chất cụ thể 2"]
     },
-
     "characters": [
         {
         "name": "Tên nhân vật",
         "age": "25 (hoặc '10 tuổi và 25 tuổi' nếu có time-jump)",
         "role_in_story": "Vai trò",
-        "timeline_evolution": "Sự thay đổi của nhân vật này qua thời gian (NẾU CÓ). Nếu truyện ngắn ngày thì ghi 'Không có'.",
+        "appearance": "Ngoại hình, phong cách ăn mặc — chỉ những chi tiết có thể dùng để show, don't tell.",
+        "habits": ["Thói quen nhỏ đặc trưng 1", "Thói quen nhỏ đặc trưng 2"],
+        "timeline_evolution": "Sự thay đổi của nhân vật này qua thời gian (NẾU CÓ time-jump). Nếu không thì ghi 'Không có'.",
         "living_situation": "Hoàn cảnh sống",
-        "motivation": "Động cơ",
+        "career_and_financial_status": "Nghề nghiệp và tình trạng tài chính tương đối (không kịch hóa).",
+        "motivation": "Động cơ (xuất phát từ đời sống thực — xem mục 3)",
+        "emotional_need": "Nhu cầu cảm xúc sâu xa nhất của nhân vật.",
         "fear": "Nỗi sợ",
+        "secrets_or_insecurities": "Điều nhân vật giấu kín hoặc tự ti — mang tính đời thường, KHÔNG phải 'dark secret' để câu drama.",
+        "internal_conflict": "Xung đột nội tâm riêng của nhân vật này (xem mục 4).",
+        "external_pressure": "Áp lực bên ngoài riêng tác động lên nhân vật này.",
         "personality": {
             "flaw": "Khuyết điểm",
-            "strength": "Điểm mạnh"
+            "strength": "Điểm mạnh",
+            "core_traits": ["Tính cách cốt lõi 1", "Tính cách cốt lõi 2"]
+        },
+        "character_arc": {
+            "starting_belief": "The Lie They Believe — niềm tin sai lệch nhưng hợp lý lúc đầu.",
+            "false_belief": "Vì sao niềm tin này khiến họ hành xử/né tránh như hiện tại.",
+            "truth_they_learn": "The Truth They Learn — nhận thức hình thành từ trải nghiệm cụ thể trong truyện.",
+            "ending_state": "Trạng thái/hành vi thay đổi ở cuối arc."
         }
         }
     ],
     "relationship_dynamics": [
         {
         "between": ["Nhân vật A", "Nhân vật B"],
-        "past_relationship": "Quan hệ trong quá khứ (NẾU CÓ)",
-        "current_relationship": "Quan hệ ở hiện tại",
-        "relationship_arc": "Sự thay đổi quan hệ qua các mốc thời gian"
+        "past_relationship": "Quan hệ trong quá khứ (NẾU CÓ time-jump, nếu không để rỗng)",
+        "current_relationship": "Quan hệ ở hiện tại — mô tả rõ 2 vai trò/bối cảnh nếu có (VD: online ẩn danh vs. đời thực).",
+        "relationship_arc": "Sự thay đổi quan hệ qua các giai đoạn của câu chuyện.",
+        "what_a_needs_from_b": "A cần gì từ B.",
+        "what_b_needs_from_a": "B cần gì từ A.",
+        "bonding_mechanism": "Điều gì khiến họ gần nhau hơn — phải là hành động/lựa chọn cụ thể (xem mục 6).",
+        "source_of_tension": "Điều gì khiến họ xa nhau hoặc hiểu sai nhau.",
+        "unspoken_issue": "Điều quan trọng mà cả hai đều không nói ra.",
+        "physical_intimacy_arc": "BẮT BUỘC nếu vibe thuộc 1 trong 4 vibe romance (Idealized Healing Romance / Rivals-to-Lovers / Digital-age Romance / Second-Chance Romance). Liệt kê chuỗi các mốc gần gũi thể xác tăng dần, hợp lý theo nhịp truyện (xem mục 7A). Để rỗng nếu là Grounded Realistic Fiction không có romance."
         }
     ],
     "conflict_system": {
         "central_conflict": "Xung đột trung tâm.",
-        "internal_conflicts": [
-            "Xung đột nội tâm 1",
-            "Xung đột nội tâm 2"
-        ],
-        "external_conflicts": [
-            "Xung đột khách quan 1",
-            "Xung đột khách quan 2"
-        ],
+        "internal_conflicts": ["Xung đột nội tâm 1 (cấp độ toàn truyện)", "Xung đột nội tâm 2"],
+        "external_conflicts": ["Xung đột khách quan 1", "Xung đột khách quan 2"],
         "micro_conflict_origin": "Micro-conflict từ Story Seed được phát triển thành điểm khởi đầu như thế nào.",
         "escalation_logic": "Vì sao những chuyện nhỏ dần tạo ra vấn đề lớn hơn một cách tự nhiên."
     },
@@ -559,25 +583,15 @@ Cấu trúc:
         "tone": "Giọng kể.",
         "pacing": "Nhịp độ.",
         "dialogue_style": "Phong cách hội thoại.",
-        "show_dont_tell_rules": [
-            "Quy tắc 1",
-            "Quy tắc 2",
-            "Quy tắc 3"
-        ],
-        "romance_rules": [
-            "Quy tắc romance phù hợp với câu chuyện"
-        ],
-        "realism_rules": [
-            "Quy tắc hiện thực cần duy trì"
-        ]
+        "show_dont_tell_rules": ["Quy tắc 1", "Quy tắc 2", "Quy tắc 3"],
+        "romance_rules": ["Quy tắc romance phù hợp với câu chuyện — để rỗng nếu Grounded Realistic Fiction không có romance."],
+        "realism_rules": ["Quy tắc hiện thực cần duy trì"]
     },
     "intimacy_guidance": {
         "applicable": true,
-        "note": "Đặt false và bỏ qua các field dưới nếu vibe là Grounded Realistic Fiction không có romance.",
-        "comfort_level": "Mức độ cởi mở tự nhiên của hai nhân vật với sự gần gũi thể xác, dựa trên tính cách và bối cảnh văn hoá của họ.",
-        "natural_intimacy_beats": [
-            "Một vài khoảnh khắc gần gũi hợp lý có thể xảy ra trong câu chuyện (ví dụ: chạm tay tình cờ, phải trú cùng nhau, chăm nhau lúc ốm, một nụ hôn, một đêm ở lại cùng nhau), sắp theo mức tăng dần"
-        ],
+        "note": "Đặt false và bỏ các field bên dưới (để rỗng hoặc null) nếu vibe là Grounded Realistic Fiction KHÔNG có romance. Với 4 vibe romance còn lại, hoặc Grounded Realistic Fiction CÓ romance sẵn trong premise, applicable PHẢI là true và object này PHẢI được điền đầy đủ.",
+        "comfort_level": "Mức độ cởi mở tự nhiên của các nhân vật chính với sự gần gũi thể xác, dựa trên tính cách và bối cảnh văn hoá.",
+        "natural_intimacy_beats": ["Chuỗi khoảnh khắc gần gũi hợp lý, sắp theo mức tăng dần — phải khớp với physical_intimacy_arc trong relationship_dynamics."],
         "consent_and_pacing_rules": [
             "Luôn phải có sự đồng thuận rõ ràng của cả hai phía",
             "Không xuất hiện đột ngột trước khi quan hệ đủ tin tưởng",
@@ -586,22 +600,13 @@ Cấu trúc:
         "depiction_style": "Gợi cảm, chân thực, tinh tế qua cảm xúc/cảm giác (show, don't tell); có thể 'fade to black' ở đoạn cao điểm nếu câu chuyện không cần mô tả chi tiết tường tận."
     },
     "narrative_boundaries": [
-        "Điều tuyệt đối không được tự ý thêm 1",
-        "Điều tuyệt đối không được tự ý thêm 2",
-        "Điều tuyệt đối không được tự ý thêm 3"
+        "Tối thiểu 5 điều tuyệt đối không được tự ý thêm, xây dựng dựa trên chính Story Seed này (không dùng danh sách mặc định giống nhau cho mọi truyện)."
     ],
     "story_continuity": {
         "original_seed_title": "Tên từ Story Seed.",
         "original_vibe": "Vibe từ Story Seed.",
-        "keywords_integrated": [
-            "Keyword 1",
-            "Keyword 2"
-        ],
-        "core_elements_that_must_not_change": [
-            "Yếu tố cốt lõi 1",
-            "Yếu tố cốt lõi 2",
-            "Yếu tố cốt lõi 3"
-        ]
+        "keywords_integrated": ["Keyword 1", "Keyword 2"],
+        "core_elements_that_must_not_change": ["Yếu tố cốt lõi 1", "Yếu tố cốt lõi 2", "Yếu tố cốt lõi 3"]
     }
 }
 
@@ -627,7 +632,11 @@ Trước khi trả JSON, hãy tự kiểm tra:
 14. Các nhân vật có điểm yếu và sự không hoàn hảo không?
 15. Narrative Boundaries có bảo vệ câu chuyện khỏi việc AI viết tiếp bị lệch tone không?
 16. Field `vibe` có giữ đúng nguyên văn 1 trong 5 giá trị từ Story Seed, và các quy tắc riêng theo vibe ở mục 7 đã được áp dụng đúng chưa?
-17. Nếu vibe có romance: `physical_intimacy_arc` và `intimacy_guidance` có được xây dựng hợp lý, tự nhiên, dựa trên sự đồng thuận và mốc tin tưởng cụ thể trong quan hệ — không đột ngột, không dung tục?
+17. 
+    a. Nếu vibe có romance: `physical_intimacy_arc` và `intimacy_guidance` có được xây dựng hợp lý, tự nhiên, dựa trên sự đồng thuận và mốc tin tưởng cụ thể trong quan hệ — không đột ngột, không dung tục?
+    b. Nếu vibe có romance: object `intimacy_guidance` có `applicable: true` và đã điền đủ mọi field con (không để trống/null) chưa? Field `physical_intimacy_arc` trong TỪNG relationship_dynamics thuộc cặp đôi chính đã tồn tại và khớp logic với `intimacy_guidance.natural_intimacy_beats` chưa?
+    c. Mỗi nhân vật có object `character_arc` đầy đủ 4 field (`starting_belief`, `false_belief`, `truth_they_learn`, `ending_state`) chưa — không được bỏ trống bất kỳ field nào?
+    d. `narrative_boundaries` có ít nhất 5 mục, được xây dựng riêng cho câu chuyện này (không phải danh sách mặc định chung chung) chưa?
 18. Nếu vibe là Grounded Realistic Fiction không có romance: `intimacy_guidance.applicable` = false và không có `physical_intimacy_arc` không cần thiết?
 19. JSON có parse được bằng JSON parser tiêu chuẩn không?
 20. Có đúng tất cả các field yêu cầu không?
