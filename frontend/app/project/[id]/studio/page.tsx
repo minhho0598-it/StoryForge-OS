@@ -98,7 +98,7 @@ export default function RenderStudioPage() {
             });
         }
       }
-      if (videoMetaData.success) {
+      if (videoMetaData.success && videoMetaData.data) {
         setMetadata(videoMetaData.data);
       }
     } catch (err) { console.error(err); }
@@ -414,6 +414,7 @@ export default function RenderStudioPage() {
                     <SelectContent>
                       <SelectItem value="Nguyệt Nga">Nguyệt Nga (Nữ - Truyện cảm)</SelectItem>
                       <SelectItem value="Bảo Hoàng">Bảo Hoàng (Nam - Trầm ấm)</SelectItem>
+                      <SelectItem value="Ngọc Huyền">Ngọc Huyền (Nữ - Tươi sáng)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
