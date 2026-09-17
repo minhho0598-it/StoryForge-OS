@@ -82,3 +82,9 @@ class ChapterItem(BaseModel):
 
 class BulkUpdateChaptersRequest(BaseModel):
     chapters: list[ChapterItem]
+
+class GenerateSingleChapterRequest(BaseModel):
+    action_type: str  # "insert" hoặc "edit"
+    target_index: int
+    user_prompt: str
+    current_chapters: list

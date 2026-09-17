@@ -269,12 +269,13 @@ export default function WriterRoomPage() {
             <div className="p-6 bg-white border-b shadow-sm flex items-start justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-slate-800">{selectedChapter.title}</h1>
-                <p className="text-slate-600 mt-1">Mục tiêu: {selectedChapter.goal}</p>
-                <p className="text-sm font-medium text-slate-500 mt-2">Khoảng thời gian: {selectedChapter.timeline_period || "Hiện tại"}</p>
+                <p className="text-slate-600 mt-1">Sự kiện chính: {selectedChapter.main_event}</p>
+                <p className="text-sm font-medium text-orange-500 mt-2">Chức năng: {selectedChapter.primary_function}</p>
+                <p className="text-sm font-medium text-green-500 mt-2">Khoảng thời gian: {selectedChapter.timeline_period || "Hiện tại"}</p>
                 <p className="text-sm font-medium text-indigo-600 mt-2">Góc nhìn: {selectedChapter.pov_character}</p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-4">
                 {loadingBeats ? (
                   <div className="h-10 px-4 flex items-center text-sm text-slate-400">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang kiểm tra dữ liệu...

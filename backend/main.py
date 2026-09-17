@@ -14,6 +14,7 @@ from schemas import (
     ChapterUpdateRequest,
     GenerateCharacterRequest,
     GenerateRelationshipRequest,
+    GenerateSingleChapterRequest,
     IdeationRequest,
     MetadataGenerateRequest,
     ProjectCreateRequest,
@@ -296,6 +297,40 @@ async def generate_pacing(project_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/projects/{project_id}/generate-single-chapter")
+async def generate_single_chapter(project_id: str, request: GenerateSingleChapterRequest):
+    """
+    Gọi AI để chèn thêm 1 chương mới hoặc sửa 1 chương có sẵn dựa trên yêu cầu của User.
+    """
+    try:
+        # Lấy Story Bible để AI hiểu nhân vật & bối cảnh
+        db_res = supabase.table("projects").select("story_bible").eq("id", project_id).execute()
+        if not db_res.data or not db_res.data[0].get("story_bible"):
+            raise HTTPException(status_code=400, detail="Dự án chưa có Story Bible.")
+        
+        story_bible = db_res.data[0]["story_bible"]
+
+        # Gọi LLM
+        system_prompt = prompt_manager.load_prompt("single_chapter_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "single_chapter_user.md",
+            story_bible=json.dumps(story_bible, ensure_ascii=False),
+            current_chapters=json.dumps(request.current_chapters, ensure_ascii=False),
+            action_type=request.action_type,
+            target_index=request.target_index,
+            user_prompt=request.user_prompt
+        )
+        
+        result_json = await generate_json(system_prompt, user_prompt)
+        
+        if "chapter" not in result_json:
+            raise ValueError("AI không trả về dữ liệu 'chapter'.")
+            
+        return {"success": True, "data": result_json["chapter"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==========================================
 # 4. GENERATE BEATS (CHIA NHỊP TRUYỆN CỦA 1 CHƯƠNG)
 # ==========================================
@@ -354,22 +389,26 @@ async def generate_beats(chapter_id: str):
 @app.put("/api/projects/{project_id}/bulk-update-chapters")
 async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersRequest):
     try:
-        # Cách an toàn và dễ nhất: Xóa các chương chưa được render và insert lại toàn bộ
-        # Tuy nhiên, nếu chương đã có final_content (đang ở Writer Room), ta không được xóa.
-        # Để an toàn cho MVP: Ta sẽ lặp qua và Update nếu có ID, Insert nếu không có ID.
-        # Đồng thời xóa những ID không còn tồn tại trong mảng request.
-        
         current_chaps_res = supabase.table("chapters").select("id").eq("project_id", project_id).execute()
-        current_ids = [c["id"] for c in current_chaps_res.data]
+        current_ids = [str(c["id"]) for c in current_chaps_res.data]
         
-        incoming_ids = [c.id for c in request.chapters if c.id]
+        incoming_ids = [str(c.id) for c in request.chapters if c.id]
         
-        # 1. Xóa các chapter bị user bấm xóa trên UI
+        # ==========================================
+        # 1. BƯỚC XÓA (Chỉ gọi DB nếu thực sự có chương bị xóa)
+        # ==========================================
         ids_to_delete = list(set(current_ids) - set(incoming_ids))
+        
         if ids_to_delete:
-            supabase.table("chapters").delete().in_("id", ids_to_delete).execute()
-            
-        # 2. Update hoặc Insert
+            for chap_id in ids_to_delete:
+                supabase.table("beats").delete().eq("chapter_id", chap_id).execute()
+                supabase.table("chapters").delete().eq("id", chap_id).execute()
+                
+        # ==========================================
+        # 2. BƯỚC UPSERT (Update + Insert GỘP CHUNG 1 NHỊP)
+        # ==========================================
+        chapters_to_upsert = []
+        
         for chap in request.chapters:
             chap_data = {
                 "project_id": project_id,
@@ -380,16 +419,24 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
                 "main_event": chap.main_event,
                 "primary_function": chap.primary_function
             }
-            if chap.id:
-                # Update
-                supabase.table("chapters").update(chap_data).eq("id", chap.id).execute()
+            
+            if chap.id and (str(chap.id) in current_ids):
+                # Nếu là chương cũ -> Truyền kèm ID thật để Supabase biết đường Update
+                chap_data["id"] = str(chap.id)
             else:
-                # Insert chapter mới
+                # Nếu là chương mới -> Không truyền ID để Supabase tự Insert
                 chap_data["status"] = "Drafting Pending"
-                supabase.table("chapters").insert(chap_data).execute()
+                
+            chapters_to_upsert.append(chap_data)
+
+        # GỬI TOÀN BỘ MẢNG DATA VÀO DATABASE TRONG ĐÚNG 1 REQUEST!
+        if chapters_to_upsert:
+            supabase.table("chapters").upsert(chapters_to_upsert).execute()
 
         return {"success": True}
+        
     except Exception as e:
+        print(f"[Error Bulk Update] LỖI: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
 
