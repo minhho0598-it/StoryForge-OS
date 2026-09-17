@@ -3,6 +3,7 @@
 # ========================
 backend/__pycache__/
 backend/services/__pycache__/*
+backend/services/__pycache__/video_service.cpython-311.pyc
 backend/*.py[cod]
 backend/*$py.class
 backend/venv/
