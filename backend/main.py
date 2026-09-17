@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 
@@ -11,13 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
     BeatUpdateRequest,
     BulkBeatUpdateRequest,
+    BulkUpdateChaptersRequest,
     ChapterUpdateRequest,
     IdeationRequest,
-    LyricsExtractRequest,
     MetadataGenerateRequest,
     ProjectCreateRequest,
     UpdateBibleRequest,
-    UpdateChapterGoalRequest,
     UpdateRenderConfigRequest,
 )
 from services.llm_service import generate_json, generate_text_xml
@@ -232,9 +230,11 @@ async def generate_pacing(project_id: str):
                 "project_id": project_id,
                 "chapter_number": chapter.get("chapter_number"),
                 "title": chapter.get("title", f"Chương {chapter.get('chapter_number')}"),
-                "timeline_period": chapter.get("timeline_period", "Hiện tại"), # THÊM DÒNG NÀY
-                "goal": chapter.get("main_event", "") + " - " + chapter.get("primary_function", ""),
+                "timeline_period": chapter.get("timeline_period", "Hiện tại"),
                 "pov_character": chapter.get("character_focus", "Unknown"),
+                # TÁCH RIÊNG 2 TRƯỜNG NÀY RA
+                "main_event": chapter.get("main_event", ""),
+                "primary_function": chapter.get("primary_function", ""),
                 "status": "Drafting Pending"
             })
             
@@ -307,10 +307,43 @@ async def generate_beats(chapter_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.put("/api/chapters/{chapter_id}/goal")
-async def update_chapter_goal(chapter_id: str, request: UpdateChapterGoalRequest):
+@app.put("/api/projects/{project_id}/bulk-update-chapters")
+async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersRequest):
     try:
-        supabase.table("chapters").update({"goal": request.goal}).eq("id", chapter_id).execute()
+        # Cách an toàn và dễ nhất: Xóa các chương chưa được render và insert lại toàn bộ
+        # Tuy nhiên, nếu chương đã có final_content (đang ở Writer Room), ta không được xóa.
+        # Để an toàn cho MVP: Ta sẽ lặp qua và Update nếu có ID, Insert nếu không có ID.
+        # Đồng thời xóa những ID không còn tồn tại trong mảng request.
+        
+        current_chaps_res = supabase.table("chapters").select("id").eq("project_id", project_id).execute()
+        current_ids = [c["id"] for c in current_chaps_res.data]
+        
+        incoming_ids = [c.id for c in request.chapters if c.id]
+        
+        # 1. Xóa các chapter bị user bấm xóa trên UI
+        ids_to_delete = list(set(current_ids) - set(incoming_ids))
+        if ids_to_delete:
+            supabase.table("chapters").delete().in_("id", ids_to_delete).execute()
+            
+        # 2. Update hoặc Insert
+        for chap in request.chapters:
+            chap_data = {
+                "project_id": project_id,
+                "chapter_number": chap.chapter_number,
+                "title": chap.title,
+                "timeline_period": chap.timeline_period,
+                "pov_character": chap.pov_character,
+                "main_event": chap.main_event,
+                "primary_function": chap.primary_function
+            }
+            if chap.id:
+                # Update
+                supabase.table("chapters").update(chap_data).eq("id", chap.id).execute()
+            else:
+                # Insert chapter mới
+                chap_data["status"] = "Drafting Pending"
+                supabase.table("chapters").insert(chap_data).execute()
+
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -492,8 +525,8 @@ async def get_single_project(project_id: str):
 @app.get("/api/projects/{project_id}/chapters")
 async def get_chapters(project_id: str):
     try:
-        # TỐI ƯU: Chỉ lấy các cột nhỏ cần thiết cho Menu (BỎ final_content)
-        columns = "id, chapter_number, title, goal, pov_character, status, final_content, timeline_period"
+        # Thêm main_event, primary_function vào select()
+        columns = "id, chapter_number, title, pov_character, status, timeline_period, main_event, primary_function"
         res = supabase.table("chapters").select(columns).eq("project_id", project_id).order("chapter_number").execute()
         return {"success": True, "data": res.data}
     except Exception as e:  # noqa: BLE001

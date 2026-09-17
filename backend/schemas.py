@@ -62,3 +62,15 @@ class LyricsExtractRequest(BaseModel):
 class UpdateRenderConfigRequest(BaseModel):
     render_config: dict
     video_metadata: dict
+
+class ChapterItem(BaseModel):
+    id: str | None = None # ID có thể null nếu là chapter mới tạo trên UI
+    chapter_number: int
+    title: str
+    timeline_period: str
+    pov_character: str
+    main_event: str
+    primary_function: str
+
+class BulkUpdateChaptersRequest(BaseModel):
+    chapters: list[ChapterItem]
