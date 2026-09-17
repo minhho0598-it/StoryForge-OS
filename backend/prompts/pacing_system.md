@@ -721,7 +721,7 @@ LƯU Ý: mọi giá trị string bên dưới mô tả Ý NGHĨA / NỘI DUNG c�
       "phase_id": "Phase mà chapter này thuộc về — phải khớp với một phase_id đã khai báo trong mảng phases.",
       "title": "Tên chương gợi ý",
       "timeline_period": "Mốc thời gian của chapter này — hiện tại, một mốc quá khứ cụ thể, hoặc flashback — xác định dựa theo timeline_structure thực tế của Story Bible cho câu chuyện này.",
-      "primary_function": "Chức năng chính của chapter này trong outline — thiết lập, phát triển nhân vật, phát triển quan hệ, xung đột, leo thang, bước ngoặt, hoặc chức năng khác phù hợp — chọn đúng theo nội dung thực tế của chapter.",
+      "primary_function": "BẮT BUỘC CHỌN 1 TRONG CÁC GIÁ TRỊ SAU ĐÂY (Giữ nguyên văn tiếng Anh/Việt): 'Setup (Thiết lập cơ bản)', 'Inciting Incident (Biến cố kích hoạt)', 'Character Development (Phát triển nhân vật)', 'Relationship Development (Phát triển quan hệ)', 'Rising Action (Leo thang xung đột)', 'Turning Point (Bước ngoặt)', 'Midpoint (Điểm giữa)', 'Climax (Cao trào)', 'Resolution (Giải quyết)', 'Lore (Hé lộ thông tin thế giới/bí mật)'.",
       "main_event": "Sự kiện chính.",
       "character_focus": "Nhân vật được tập trung.",
       "emotional_beat": "Thay đổi cảm xúc.",

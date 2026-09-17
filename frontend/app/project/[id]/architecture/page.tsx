@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 /* ------------------------------------------------------------------ */
@@ -102,6 +103,20 @@ const emptyRelationship = {
   what_b_needs_from_a: "",
   physical_intimacy_arc: "",
 };
+
+const PRIMARY_FUNCTIONS = [
+  "Setup (Thiết lập cơ bản)",
+  "Inciting Incident (Biến cố kích hoạt)",
+  "Character Development (Phát triển nhân vật)",
+  "Relationship Development (Phát triển quan hệ)",
+  "Rising Action (Leo thang xung đột)",
+  "Turning Point (Bước ngoặt)",
+  "Midpoint (Điểm giữa)",
+  "Climax (Cao trào)",
+  "Resolution (Giải quyết)",
+  "Lore (Hé lộ thông tin thế giới/bí mật)",
+  "Khác (Chức năng phụ trợ)" // Fallback cho những logic cũ hoặc AI lỡ sinh lệch
+];
 
 export default function ArchitecturePage() {
   const params = useParams();
@@ -1217,27 +1232,47 @@ export default function ArchitecturePage() {
                           <Separator className="bg-slate-100" />
 
                           {/* NỘI DUNG CHƯƠNG */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <div className="flex flex-col gap-5">
+                            
+                            {/* Chức năng (Được đưa lên trên, giới hạn độ rộng để gọn gàng) */}
+                            <div className="space-y-2 w-full md:w-[350px]">
+                              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                                 🎯 Chức năng (Primary Function)
                               </Label>
-                              <Textarea 
-                                className="resize-y min-h-[90px] text-sm leading-relaxed focus-visible:ring-indigo-500 bg-slate-50"
+                              <Select
                                 value={chap.primary_function || ""}
-                                onChange={(e) => updateChapterField(idx, "primary_function", e.target.value)}
-                                placeholder="Vai trò của chương này trong tổng thể? (VD: Hé lộ bí mật, đẩy cao mâu thuẫn...)"
-                              />
+                                onValueChange={(value) => updateChapterField(idx, "primary_function", value)}
+                              >
+                                <SelectTrigger className="h-10 bg-slate-50 border-slate-200 focus:ring-indigo-500 font-medium text-slate-700">
+                                  <SelectValue placeholder="Chọn chức năng của chương..." />
+                                </SelectTrigger>
+                                {/* Tăng max-height để list hiển thị được nhiều hơn, w-auto để tự mở rộng theo text */}
+                                <SelectContent className="max-h-[350px] min-w-[300px]">
+                                  {PRIMARY_FUNCTIONS.map((func) => (
+                                    <SelectItem key={func} value={func} className="text-sm cursor-pointer py-2.5">
+                                      {func}
+                                    </SelectItem>
+                                  ))}
+                                  
+                                  {chap.primary_function && !PRIMARY_FUNCTIONS.includes(chap.primary_function) && (
+                                    <SelectItem value={chap.primary_function} className="text-sm italic text-amber-600 py-2.5">
+                                      {chap.primary_function} (Cũ)
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
                             </div>
+
+                            {/* Sự kiện chính (Chiếm toàn bộ chiều rộng bên dưới, tăng chiều cao) */}
                             <div className="space-y-2">
-                              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                                 🎬 Sự kiện chính (Main Event)
                               </Label>
                               <Textarea 
-                                className="resize-y min-h-[90px] text-sm leading-relaxed focus-visible:ring-indigo-500"
+                                className="resize-y min-h-[120px] text-sm leading-relaxed focus-visible:ring-indigo-500 bg-white"
                                 value={chap.main_event || (chap.goal || "")} 
                                 onChange={(e) => updateChapterField(idx, "main_event", e.target.value)}
-                                placeholder="Sự kiện cụ thể diễn ra? Hành động của nhân vật?..."
+                                placeholder="Mô tả sự kiện cụ thể diễn ra, hành động của nhân vật, và hậu quả của sự kiện đó..."
                               />
                             </div>
                           </div>
