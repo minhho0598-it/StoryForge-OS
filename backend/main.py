@@ -12,8 +12,9 @@ from schemas import (
     BeatUpdateRequest,
     BulkBeatUpdateRequest,
     ChapterUpdateRequest,
+    GenerateCharacterRequest,
+    GenerateRelationshipRequest,
     IdeationRequest,
-    LyricsExtractRequest,
     MetadataGenerateRequest,
     ProjectCreateRequest,
     UpdateBibleRequest,
@@ -163,6 +164,48 @@ async def update_story_bible(project_id: str, request: UpdateBibleRequest):
     try:
         supabase.table("projects").update({"story_bible": request.story_bible}).eq("id", project_id).execute()
         return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/generate-character")
+async def generate_character(project_id: str, request: GenerateCharacterRequest):
+    try:
+        system_prompt = prompt_manager.load_prompt("add_character_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "add_character_user.md",
+            current_bible=json.dumps(request.current_bible, ensure_ascii=False),
+            user_prompt=request.user_prompt
+        )
+        
+        result = await generate_json(system_prompt, user_prompt)
+        new_char = result.get("new_character")
+        
+        if not new_char:
+            raise ValueError("AI không tạo được nhân vật theo đúng chuẩn.")
+            
+        return {"success": True, "data": new_char}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/generate-relationship")
+async def generate_relationship(project_id: str, request: GenerateRelationshipRequest):
+    try:
+        system_prompt = prompt_manager.load_prompt("add_relationship_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "add_relationship_user.md",
+            current_bible=json.dumps(request.current_bible, ensure_ascii=False),
+            user_prompt=request.user_prompt
+        )
+        
+        result = await generate_json(system_prompt, user_prompt)
+        new_rel = result.get("new_relationship")
+        
+        if not new_rel:
+            raise ValueError("AI không tạo được mối quan hệ theo đúng chuẩn.")
+            
+        return {"success": True, "data": new_rel}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
