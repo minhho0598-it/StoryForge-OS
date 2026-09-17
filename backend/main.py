@@ -241,15 +241,14 @@ async def generate_pacing(project_id: str):
             "vibe": project["vibe"],
             "logline": project["logline"]
         }, ensure_ascii=False)
-        
-        story_bible_json = json.dumps(project["story_bible"], ensure_ascii=False)
 
         # 2. Load Prompts
+        optimized_bible = get_optimized_bible(project["story_bible"], task="pacing")
         system_prompt = prompt_manager.load_prompt("pacing_system.md")
         user_prompt = prompt_manager.load_prompt(
             "pacing_user.md", 
             story_seed=story_seed_json,
-            story_bible=story_bible_json
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
         )
         
         # 3. Gọi LLM
@@ -311,10 +310,11 @@ async def generate_single_chapter(project_id: str, request: GenerateSingleChapte
         story_bible = db_res.data[0]["story_bible"]
 
         # Gọi LLM
+        optimized_bible = get_optimized_bible(story_bible, task="single_chapter")
         system_prompt = prompt_manager.load_prompt("single_chapter_system.md")
         user_prompt = prompt_manager.load_prompt(
             "single_chapter_user.md",
-            story_bible=json.dumps(story_bible, ensure_ascii=False),
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             current_chapters=json.dumps(request.current_chapters, ensure_ascii=False),
             action_type=request.action_type,
             target_index=request.target_index,
@@ -344,13 +344,15 @@ async def generate_beats(chapter_id: str):
         project = chapter["projects"]
         
         # Load Prompts
+        optimized_bible = get_optimized_bible(project.get("story_bible"), task="beat_breakdown")
         system_prompt = prompt_manager.load_prompt("beat_system.md")
         user_prompt = prompt_manager.load_prompt(
             "beat_user.md",
-            story_bible=json.dumps(project.get("story_bible")),
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             chapter_info=json.dumps({"title": chapter["title"], "goal": chapter["goal"], "pov": chapter["pov_character"]}),
             current_memory=project.get("current_memory", "Đây là chương đầu tiên.")
         )
+        print(f"User Prompt for Beat Generation: {user_prompt}")
         
         # Gọi LLM sinh JSON Beats
         beats_json = await generate_json(system_prompt, user_prompt)
@@ -467,10 +469,19 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
             current_memory_data = curr_proj.data[0].get("current_memory", {})
 
             # Gọi AI Viết Văn
+            chars_str = beat.get("characters_present", "")
+            present_chars_list = [c.strip() for c in chars_str.split(",") if c.strip()]
+
+            # Gọi hàm lọc
+            optimized_bible = get_optimized_bible(
+                project.get("story_bible", {}), 
+                task="drafting", 
+                present_characters=present_chars_list
+            )
             system_prompt = prompt_manager.load_prompt("draft_system.md")
             user_prompt = prompt_manager.load_prompt(
                 "draft_user.md",
-                story_bible=json.dumps(project.get("story_bible")),
+                story_bible=json.dumps(optimized_bible, ensure_ascii=False),
                 current_memory=json.dumps(current_memory_data, ensure_ascii=False),
                 previous_beat_text=previous_text[-1500:],
                 beat_data=json.dumps(beat, ensure_ascii=False)
@@ -523,10 +534,19 @@ async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, pre
         current_memory_data = project.get("current_memory", {})
         
         # 2. Gọi AI Viết Văn
+        chars_str = beat.get("characters_present", "")
+        present_chars_list = [c.strip() for c in chars_str.split(",") if c.strip()]
+
+        # Gọi hàm lọc
+        optimized_bible = get_optimized_bible(
+            project.get("story_bible", {}), 
+            task="drafting", 
+            present_characters=present_chars_list
+        )
         system_prompt = prompt_manager.load_prompt("draft_system.md")
         user_prompt = prompt_manager.load_prompt(
             "draft_user.md",
-            story_bible=json.dumps(project.get("story_bible")),
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             current_memory=json.dumps(current_memory_data, ensure_ascii=False),
             previous_beat_text=previous_text[-1500:],
             beat_data=json.dumps(beat, ensure_ascii=False)
@@ -1046,3 +1066,91 @@ async def background_update_memory(project_id: str, old_memory: dict, new_text: 
         print("[Memory Keeper] Đã cập nhật thành công!")
     except Exception as e:
         print(f"[Memory Keeper Error] Lỗi cập nhật bộ nhớ: {e}")
+
+
+import copy
+
+def get_optimized_bible(full_bible: dict, task: str, present_characters: list = None) -> dict:
+    """
+    Hàm gọt dũa Story Bible tùy theo tác vụ của AI để tránh pha loãng ngữ cảnh (Context Dilution).
+    """
+    if not full_bible:
+        return {}
+        
+    optimized = copy.deepcopy(full_bible)
+    
+    # ====================================================
+    # TÁC VỤ 1: PACING & SINGLE CHAPTER (Kiến trúc vĩ mô)
+    # Cần: Động cơ, Mâu thuẫn, Arc tổng thể.
+    # Bỏ: Ngoại hình, thói quen lặt vặt, chi tiết sinh hoạt.
+    # ====================================================
+    if task in ["pacing", "single_chapter"]:
+        if "characters" in optimized:
+            for char in optimized.get("characters", []):
+                char.pop("appearance", None)
+                char.pop("habits", None)
+                char.pop("living_situation", None)
+                char.pop("career_and_financial_status", None)
+        
+        if "world_building" in optimized:
+            optimized["world_building"].pop("daily_life", None)
+            
+        # Riêng single_chapter (sửa 1 chương) thì bỏ luôn cấu trúc cảm xúc tổng thể cho nhẹ
+        if task == "single_chapter":
+            optimized.pop("emotional_architecture", None)
+            optimized.pop("story_continuity", None)
+
+
+    # ====================================================
+    # TÁC VỤ 2: BEAT BREAKDOWN (Đạo diễn chia cảnh)
+    # Cần: Tính cách, Nỗi sợ, Bí mật, Quy tắc hội thoại.
+    # Bỏ: Cấu trúc Arc dài hạn, Diện mạo, Định dạng Vibe tổng.
+    # ====================================================
+    elif task == "beat_breakdown":
+        if "characters" in optimized:
+            for char in optimized.get("characters", []):
+                char.pop("appearance", None) # Không cần tả quần áo lúc lên kịch bản hành động
+                char.pop("character_arc", None) # Quá dài cho 1 chương ngắn
+                
+        if "world_building" in optimized:
+            optimized["world_building"].pop("cultural_context", None)
+            optimized["world_building"].pop("past_setting", None)
+            
+        optimized.pop("emotional_architecture", None)
+        # Bỏ Story Identity (vì Prompt đã có sẵn chapter goal và memory)
+        optimized.pop("story_identity", None) 
+
+
+    # ====================================================
+    # TÁC VỤ 3: DRAFTING (Nhà văn viết chữ) - LỌC CỰC MẠNH
+    # Cần: Ngoại hình, Thói quen, Đạo cụ, Quan hệ của ĐÚNG người có mặt.
+    # Bỏ: Toàn bộ Theme, Premise, Conflict tổng thể để tránh văn mẫu.
+    # ====================================================
+    elif task == "drafting":
+        # 1. LỌC NHÂN VẬT: Chỉ giữ lại những người có tên trong mảng present_characters
+        if "characters" in optimized and present_characters:
+            filtered_chars = [
+                c for c in optimized["characters"]
+                if any(p.lower() in c.get("name", "").lower() for p in present_characters)
+            ]
+            optimized["characters"] = filtered_chars or optimized["characters"] # Fallback an toàn
+            
+        # 2. LỌC QUAN HỆ: Chỉ giữ quan hệ liên quan đến người đang có mặt
+        if "relationship_dynamics" in optimized and present_characters:
+            filtered_rels = [
+                r for r in optimized["relationship_dynamics"]
+                if any(b.lower() in [p.lower() for p in present_characters] for b in r.get("between", []))
+            ]
+            optimized["relationship_dynamics"] = filtered_rels
+            
+        # 3. LỌC SIÊU METADATA: Ép AI chỉ tập trung vào cảnh trước mắt (Show, don't tell)
+        keys_to_drop = [
+            "story_identity",          # Tránh viết lan man về thông điệp truyện
+            "conflict_system",         # Tránh kể lể mâu thuẫn gia tộc/xã hội
+            "story_continuity",        # Tránh nhắc lại hạt giống ý tưởng
+            "emotional_architecture"   # Tránh tả cảm xúc kiểu nhảy cóc
+        ]
+        for k in keys_to_drop:
+            optimized.pop(k, None)
+
+    return optimized
