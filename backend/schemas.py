@@ -62,3 +62,11 @@ class LyricsExtractRequest(BaseModel):
 class UpdateRenderConfigRequest(BaseModel):
     render_config: dict
     video_metadata: dict
+
+class GenerateCharacterRequest(BaseModel):
+    user_prompt: str
+    current_bible: dict
+
+class GenerateRelationshipRequest(BaseModel):
+    user_prompt: str
+    current_bible: dict
