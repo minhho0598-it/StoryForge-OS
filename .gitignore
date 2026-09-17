@@ -1,9 +1,6 @@
 # ========================
 # BACKEND (Python)
 # ========================
-backend/__pycache__/
-backend/services/__pycache__/*
-backend/services/__pycache__/video_service.cpython-311.pyc
 backend/*.py[cod]
 backend/*$py.class
 backend/venv/
@@ -34,4 +31,5 @@ yarn-error.log*
 .DS_Store
 
 PROJECT_DOCS.md
-backend/services/__pycache__/video_service.cpython-311.pyc
+**/__pycache__/
+*.py[cod]
