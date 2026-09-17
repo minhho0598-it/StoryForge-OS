@@ -36,7 +36,8 @@ Story Bible là nguồn sự thật chính về:
 - conflict;
 - tone;
 - theme;
-- narrative boundaries.
+- narrative boundaries;
+- story engine (cơ chế đời sống khiến câu chuyện tiếp tục qua nhiều chương — `story_identity.story_engine`).
 
 Story Seed là nguồn sự thật về:
 
@@ -81,14 +82,18 @@ Trước khi thiết kế outline, hãy xác định đúng vibe này và điề
 - **Rivals-to-Lovers**: nhịp thân mật thường dồn nén qua căng thẳng/đối đầu rồi bùng nổ ở một khoảnh khắc rõ rệt.
 - **Digital-age Romance**: nhịp thân mật gắn với sự tương phản giữa hình ảnh công khai và khoảnh khắc riêng tư dễ tổn thương.
 - **Second-Chance Romance**: nhịp thân mật pha hoài niệm — sự quen thuộc cũ va vào cảm xúc mới.
-- **The Purist - Nguyên bản (100% cốt truyện gốc)**: nhịp thân mật nguyên bản - phụ thuộc vào quy định của story bible
+- **The Purist - Nguyên bản (100% cốt truyện gốc)**: nếu Story Bible xác định vibe này CÓ romance (`intimacy_guidance.applicable = true`), bám theo đúng `physical_intimacy_arc`/`natural_intimacy_beats` mà Bible đã tự thiết kế riêng cho premise này — không rập khuôn theo nhịp của 4 vibe romance kia; nếu Bible xác định không có romance, không tự thêm romance subplot.
 
-Nếu vibe thuộc 4 loại có romance, Story Bible sẽ cung cấp hai nguồn dữ liệu **là sự thật duy nhất** về tiến trình thân mật thể xác — outline **không được tự nghĩ ra một tiến trình độc lập, tách rời hai nguồn này**:
+Nếu vibe thuộc 4 loại có romance, hoặc vibe là Grounded Realistic Fiction/The Purist nhưng Story Bible đã xác định `intimacy_guidance.applicable = true`, Story Bible sẽ cung cấp hai nguồn dữ liệu **là sự thật duy nhất** về tiến trình thân mật thể xác — outline **không được tự nghĩ ra một tiến trình độc lập, tách rời hai nguồn này**:
 
 1. `relationship_dynamics[].physical_intimacy_arc` — tiến trình gần gũi cụ thể của từng cặp đôi chính.
 2. `intimacy_guidance` — gồm `comfort_level`, `natural_intimacy_beats` (danh sách các khoảnh khắc thân mật hợp lý, xếp theo mức tăng dần), `consent_and_pacing_rules`, và `depiction_style`.
 
 Nhiệm vụ của pacing là **ánh xạ (map)** các `natural_intimacy_beats` này vào đúng Phase/Chapter phù hợp với mốc tin tưởng trong `relationship_arc`, không phải phát minh lại từ đầu.
+
+Nếu Story Bible liệt kê nhiều `relationship_dynamics`, CHỈ dùng entry có `is_primary_romantic_pair: true` làm cặp đôi trung tâm cho romance subplot và Intimacy Ladder — các quan hệ khác chỉ đóng vai trò phụ trợ, không tự áp `physical_intimacy_arc` cho chúng trừ khi Bible cũng thiết kế riêng.
+
+Nhân vật được Bible đánh dấu `is_protagonist: true` là nhân vật dùng để lấp field `protagonist_emotional_state` trong `starting_state` của mỗi Phase và làm trục chính cho `character_arc` của outline. Nếu Bible đánh dấu 2 nhân vật cùng là protagonist (ensemble), `starting_state` cần phản ánh trạng thái của cả hai.
 
 ---
 
@@ -605,20 +610,23 @@ Bắt buộc phải tạo key `_thinking_process` đầu tiên. Hãy dùng khôn
 
 Cấu trúc JSON bắt buộc:
 
+LƯU Ý: mọi giá trị string bên dưới mô tả Ý NGHĨA / NỘI DUNG cần điền cho field đó — không phải giá trị mẫu để copy nguyên văn. Với các field bản chất số (`estimated_total_chapters`, `chapter_count`, `phase_id`, `chapter_number`) và boolean (`is_active`), JSON output thực tế phải dùng đúng kiểu number/boolean thật; nội dung của mô tả chỉ để hướng dẫn cách tính/xác định giá trị đó cho đúng câu chuyện này.
+
 {
   "_thinking_process": {
     "bible_alignment_check": "Phân tích Story Bible: Động cơ chính, Áp lực thực tế và Chủ đề cốt lõi của câu chuyện này là gì?",
     "causality_strategy": "Chiến lược nhân quả: Làm sao để các Phase nối tiếp nhau bằng Hậu quả của Lựa chọn (Choice -> Consequence) thay vì ngẫu nhiên?",
     "escalation_plan": "Kế hoạch leo thang: Mâu thuẫn sẽ tăng dần về mặt 'ý nghĩa cảm xúc' như thế nào mà không cần dùng đến Melodrama?",
-    "romance_or_relationship_logic": "Nếu có Romance: đối chiếu `physical_intimacy_arc` và `intimacy_guidance.natural_intimacy_beats` của Story Bible — các beat đó rơi vào nấc nào trên Intimacy Ladder, và Phase nào có mốc tin tưởng phù hợp để đặt từng beat (kể cả beat ở mức cao, nếu Bible đã chuẩn bị sẵn)? Nếu không có Romance, mối quan hệ trung tâm nào sẽ thay đổi?",
+    "romance_or_relationship_logic": "Nếu có Romance: đối chiếu `physical_intimacy_arc` và `intimacy_guidance.natural_intimacy_beats` của Story Bible (chỉ của cặp có `is_primary_romantic_pair: true`) — các beat đó rơi vào nấc nào trên Intimacy Ladder, và Phase nào có mốc tin tưởng phù hợp để đặt từng beat (kể cả beat ở mức cao, nếu Bible đã chuẩn bị sẵn)? Nếu không có Romance, mối quan hệ trung tâm nào sẽ thay đổi?",
+    "story_engine_usage": "Story Engine (`story_identity.story_engine`) của Bible là gì, và nó chi phối `causal_chain`/cấu trúc Phase như thế nào để câu chuyện duy trì được qua nhiều chương?",
     "chapter_allocation_math": "Tính toán: Phân bổ chính xác số lượng chương cho từng Phase để tổng bằng đúng estimated_total_chapters."
   },
 
   "outline_identity": {
     "title": "Tên truyện",
     "narrative_style": "Kiểu cấu trúc được lựa chọn.",
-    "estimated_total_chapters": 18,
-    "ending_type": "Grounded Happy Ending / Quiet Happy Ending / Open Ending / Bittersweet / Personal Growth Ending",
+    "estimated_total_chapters": "Số nguyên — tổng số chương thực tế của outline này, tính theo mục 5 dựa trên chất liệu của chính Story Bible/Story Seed này.",
+    "ending_type": "Loại kết thúc phù hợp nhất với character arc của chính câu chuyện này, chọn theo các phân loại ở mục 18 (Ending Variety) — không mặc định chọn loại xuất hiện đầu tiên trong mục đó.",
     "central_story_question": "Câu hỏi cảm xúc trung tâm.",
     "core_emotional_arc": "Đường cong cảm xúc tổng thể."
   },
@@ -626,8 +634,7 @@ Cấu trúc JSON bắt buộc:
   "story_structure": {
     "overall_progression": "Mô tả ngắn cách câu chuyện vận động từ đầu đến cuối.",
     "causal_chain": [
-      "Nguyên nhân → lựa chọn → hậu quả → áp lực mới.",
-      "Nguyên nhân → lựa chọn → hậu quả → áp lực mới."
+      "Mỗi phần tử mô tả một mắt xích nhân quả cụ thể của câu chuyện này theo cấu trúc Nguyên nhân → Lựa chọn → Hậu quả → Áp lực mới (xem mục 2); số lượng phần tử tùy theo số mắt xích thực sự tồn tại trong outline, không cố định."
     ],
     "climax_definition": "Điều gì thực sự là cao trào của câu chuyện và tại sao.",
     "resolution_definition": "Cách câu chuyện khép lại và vì sao phù hợp với character arc."
@@ -635,11 +642,11 @@ Cấu trúc JSON bắt buộc:
 
   "phases": [
     {
-      "phase_id": 1,
+      "phase_id": "Số nguyên thứ tự Phase, bắt đầu từ 1 và tăng dần liên tục không trùng/không nhảy số.",
       "phase_name": "Tên Phase",
-      "chapter_range": "1-4",
-      "chapter_count": 4,
-      "progress_percentage": "0-22%",
+      "chapter_range": "Khoảng chapter thực tế của Phase này, định dạng 'chapter_bắt_đầu-chapter_kết_thúc', tính theo phân bổ ở mục 7 — không suy ra từ số lượng Phase mặc định.",
+      "chapter_count": "Số nguyên — tổng số chapter trong Phase này (chapter kết thúc trừ chapter bắt đầu, cộng 1).",
+      "progress_percentage": "Khoảng phần trăm tiến độ truyện mà Phase này chiếm, tính từ chapter_range so với estimated_total_chapters, định dạng 'x%-y%'.",
       "phase_function": "Chức năng của Phase trong toàn bộ câu chuyện.",
 
       "starting_state": {
@@ -652,8 +659,7 @@ Cấu trúc JSON bắt buộc:
 
       "main_plot": {
         "events": [
-          "Sự kiện chính 1.",
-          "Sự kiện chính 2."
+          "Mỗi phần tử mô tả một sự kiện chính cụ thể xảy ra trong Phase này; số lượng phần tử tùy theo nhu cầu thực tế của Phase, không cố định."
         ],
         "causal_progression": "Sự kiện A dẫn đến B như thế nào.",
         "character_choices": [
@@ -677,7 +683,7 @@ Cấu trúc JSON bắt buộc:
       },
 
       "romance_subplot": {
-        "is_active": true,
+        "is_active": "true nếu Phase này có tiến triển romance rõ rệt (xem mục 12), false nếu không — quyết định dựa trên nội dung thực tế của Phase, không mặc định true.",
         "intimacy_level": "Mức độ thân mật trên Intimacy Ladder (mục 13).",
         "bible_beat_reference": "Beat cụ thể trong physical_intimacy_arc hoặc intimacy_guidance.natural_intimacy_beats của Story Bible mà Phase này đang thực hiện. Để 'Không áp dụng' nếu Phase này không tiến triển thân mật.",
         "romance_function": "Vai trò trong Phase.",
@@ -702,7 +708,7 @@ Cấu trúc JSON bắt buộc:
       ],
 
       "phase_turning_point": {
-        "type": "Emotional / Decision / Relationship / External Pressure / Plot",
+        "type": "Bản chất của bước ngoặt — cảm xúc, quyết định, thay đổi quan hệ, áp lực bên ngoài, hoặc sự kiện cốt truyện — chọn đúng loại phản ánh nội dung thực tế của Phase, không mặc định chọn một loại cố định.",
         "description": "Bước chuyển cuối Phase.",
         "why_it_matters": "Tại sao nó khiến câu chuyện bước sang Phase tiếp theo."
       }
@@ -711,11 +717,11 @@ Cấu trúc JSON bắt buộc:
 
   "chapter_map": [
     {
-      "chapter_number": 1,
-      "phase_id": 1,
+      "chapter_number": "Số nguyên thứ tự chapter, tăng dần liên tục từ 1 đến estimated_total_chapters, không thiếu/không trùng/không nhảy số (xem mục 23).",
+      "phase_id": "Phase mà chapter này thuộc về — phải khớp với một phase_id đã khai báo trong mảng phases.",
       "title": "Tên chương gợi ý",
-      "timeline_period": "Hiện tại HOẶC Mùa hè năm 2010 HOẶC Flashback",
-      "primary_function": "Setup / Character / Relationship / Conflict / Escalation / Turning Point...",
+      "timeline_period": "Mốc thời gian của chapter này — hiện tại, một mốc quá khứ cụ thể, hoặc flashback — xác định dựa theo timeline_structure thực tế của Story Bible cho câu chuyện này.",
+      "primary_function": "BẮT BUỘC CHỌN 1 TRONG CÁC GIÁ TRỊ SAU ĐÂY (Giữ nguyên văn tiếng Anh/Việt): 'Setup (Thiết lập cơ bản)', 'Inciting Incident (Biến cố kích hoạt)', 'Character Development (Phát triển nhân vật)', 'Relationship Development (Phát triển quan hệ)', 'Rising Action (Leo thang xung đột)', 'Turning Point (Bước ngoặt)', 'Midpoint (Điểm giữa)', 'Climax (Cao trào)', 'Resolution (Giải quyết)', 'Lore (Hé lộ thông tin thế giới/bí mật)'.",
       "main_event": "Sự kiện chính.",
       "character_focus": "Nhân vật được tập trung.",
       "emotional_beat": "Thay đổi cảm xúc.",
@@ -727,10 +733,10 @@ Cấu trúc JSON bắt buộc:
 
   "narrative_continuity": {
     "must_preserve": [
-      "Chi tiết Story Bible bắt buộc giữ nguyên."
+      "BẮT BUỘC bao gồm toàn bộ nội dung của `story_continuity.core_elements_that_must_not_change` trong Story Bible, cộng thêm các chi tiết khác cần giữ nguyên."
     ],
     "forbidden_developments": [
-      "Tình tiết tuyệt đối không được tự ý thêm."
+      "BẮT BUỘC bao gồm toàn bộ nội dung của `narrative_boundaries` trong Story Bible, cộng thêm các tình tiết khác tuyệt đối không được tự ý thêm."
     ]
   }
 }
@@ -808,6 +814,7 @@ Trước khi trả JSON, hãy tự kiểm tra:
 - Tổng chapter của các Phase = `estimated_total_chapters`.
 - `chapter_map` có đúng số chapter.
 - Chapter được đánh số liên tục.
+- Các field bản chất số (`estimated_total_chapters`, `chapter_count`, `phase_id`, `chapter_number`) và boolean (`is_active`) là kiểu number/boolean thật trong JSON, không phải chuỗi mô tả.
 
 ### STORY LOGIC
 
@@ -823,9 +830,11 @@ Trước khi trả JSON, hãy tự kiểm tra:
 - Motivation nhất quán.
 - Character arc tiến triển từng bước.
 - Không có hành động phi logic.
+- `protagonist_emotional_state` trong mỗi Phase bám đúng (các) nhân vật có `is_protagonist: true` trong Bible.
 
 ### ROMANCE
 
+- Chỉ dùng cặp đôi có `is_primary_romantic_pair: true` làm trục chính cho romance subplot và Intimacy Ladder.
 - Không ép romance vào Phase không cần thiết.
 - Intimacy tăng tự nhiên, đúng theo `physical_intimacy_arc` và `intimacy_guidance.natural_intimacy_beats` của Story Bible — không tự nghĩ ra tiến trình riêng, không đi trước mốc tin tưởng.
 - Nếu Story Bible đã chuẩn bị sẵn một beat thân mật ở mức cao, outline có tận dụng nó vào đúng Phase phù hợp, không né tránh một cách máy móc.
@@ -846,6 +855,7 @@ Trước khi trả JSON, hãy tự kiểm tra:
 - Không thay đổi Story Seed.
 - Các setup quan trọng có payoff hoặc lý do tồn tại.
 - Các chi tiết quan trọng được giữ nhất quán.
+- `must_preserve` đã bao gồm đủ `core_elements_that_must_not_change` của Bible; `forbidden_developments` đã bao gồm đủ `narrative_boundaries` của Bible.
 
 ### OUTPUT
 

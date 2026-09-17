@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Layers, ArrowRight, Save, X, Wand2 } from "lucide-react";
+import { Loader2, BookOpen, Layers, ArrowRight, Save, X, Wand2, Map, Sparkles } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 /* ------------------------------------------------------------------ */
@@ -103,6 +104,20 @@ const emptyRelationship = {
   physical_intimacy_arc: "",
 };
 
+const PRIMARY_FUNCTIONS = [
+  "Setup (Thiết lập cơ bản)",
+  "Inciting Incident (Biến cố kích hoạt)",
+  "Character Development (Phát triển nhân vật)",
+  "Relationship Development (Phát triển quan hệ)",
+  "Rising Action (Leo thang xung đột)",
+  "Turning Point (Bước ngoặt)",
+  "Midpoint (Điểm giữa)",
+  "Climax (Cao trào)",
+  "Resolution (Giải quyết)",
+  "Lore (Hé lộ thông tin thế giới/bí mật)",
+  "Khác (Chức năng phụ trợ)" // Fallback cho những logic cũ hoặc AI lỡ sinh lệch
+];
+
 export default function ArchitecturePage() {
   const params = useParams();
   const router = useRouter();
@@ -130,6 +145,13 @@ export default function ArchitecturePage() {
   // STATE THEO DÕI THAY ĐỔI CHƯA LƯU (IS DIRTY)
   const [isBibleDirty, setIsBibleDirty] = useState(false);
   const [isPacingDirty, setIsPacingDirty] = useState(false);
+
+  // === THÊM STATE CHO AI CHAPTER ===
+  const [isAiChapModalOpen, setIsAiChapModalOpen] = useState(false);
+  const [aiChapAction, setAiChapAction] = useState<"insert" | "edit">("insert");
+  const [targetChapIndex, setTargetChapIndex] = useState(0);
+  const [aiChapPrompt, setAiChapPrompt] = useState("");
+  const [isGeneratingAiChap, setIsGeneratingAiChap] = useState(false);
 
   const [isSavingBibleChanges, setIsSavingBibleChanges] = useState(false);
   const [isSavingPacingChanges, setIsSavingPacingChanges] = useState(false);
@@ -176,22 +198,62 @@ export default function ArchitecturePage() {
     }
   };
 
-  // 2. HÀM LƯU RIÊNG CHO PACING (CHỈ CẦN LƯU NHỮNG CHAPTER ĐÃ BỊ SỬA)
+  // THÊM CHƯƠNG MỚI (Tại vị trí index)
+  const addChapterAt = (index: number) => {
+    const newChaps = [...chapters];
+    // Chèn 1 object rỗng (chưa có ID) vào vị trí index
+    newChaps.splice(index, 0, {
+      temp_id: crypto.randomUUID(),
+      chapter_number: 0, // Sẽ được đánh số lại ở hàm recalculate
+      title: "Chương mới",
+      timeline_period: "Hiện tại",
+      pov_character: "Chưa xác định",
+      main_event: "",
+      primary_function: "Setup (Thiết lập cơ bản)" // Thay đổi mặc định cho chuẩn với hệ thống mới
+    });
+    
+    // Đánh lại số thứ tự
+    const renumberedChaps = newChaps.map((c, i) => ({ ...c, chapter_number: i + 1 }));
+    
+    setChapters(renumberedChaps);
+    setIsPacingDirty(true);
+  };
+
+  // XÓA CHƯƠNG
+  const removeChapter = (index: number) => {
+    const confirm = window.confirm("Bạn có chắc muốn xóa chương này không? Dữ liệu bản nháp (nếu có) sẽ bị mất.");
+    if (!confirm) return;
+    
+    const newChaps = [...chapters];
+    newChaps.splice(index, 1);
+    
+    // Đánh lại số thứ tự
+    const renumberedChaps = newChaps.map((c, i) => ({ ...c, chapter_number: i + 1 }));
+    
+    setChapters(renumberedChaps);
+    setIsPacingDirty(true);
+  };
+
+  // CẬP NHẬT TRƯỜNG DỮ LIỆU CỦA CHƯƠNG
+  const updateChapterField = (index: number, field: string, value: string) => {
+    const newChaps = [...chapters];
+    newChaps[index][field] = value;
+    setChapters(newChaps);
+    setIsPacingDirty(true);
+  };
+
+  // HÀM SAVE PACING MỚI (Gửi nguyên mảng)
   const handleSavePacing = async () => {
     setIsSavingPacingChanges(true);
     try {
-      // Chạy vòng lặp lưu từng Chapter. 
-      // Tối ưu nhất là gọi 1 API Bulk Update bên Backend, nhưng tạm dùng loop cho dễ hiểu
-      await Promise.all(
-        chapters.map(chap => 
-          fetch(`http://localhost:8765/api/chapters/${chap.id}/goal`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ goal: chap.goal })
-          })
-        )
-      );
-      setIsPacingDirty(false); // Tắt cờ
+      await fetch(`http://localhost:8765/api/projects/${projectId}/bulk-update-chapters`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapters: chapters })
+      });
+      setIsPacingDirty(false);
+      // Tải lại danh sách để lấy ID mới do Supabase cấp cho các chương vừa tạo
+      fetchChapters(); 
     } catch (e) {
       alert("Lỗi khi lưu Pacing.");
     } finally {
@@ -367,6 +429,63 @@ export default function ArchitecturePage() {
     } finally {
       setIsGeneratingRel(false);
     }
+  };
+
+
+  const handleAiChapterSubmit = async () => {
+    if (!aiChapPrompt.trim()) return alert("Vui lòng nhập yêu cầu cho AI!");
+    
+    setIsGeneratingAiChap(true);
+    try {
+      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-single-chapter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action_type: aiChapAction,
+          target_index: targetChapIndex,
+          user_prompt: aiChapPrompt,
+          current_chapters: chapters
+        })
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        const newChapterData = result.data;
+        const newChaps = [...chapters];
+        
+        if (aiChapAction === "insert") {
+          // Chèn vào vị trí index
+          newChaps.splice(targetChapIndex, 0, {
+            ...newChapterData,
+            temp_id: crypto.randomUUID() // <-- THÊM DÒNG NÀY
+          });
+        } else {
+          // Chép đè id cũ để không bị mất liên kết DB, chỉ đè nội dung mới
+          newChaps[targetChapIndex] = { ...newChaps[targetChapIndex], ...newChapterData };
+        }
+        
+        // Đánh lại số thứ tự
+        const renumberedChaps = newChaps.map((c, i) => ({ ...c, chapter_number: i + 1 }));
+        setChapters(renumberedChaps);
+        setIsPacingDirty(true);
+        
+        setIsAiChapModalOpen(false);
+        setAiChapPrompt("");
+      } else {
+        alert("Lỗi tạo chương: " + result.detail);
+      }
+    } catch (e) {
+      alert("Mất kết nối Backend.");
+    } finally {
+      setIsGeneratingAiChap(false);
+    }
+  };
+
+  const openAiChapModal = (action: "insert" | "edit", index: number) => {
+    setAiChapAction(action);
+    setTargetChapIndex(index);
+    setAiChapPrompt("");
+    setIsAiChapModalOpen(true);
   };
 
   return (
@@ -1061,45 +1180,207 @@ export default function ArchitecturePage() {
           </TabsContent>
 
           {/* TAB 2: PACING */}
+          {/* TAB 2: PACING (TIMELINE EDITOR) */}
           <TabsContent value="pacing">
-            <Card className="relative border-slate-200 shadow-sm opacity-100">
-              <CardHeader className="bg-white border-b pb-4 flex flex-row items-center justify-between">
+            <Card className="border-slate-200 shadow-sm min-h-[50vh] flex flex-col">
+              
+              <CardHeader className="bg-slate-100 rounded-t-lg border-b pb-4 flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Phân Bổ Tuyến Truyện</CardTitle>
-                  <CardDescription>Danh sách các chương và sự kiện chính.</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Layers className="h-5 w-5 text-indigo-600" />
+                    Khung Chương (Pacing)
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Phân bổ thời lượng, bối cảnh và diễn biến từng chương.
+                  </CardDescription>
                 </div>
-                <Button onClick={generatePacing} disabled={pacingLoading} variant="secondary">
-                  {pacingLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "AI Tạo Cấu Trúc"}
+
+                {/* NÚT TẠO LẠI (AI): Luôn hiện để user có thể đập đi chia lại chương */}
+                <Button
+                  onClick={generatePacing}
+                  disabled={pacingLoading}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
+                >
+                  {pacingLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                  {chapters.length > 0 ? "AI Tạo Cấu Trúc Khác" : "AI Tạo Cấu Trúc"}
                 </Button>
               </CardHeader>
+              
+              <CardContent className="flex-1 p-6 bg-slate-50 relative">
+                
+                {/* TRẠNG THÁI 1: ĐANG LOADING (Gọi AI) */}
+                {pacingLoading && (
+                  <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center text-indigo-600 backdrop-blur-sm rounded-b-lg">
+                    <Loader2 className="h-10 w-10 animate-spin mb-4" />
+                    <p className="font-medium animate-pulse">Trí tuệ nhân tạo đang phân bổ cấu trúc truyện...</p>
+                  </div>
+                )}
 
-              <CardContent className="p-6 bg-slate-50">
-                <div className="space-y-4 pb-10">
-                  {chapters.map((chap, idx) => (
-                    <div key={chap.id} className="bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="text-lg font-bold text-slate-800">Chương {chap.chapter_number}</div>
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] uppercase tracking-wider">
-                            {chap.timeline_period || "Hiện tại"}
-                          </Badge>
-                        </div>
-                        <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">
-                          POV: {chap.pov_character || "Không rõ"}
-                        </span>
+                {/* TRẠNG THÁI 2: TRỐNG TRƠN (Chưa có chương nào) */}
+                {!pacingLoading && chapters.length === 0 ? (
+                  <div className="h-full min-h-[40vh] flex flex-col items-center justify-center text-slate-400 space-y-4">
+                    <Layers className="h-16 w-16 text-slate-200" />
+                    <p>Dự án chưa có khung chương nào.</p>
+                    <div className="flex gap-4">
+                      <Button variant="outline" onClick={() => addChapterAt(0)}>
+                        + Tự viết chương đầu tiên
+                      </Button>
+                      <Button onClick={generatePacing} className="bg-indigo-600 hover:bg-indigo-700">
+                        <Wand2 className="mr-2 h-4 w-4" /> Nhờ AI chẻ chương
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+
+                /* TRẠNG THÁI 3: HIỂN THỊ DANH SÁCH EDITOR */
+                <div className="space-y-6 pb-10">
+
+                  {/* ====== TÓM TẮT MẠCH TRUYỆN (MINIMAP) ====== */}
+                  {chapters.length > 0 && (
+                    <div className="mb-8 p-5 bg-white border border-slate-200 rounded-xl shadow-sm">
+                      <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center uppercase tracking-wider">
+                        <Map className="w-4 h-4 mr-2 text-indigo-500"/> Toàn cảnh mạch truyện
+                      </h3>
+                      <div className="flex gap-3 overflow-x-auto pb-3 pt-1 px-1 scrollbar-thin scrollbar-thumb-slate-300">
+                        {chapters.map((c, i) => (
+                          <div key={c.id || c.temp_id} className="min-w-[220px] max-w-[220px] border border-slate-150 rounded-lg p-3 bg-slate-50 flex-shrink-0 hover:border-indigo-300 transition-colors cursor-default relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-400 opacity-70"></div>
+                            <p className="text-[10px] font-black text-indigo-600 mb-1">CHƯƠNG {c.chapter_number}</p>
+                            <p className="font-bold text-sm text-slate-800 line-clamp-1">{c.title || "Chưa có tên"}</p>
+                            <p className="text-xs text-slate-500 mt-1 truncate">{c.pov_character}</p>
+                            <Badge variant="outline" className="mt-2 text-[9px] bg-white text-slate-600 border-slate-200">
+                              {c.primary_function ? c.primary_function.split('(')[0].trim() : "Chưa phân loại"}
+                            </Badge>
+                          </div>
+                        ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Nút thêm chương ở đỉnh */}
+                  <div className="flex justify-center gap-3 -mb-2">
+                      <Button variant="outline" size="sm" className="rounded-full h-8 px-4 mb-6 text-xs text-slate-600 hover:bg-slate-100 shadow-sm" onClick={() => addChapterAt(0)}>
+                        + Chèn thủ công
+                      </Button>
+                      <Button variant="default" size="sm" className="rounded-full h-8 px-4 mb-6 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 shadow-sm" onClick={() => openAiChapModal("insert", 0)}>
+                        <Sparkles className="w-3 h-3 mr-1" /> AI Chèn Mở Đầu
+                      </Button>
+                  </div>
+
+                  {chapters.map((chap, idx) => (
+                    <div key={chap.id || chap.temp_id}  className="relative">
                       
-                      <div className="space-y-2">
-                        <Label className="text-slate-500">Mục tiêu / Sự kiện chính</Label>
-                        <Textarea 
-                          className="resize-y min-h-[80px] text-base"
-                          value={chap.goal || ""}
-                          onChange={(e) => updateChapterGoal(idx, e.target.value)}
-                        />
+                      {/* THE CARD */}
+                      <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm flex flex-col gap-4 hover:border-indigo-300 transition-colors group">
+                        
+                        {/* THANH CÔNG CỤ HOVER (Nằm góc trên phải) */}
+                        <div className="absolute -top-3 -right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <Button variant="secondary" size="sm" className="h-8 rounded-full shadow-md bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50" onClick={() => openAiChapModal("edit", idx)}>
+                            <Sparkles className="h-3 w-3 mr-1" /> AI Sửa
+                          </Button>
+                          <Button variant="destructive" size="icon" className="h-8 w-8 rounded-full shadow-md" onClick={() => removeChapter(idx)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* HEADER CHƯƠNG */}
+                        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                          <div className="flex items-end gap-3">
+                            <div className="font-black text-slate-800 text-xl whitespace-nowrap bg-slate-100 px-3 py-1 rounded-md">
+                              Chương {chap.chapter_number}
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-slate-400 uppercase tracking-widest ml-1">Tiêu đề</Label>
+                              <Input 
+                                className="h-9 font-bold text-slate-700 w-[200px] sm:w-[250px] border-slate-200 focus-visible:ring-indigo-500" 
+                                value={chap.title || ""} 
+                                onChange={(e) => updateChapterField(idx, "title", e.target.value)}
+                                placeholder="Nhập tiêu đề..."
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 w-full md:w-auto bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-amber-600 uppercase tracking-widest ml-1">Mốc thời gian</Label>
+                              <Input 
+                                className="h-8 text-xs font-semibold text-amber-800 bg-amber-50/50 border-amber-200 w-[130px]" 
+                                value={chap.timeline_period || ""} 
+                                onChange={(e) => updateChapterField(idx, "timeline_period", e.target.value)}
+                                placeholder="Ví dụ: Hiện tại"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-indigo-600 uppercase tracking-widest ml-1">Góc nhìn (POV)</Label>
+                              <Input 
+                                className="h-8 text-xs font-semibold text-indigo-800 bg-indigo-50/50 border-indigo-200 w-[130px]" 
+                                value={chap.pov_character || ""} 
+                                onChange={(e) => updateChapterField(idx, "pov_character", e.target.value)}
+                                placeholder="Nhân vật..."
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <Separator className="bg-slate-100" />
+
+                        {/* NỘI DUNG CHƯƠNG (CODE CỦA BẠN ĐÃ UPDATE LÚC NÃY) */}
+                        <div className="flex flex-col gap-5">
+                          <div className="space-y-2 w-full md:w-[350px]">
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                              🎯 Chức năng (Primary Function)
+                            </Label>
+                            <Select
+                              value={chap.primary_function || ""}
+                              onValueChange={(value) => updateChapterField(idx, "primary_function", value)}
+                            >
+                              <SelectTrigger className="h-10 bg-slate-50 border-slate-200 focus:ring-indigo-500 font-medium text-slate-700">
+                                <SelectValue placeholder="Chọn chức năng của chương..." />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[350px] min-w-[300px]">
+                                {PRIMARY_FUNCTIONS.map((func) => (
+                                  <SelectItem key={func} value={func} className="text-sm cursor-pointer py-2.5">
+                                    {func}
+                                  </SelectItem>
+                                ))}
+                                {chap.primary_function && !PRIMARY_FUNCTIONS.includes(chap.primary_function) && (
+                                  <SelectItem value={chap.primary_function} className="text-sm italic text-amber-600 py-2.5">
+                                    {chap.primary_function} (Cũ)
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                              🎬 Sự kiện chính (Main Event)
+                            </Label>
+                            <Textarea 
+                              className="resize-y min-h-[120px] text-sm leading-relaxed focus-visible:ring-indigo-500 bg-white"
+                              value={chap.main_event || (chap.goal || "")} 
+                              onChange={(e) => updateChapterField(idx, "main_event", e.target.value)}
+                              placeholder="Mô tả sự kiện cụ thể diễn ra, hành động của nhân vật..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Nút thêm chương chèn ở giữa */}
+                      <div className="flex justify-center gap-3 -mb-3 mt-5 opacity-0 hover:opacity-100 transition-opacity">
+                          <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 shadow-sm z-10 relative" onClick={() => addChapterAt(idx + 1)}>
+                            + Chèn thủ công
+                          </Button>
+                          <Button variant="default" size="sm" className="rounded-full h-8 px-4 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 shadow-sm z-10 relative" onClick={() => openAiChapModal("insert", idx + 1)}>
+                            <Sparkles className="w-3 h-3 mr-1" /> AI Chèn Vào Đây
+                          </Button>
                       </div>
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1193,6 +1474,40 @@ export default function ArchitecturePage() {
             <Button onClick={generateAiRelationship} disabled={isGeneratingRel || !aiRelPrompt} className="bg-indigo-600 hover:bg-indigo-700">
               {isGeneratingRel ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
               Tạo Quan Hệ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL AI CHÈN/SỬA CHƯƠNG */}
+      <Dialog open={isAiChapModalOpen} onOpenChange={setIsAiChapModalOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-indigo-600" />
+              {aiChapAction === "insert" 
+                ? `AI Tạo Chương Mới (Vị trí ${targetChapIndex + 1})` 
+                : `AI Sửa Chương ${targetChapIndex + 1}`}
+            </DialogTitle>
+            <DialogDescription>
+              {aiChapAction === "insert" 
+                ? "Mô tả sự kiện bạn muốn chèn vào vị trí này. AI sẽ tự liên kết với mạch truyện trước và sau."
+                : "Chỉ ra điểm bạn chưa ưng ý ở chương này (Ví dụ: Thêm một chút drama, đổi điểm nhìn sang nam chính...)"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea 
+              placeholder={aiChapAction === "insert" ? "VD: Nam chính vô tình phát hiện ra bí mật trong điện thoại..." : "VD: Làm cho cuộc cãi vã trở nên gay gắt hơn..."}
+              value={aiChapPrompt}
+              onChange={(e) => setAiChapPrompt(e.target.value)}
+              className="resize-none h-32"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAiChapModalOpen(false)}>Hủy</Button>
+            <Button onClick={handleAiChapterSubmit} disabled={isGeneratingAiChap || !aiChapPrompt} className="bg-indigo-600 hover:bg-indigo-700">
+              {isGeneratingAiChap ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
+              {aiChapAction === "insert" ? "Tạo Chương Mới" : "Cập Nhật Chương"}
             </Button>
           </DialogFooter>
         </DialogContent>
