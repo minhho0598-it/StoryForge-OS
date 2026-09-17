@@ -404,10 +404,10 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
                 supabase.table("beats").delete().eq("chapter_id", chap_id).execute()
                 supabase.table("chapters").delete().eq("id", chap_id).execute()
                 
+        # 2. BƯỚC TÁCH MẢNG UPDATE VÀ INSERT
         # ==========================================
-        # 2. BƯỚC UPSERT (Update + Insert GỘP CHUNG 1 NHỊP)
-        # ==========================================
-        chapters_to_upsert = []
+        chapters_to_update = []
+        chapters_to_insert = []
         
         for chap in request.chapters:
             chap_data = {
@@ -420,18 +420,21 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
                 "primary_function": chap.primary_function
             }
             
+            # Nếu là chương cũ (có ID thật trên DB) -> Đưa vào mảng Update
             if chap.id and (str(chap.id) in current_ids):
-                # Nếu là chương cũ -> Truyền kèm ID thật để Supabase biết đường Update
                 chap_data["id"] = str(chap.id)
+                chapters_to_update.append(chap_data)
             else:
-                # Nếu là chương mới -> Không truyền ID để Supabase tự Insert
+                # Nếu là chương mới -> Đưa vào mảng Insert (tuyệt đối không truyền key 'id')
                 chap_data["status"] = "Drafting Pending"
-                
-            chapters_to_upsert.append(chap_data)
+                chapters_to_insert.append(chap_data)
 
-        # GỬI TOÀN BỘ MẢNG DATA VÀO DATABASE TRONG ĐÚNG 1 REQUEST!
-        if chapters_to_upsert:
-            supabase.table("chapters").upsert(chapters_to_upsert).execute()
+        # Thực thi theo lô (Batching)
+        if chapters_to_update:
+            supabase.table("chapters").upsert(chapters_to_update).execute()
+            
+        if chapters_to_insert:
+            supabase.table("chapters").insert(chapters_to_insert).execute()
 
         return {"success": True}
         
