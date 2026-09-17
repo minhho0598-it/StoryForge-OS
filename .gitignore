@@ -32,4 +32,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .DS_Store
-frontend/PROJECT_DOCS.md
+
+PROJECT_DOCS.md
+backend/services/__pycache__/video_service.cpython-311.pyc
