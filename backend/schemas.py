@@ -63,6 +63,14 @@ class UpdateRenderConfigRequest(BaseModel):
     render_config: dict
     video_metadata: dict
 
+class GenerateCharacterRequest(BaseModel):
+    user_prompt: str
+    current_bible: dict
+
+class GenerateRelationshipRequest(BaseModel):
+    user_prompt: str
+    current_bible: dict
+
 class ChapterItem(BaseModel):
     id: str | None = None # ID có thể null nếu là chapter mới tạo trên UI
     chapter_number: int

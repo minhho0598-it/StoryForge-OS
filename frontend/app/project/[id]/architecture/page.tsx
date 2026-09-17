@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 
 /* ------------------------------------------------------------------ */
@@ -115,6 +116,16 @@ export default function ArchitecturePage() {
   const [pacingLoading, setPacingLoading] = useState(false);
   const [chapters, setChapters] = useState<any[]>([]);
   const [pacingStatus, setPacingStatus] = useState<"pending" | "done">("pending");
+
+  // === THÊM STATE CHO CHARACTER ===
+  const [isAiCharModalOpen, setIsAiCharModalOpen] = useState(false);
+  const [aiCharPrompt, setAiCharPrompt] = useState("");
+  const [isGeneratingChar, setIsGeneratingChar] = useState(false);
+
+  // === THÊM STATE CHO RELATIONSHIP ===
+  const [isAiRelModalOpen, setIsAiRelModalOpen] = useState(false);
+  const [aiRelPrompt, setAiRelPrompt] = useState("");
+  const [isGeneratingRel, setIsGeneratingRel] = useState(false);
 
   // STATE THEO DÕI THAY ĐỔI CHƯA LƯU (IS DIRTY)
   const [isBibleDirty, setIsBibleDirty] = useState(false);
@@ -321,6 +332,81 @@ export default function ArchitecturePage() {
     handleSaveBible();
   };
 
+  
+  const generateAiCharacter = async () => {
+    if (!aiCharPrompt.trim()) return alert("Vui lòng nhập mô tả nhân vật!");
+    
+    setIsGeneratingChar(true);
+    try {
+      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-character`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_prompt: aiCharPrompt,
+          current_bible: bibleData // Đưa Bible hiện tại lên làm context
+        })
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        // Chèn nhân vật mới vào list và tự động Bật cờ Dirty
+        const newData = {
+          ...bibleData,
+          characters: [...(bibleData?.characters || []), result.data],
+        };
+        setBibleData(newData);
+        setIsBibleDirty(true);
+        
+        // Đóng modal và reset
+        setIsAiCharModalOpen(false);
+        setAiCharPrompt("");
+      } else {
+        alert("Lỗi tạo nhân vật: " + result.detail);
+      }
+    } catch (e) {
+      alert("Mất kết nối Backend.");
+    } finally {
+      setIsGeneratingChar(false);
+    }
+  };
+
+
+  const generateAiRelationship = async () => {
+    if (!aiRelPrompt.trim()) return alert("Vui lòng nhập mô tả mối quan hệ!");
+    
+    setIsGeneratingRel(true);
+    try {
+      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-relationship`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_prompt: aiRelPrompt,
+          current_bible: bibleData // Truyền cả Bible lên
+        })
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        // Chèn vào list và bật cờ Dirty
+        const newData = {
+          ...bibleData,
+          relationship_dynamics: [...(bibleData?.relationship_dynamics || []), result.data],
+        };
+        setBibleData(newData);
+        setIsBibleDirty(true);
+        
+        // Đóng modal và reset
+        setIsAiRelModalOpen(false);
+        setAiRelPrompt("");
+      } else {
+        alert("Lỗi tạo quan hệ: " + result.detail);
+      }
+    } catch (e) {
+      alert("Mất kết nối Backend.");
+    } finally {
+      setIsGeneratingRel(false);
+    }
+  };
 
   return (
     <div className="bg-slate-50 p-6 pb-24 relative"> 
@@ -398,6 +484,11 @@ export default function ArchitecturePage() {
                         onChange={(v: any) => updateBible(["story_identity", "central_theme"], v)}
                         rows={2}
                       />
+                      <ArrayTextareaField
+                        label="Chủ đề phụ (Sub Themes)"
+                        value={bibleData?.story_identity?.sub_themes}
+                        onChange={(v: any) => updateBible(["story_identity", "sub_themes"], v)}
+                      />
                       <TextAreaField
                         label="Cảm xúc hứa hẹn (Emotional Promise)"
                         value={bibleData?.story_identity?.emotional_promise}
@@ -408,6 +499,12 @@ export default function ArchitecturePage() {
                         label="Cấu trúc Thời gian (Timeline Structure)"
                         value={bibleData?.story_identity?.timeline_structure}
                         onChange={(v: any) => updateBible(["story_identity", "timeline_structure"], v)}
+                      />
+                      <TextAreaField
+                        label="Câu hỏi cảm xúc mà câu chuyện muốn đặt ra (Thematic Question)"
+                        value={bibleData?.story_identity?.thematic_question}
+                        onChange={(v: any) => updateBible(["story_identity", "thematic_question"], v)}
+                        rows={2}
                       />
                     </AccordionContent>
                   </AccordionItem>
@@ -598,9 +695,17 @@ export default function ArchitecturePage() {
                         </div>
                       ))}
 
-                      <Button variant="outline" className="w-full" onClick={addCharacter}>
-                        + Thêm nhân vật
-                      </Button>
+                      <div className="flex gap-4">
+                        <Button variant="outline" className="flex-1" onClick={addCharacter}>
+                          + Thêm thủ công
+                        </Button>
+                        <Button 
+                          className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200" 
+                          onClick={() => setIsAiCharModalOpen(true)}
+                        >
+                          <Wand2 className="h-4 w-4 mr-2" /> AI Sinh Nhân Vật
+                        </Button>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -939,9 +1044,17 @@ export default function ArchitecturePage() {
                         </div>
                       ))}
 
-                      <Button variant="outline" className="w-full" onClick={addRelationship}>
-                        + Thêm mối quan hệ
-                      </Button>
+                      <div className="flex gap-4">
+                        <Button variant="outline" className="flex-1" onClick={addRelationship}>
+                          + Thêm thủ công
+                        </Button>
+                        <Button 
+                          className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200" 
+                          onClick={() => setIsAiRelModalOpen(true)}
+                        >
+                          <Wand2 className="h-4 w-4 mr-2" /> AI Sinh Quan Hệ
+                        </Button>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -1183,6 +1296,60 @@ export default function ArchitecturePage() {
           </div>
         </div>
       )}
+
+      {/* MODAL AI SINH NHÂN VẬT */}
+      <Dialog open={isAiCharModalOpen} onOpenChange={setIsAiCharModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>AI Sinh Nhân Vật Mới</DialogTitle>
+            <DialogDescription>
+              Hãy miêu tả sơ bộ về nhân vật bạn muốn thêm (vai trò, tính cách...). AI sẽ tự động điền 20 trường thông tin phù hợp với cốt truyện.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea 
+              placeholder="VD: Một ông chủ quán cà phê trầm tính, từng trải, luôn cho nam chính những lời khuyên hữu ích..."
+              value={aiCharPrompt}
+              onChange={(e) => setAiCharPrompt(e.target.value)}
+              className="resize-none h-32"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAiCharModalOpen(false)}>Hủy</Button>
+            <Button onClick={generateAiCharacter} disabled={isGeneratingChar || !aiCharPrompt} className="bg-indigo-600 hover:bg-indigo-700">
+              {isGeneratingChar ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
+              Tạo Nhân Vật
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL AI SINH MỐI QUAN HỆ */}
+      <Dialog open={isAiRelModalOpen} onOpenChange={setIsAiRelModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>AI Sinh Mối Quan Hệ</DialogTitle>
+            <DialogDescription>
+              Nhập tên 2 nhân vật và một vài từ khóa về sự tương tác của họ (VD: Cạnh tranh ngầm, Yêu thầm, Quan hệ sếp - nhân viên...).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea 
+              placeholder="VD: Quan hệ giữa Minh và ông chủ quán. Minh coi ông như người cha, nhưng ông chủ lại giấu một bí mật liên quan đến gia đình Minh..."
+              value={aiRelPrompt}
+              onChange={(e) => setAiRelPrompt(e.target.value)}
+              className="resize-none h-32"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAiRelModalOpen(false)}>Hủy</Button>
+            <Button onClick={generateAiRelationship} disabled={isGeneratingRel || !aiRelPrompt} className="bg-indigo-600 hover:bg-indigo-700">
+              {isGeneratingRel ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
+              Tạo Quan Hệ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
     </div>
   );

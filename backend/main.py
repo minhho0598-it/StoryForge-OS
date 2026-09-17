@@ -12,6 +12,8 @@ from schemas import (
     BulkBeatUpdateRequest,
     BulkUpdateChaptersRequest,
     ChapterUpdateRequest,
+    GenerateCharacterRequest,
+    GenerateRelationshipRequest,
     IdeationRequest,
     MetadataGenerateRequest,
     ProjectCreateRequest,
@@ -161,6 +163,48 @@ async def update_story_bible(project_id: str, request: UpdateBibleRequest):
     try:
         supabase.table("projects").update({"story_bible": request.story_bible}).eq("id", project_id).execute()
         return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/generate-character")
+async def generate_character(project_id: str, request: GenerateCharacterRequest):
+    try:
+        system_prompt = prompt_manager.load_prompt("add_character_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "add_character_user.md",
+            current_bible=json.dumps(request.current_bible, ensure_ascii=False),
+            user_prompt=request.user_prompt
+        )
+        
+        result = await generate_json(system_prompt, user_prompt)
+        new_char = result.get("new_character")
+        
+        if not new_char:
+            raise ValueError("AI không tạo được nhân vật theo đúng chuẩn.")
+            
+        return {"success": True, "data": new_char}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/generate-relationship")
+async def generate_relationship(project_id: str, request: GenerateRelationshipRequest):
+    try:
+        system_prompt = prompt_manager.load_prompt("add_relationship_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "add_relationship_user.md",
+            current_bible=json.dumps(request.current_bible, ensure_ascii=False),
+            user_prompt=request.user_prompt
+        )
+        
+        result = await generate_json(system_prompt, user_prompt)
+        new_rel = result.get("new_relationship")
+        
+        if not new_rel:
+            raise ValueError("AI không tạo được mối quan hệ theo đúng chuẩn.")
+            
+        return {"success": True, "data": new_rel}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -830,7 +874,7 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,65,&H0000FFFF,&H000000FF,&H00000000,&H99000000,-1,0,0,0,100,100,0,0,1,6,3,2,20,20,250,1
+Style: Default,Be Vietnam Pro,72,&H0000FFFF,&H000000FF,&H00000000,&H99000000,-1,0,0,0,100,100,0,0,1,6,3,2,20,20,480,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
