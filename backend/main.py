@@ -338,7 +338,7 @@ async def generate_single_chapter(project_id: str, request: GenerateSingleChapte
 async def generate_beats(chapter_id: str):
     try:
         # Lấy thông tin chapter và project liên quan
-        chap_res = supabase.table("chapters").select("id, chapter_number, title, goal, pov_character, projects(story_bible, current_memory)").eq("id", chapter_id).execute()
+        chap_res = supabase.table("chapters").select("id, chapter_number, title, main_event, primary_function, pov_character, timeline_period, projects(story_bible, current_memory)").eq("id", chapter_id).execute()
         if not chap_res.data: raise HTTPException(status_code=404, detail="Chapter not found")
         chapter = chap_res.data[0]
         project = chapter["projects"]
@@ -349,10 +349,9 @@ async def generate_beats(chapter_id: str):
         user_prompt = prompt_manager.load_prompt(
             "beat_user.md",
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
-            chapter_info=json.dumps({"title": chapter["title"], "goal": chapter["goal"], "pov": chapter["pov_character"]}),
+            chapter_info=json.dumps({"title": chapter["title"], "main_event": chapter["main_event"], "primary_function": chapter["primary_function"], "pov": chapter["pov_character"], "timeline_period": chapter["timeline_period"]}),
             current_memory=project.get("current_memory", "Đây là chương đầu tiên.")
         )
-        print(f"User Prompt for Beat Generation: {user_prompt}")
         
         # Gọi LLM sinh JSON Beats
         beats_json = await generate_json(system_prompt, user_prompt)
@@ -449,8 +448,10 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
 async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks):
     try:
         # 1. Lấy tất cả các beats của chương, sắp xếp đúng thứ tự
+        chapter_res = supabase.table("chapters").select("main_event, primary_function, pov_character, timeline_period").eq("id", chapter_id).execute()
         beats_res = supabase.table("beats").select("*").eq("chapter_id", chapter_id).order("beat_order").execute()
         beats = beats_res.data
+        chapter_info = chapter_res.data[0] if chapter_res.data else {}
         
         if not beats:
             raise HTTPException(status_code=400, detail="Chương này chưa có nhịp truyện (Beats) nào.")
