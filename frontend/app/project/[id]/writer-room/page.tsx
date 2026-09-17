@@ -62,13 +62,27 @@ export default function WriterRoomPage() {
   // 2. Tải danh sách Beats khi chọn 1 Chương
   useEffect(() => {
     if (!selectedChapter) return;
-    setLoadingBeats(true);
-    fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/beats`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) setBeats(data.data);
-      })
-      .finally(() => setLoadingBeats(false));
+
+    if (selectedChapter.status === "Refined & Ready for Audio" && !selectedChapter.final_content) {
+      // Nếu chương đã hoàn thiện, không cần tải beats nữa, chuyển qua tải final_content
+      setBeats([]);
+      fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setSelectedChapter((prev: any) => ({ ...prev, final_content: data.data.final_content }));
+          }
+        });
+      return;
+    } else if (selectedChapter.status !== "Refined & Ready for Audio") {
+      setLoadingBeats(true);
+      fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/beats`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) setBeats(data.data);
+        })
+        .finally(() => setLoadingBeats(false));
+    }
   }, [selectedChapter]);
 
   // --- HÀM XỬ LÝ TEXT THAY ĐỔI TRÊN GIAO DIỆN ---
