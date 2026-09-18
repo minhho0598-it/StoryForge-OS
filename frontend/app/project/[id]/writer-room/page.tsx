@@ -63,7 +63,7 @@ export default function WriterRoomPage() {
   useEffect(() => {
     if (!selectedChapter) return;
 
-    if (selectedChapter.status === "Refined & Ready for Audio" && !selectedChapter.final_content) {
+    if (DONE_WRITING_STATUSES.includes(selectedChapter.status) && !selectedChapter.final_content) {
       // Nếu chương đã hoàn thiện, không cần tải beats nữa, chuyển qua tải final_content
       setBeats([]);
       fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}`)
@@ -74,7 +74,7 @@ export default function WriterRoomPage() {
           }
         });
       return;
-    } else if (selectedChapter.status !== "Refined & Ready for Audio") {
+    } else if (!DONE_WRITING_STATUSES.includes(selectedChapter.status)) {
       setLoadingBeats(true);
       fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/beats`)
         .then(res => res.json())
