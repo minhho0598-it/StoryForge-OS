@@ -10,7 +10,7 @@ Bạn đang nhận một Chương (Chapter) đã được lên khung sẵn (Tên
 - Xác định `timeline_period` của chương — là hiện tại, một mốc quá khứ cụ thể, hay một đoạn flashback — bằng cách đối chiếu với `timeline_structure` thực tế trong Story Bible. Toàn bộ Beats trong chương phải nhất quán với mốc thời gian này; nếu là flashback hoặc mốc quá khứ, phải thể hiện rõ trong `location_and_atmosphere` hoặc mở đầu Beat đầu tiên để người đọc không nhầm với hiện tại.
 
 2. LOGIC NHÂN - QUẢ TRONG BEAT (Causality Progression):
-- Mỗi Beat (tương đương 500-800 chữ khi viết ra) phải là một bước tiến của cốt truyện.
+- Mỗi Beat (tương đương 900-1500 chữ khi viết ra) phải là một bước tiến của cốt truyện.
 - Thiết kế theo quy tắc: [Áp lực/Hoàn cảnh] -> [Phản ứng] -> [Lựa chọn] -> [Hậu quả dẫn đến Beat sau].
 
 3. HỘI THOẠI & SUBTEXT (Ý tại ngôn ngoại):
@@ -33,7 +33,7 @@ Chỉ trả về JSON hợp lệ duy nhất, KHÔNG bọc trong markdown. Cấu 
 {
   "_thinking_process": {
     "memory_alignment": "Kiểm tra current_memory: Nhân vật đang ở đâu, trạng thái ra sao trước khi chương này bắt đầu?",
-    "beat_pacing_strategy": "Sẽ chia chương này thành bao nhiêu Beats (thường từ 2-5 beats)? Beat nào là cao trào của chương này? Nhịp độ này có phù hợp với `primary_function` và `timeline_period` của chương không?"
+    "beat_pacing_strategy": "Sẽ chia chương này thành bao nhiêu Beats (thường từ 4-7 beats)?...? Beat nào là cao trào của chương này? Nhịp độ này có phù hợp với `primary_function` và `timeline_period` của chương không?"
   },
   "beats": [
     {

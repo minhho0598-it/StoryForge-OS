@@ -2,6 +2,7 @@ Story Bible:
 {{ story_bible }}
 
 Mạch truyện hiện tại (Current Chapters):
+(Lưu ý: mỗi chương trong Current Chapters nên bao gồm chapter_number, phase_id, continuity_note, và relationship_beat nếu có, để phục vụ việc đối chiếu continuity.)
 {{ current_chapters }}
 
 Yêu cầu của người dùng:

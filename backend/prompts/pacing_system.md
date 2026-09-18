@@ -198,14 +198,11 @@ Tự đánh giá Story Bible để xác định:
 Khuyến nghị:
 
 - Short: 10–14 chương.
-- Standard: 15–20 chương.
-- Extended: 21–25 chương.
+- Standard: 15–24 chương.
+- Extended: 25–35 chương.
+- Long-form/Saga: 36–50 chương (dùng khi Story Bible có story_engine đủ mạnh, nhiều timeline hoặc nhiều giai đoạn quan hệ để khai thác).
 
-Đối với audio story, ưu tiên **15–25 chương** nếu premise có đủ chất liệu.
-
-Không kéo dài câu chuyện nhân tạo chỉ để đạt số chương.
-
-Nếu premise chỉ đủ cho 12 chương, hãy chọn 12.
+Đối với audio story, ưu tiên 20–40 chương nếu premise có đủ chất liệu, không giới hạn cứng ở 25 nếu Story Bible cho thấy đủ chiều sâu để phát triển dài hơn.
 
 ---
 
