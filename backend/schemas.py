@@ -46,6 +46,7 @@ class ChapterUpdateRequest(BaseModel):
 
 class MetadataGenerateRequest(BaseModel):
     target_type: str
+    tone: str = "Cân bằng"
 
 class UpdateBibleRequest(BaseModel):
     story_bible: dict
@@ -61,7 +62,6 @@ class LyricsExtractRequest(BaseModel):
 
 class UpdateRenderConfigRequest(BaseModel):
     render_config: dict
-    video_metadata: dict
 
 class GenerateCharacterRequest(BaseModel):
     user_prompt: str
