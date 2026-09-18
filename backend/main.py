@@ -733,10 +733,9 @@ async def start_batch_render(project_id: str, request: dict, background_tasks: B
 @app.put("/api/projects/{project_id}/update-render-config")
 async def update_render_config(project_id: str, request: UpdateRenderConfigRequest):
     try:
-        supabase.table("projects").update({
-            "render_config": request.render_config,
-            "video_metadata": request.video_metadata
-        }).eq("id", project_id).execute()
+        supabase.table("projects").update({"render_config": request.render_config}).eq(
+            "id", project_id
+        ).execute()
         return {"success": True, "message": "Cập nhật cấu hình render thành công."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -745,13 +744,11 @@ async def update_render_config(project_id: str, request: UpdateRenderConfigReque
 @app.post("/api/projects/{project_id}/generate-metadata")
 async def generate_video_metadata(project_id: str, request: MetadataGenerateRequest):
     try:
-        # Lấy thông tin dự án
         res = supabase.table("projects").select("id, title, vibe, logline, story_bible, video_metadata").eq("id", project_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy dự án")
         project = res.data[0]
         
-        # Bơm dữ liệu vào Prompt
         system_prompt = prompt_manager.load_prompt("metadata_system.md")
         user_prompt = prompt_manager.load_prompt(
             "metadata_user.md",
@@ -759,20 +756,17 @@ async def generate_video_metadata(project_id: str, request: MetadataGenerateRequ
             vibe=project.get("vibe", ""),
             logline=project.get("logline", ""),
             micro_conflict=project.get("story_bible", {}).get("story_identity", {}).get("core_premise", ""),
-            target_type=request.target_type
+            target_type=request.target_type,
+            tone=request.tone # Nhận tone từ UI
         )
         
-        # Gọi LLM (Trả về JSON { "result": "..." })
         result_json = await generate_json(system_prompt, user_prompt)
-        new_text = result_json.get("result", "")
         
-        # Lưu vào Database (Cột video_metadata dạng JSON)
-        current_metadata = project.get("video_metadata") or {}
-        current_metadata[request.target_type] = new_text
+        # Hứng mảng results thay vì result đơn lẻ
+        generated_list = result_json.get("results", [])
         
-        supabase.table("projects").update({"video_metadata": current_metadata}).eq("id", project_id).execute()
-        
-        return {"success": True, "data": new_text}
+        # Không tự động lưu vào DB nữa, trả thẳng list về cho UI để UI cho user chọn
+        return {"success": True, "data": generated_list}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -43,32 +43,18 @@ export default function RenderStudioPage() {
     overlay_x: 1110, overlay_y: 10, overlay_w: 601, overlay_h: 1060
   });
 
-  const [metadata, setMetadata] = useState({
-    title: "",
-    hook: "",
-    overlay: "",
-    description: "",
-    type: ""
-  });
-  
-  const [loadingMeta, setLoadingMeta] = useState<Record<string, boolean>>({
-    title: false, hook: false, overlay: false, description: false, type: false
-  });
-
   const forceRenderRef = useRef(false);
   const hasInitializedSelection = useRef(false);
 
   // 1. HÀM FETCH INITIAL (Đọc Profile Config từ DB nếu có)
   const fetchInitialData = async () => {
     try {
-      const [chapRes, projRes, videoMetaRes] = await Promise.all([
+      const [chapRes, projRes] = await Promise.all([
         fetch(`http://localhost:8765/api/projects/${projectId}/chapters`),
-        fetch(`http://localhost:8765/api/projects/${projectId}`),
-        fetch(`http://localhost:8765/api/projects/${projectId}/video-metadata`)
+        fetch(`http://localhost:8765/api/projects/${projectId}`)
       ]);
       const chapData = await chapRes.json();
       const projData = await projRes.json();
-      const videoMetaData = await videoMetaRes.json();
       
       if (chapData.success) {
         setChapters(chapData.data);
@@ -97,9 +83,6 @@ export default function RenderStudioPage() {
                 auto_split_parts: dbConfig.auto_split_parts ?? false, // Dùng ?? để ép về false nếu dbConfig.auto_split_parts là undefined hoặc null
             });
         }
-      }
-      if (videoMetaData.success && videoMetaData.data) {
-        setMetadata(videoMetaData.data);
       }
     } catch (err) { console.error(err); }
   };
@@ -216,41 +199,11 @@ export default function RenderStudioPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          render_config: config,
-          video_metadata: metadata
+          render_config: config
         }),
       });
       alert("Đã lưu Cấu hình (Profile) thành công!");
     } catch (e) { alert("Lỗi khi lưu cấu hình."); }
-  };
-  
-  const generateMetadataItem = async (type: 'title' | 'hook' | 'overlay' | 'description' | 'type') => {
-    // Bật hiệu ứng loading riêng cho đúng cái nút vừa được bấm
-    setLoadingMeta(prev => ({ ...prev, [type]: true }));
-    
-    try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-metadata`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_type: type })
-      });
-      
-      const data = await res.json();
-      
-      if (data.success) {
-        // Cập nhật kết quả AI trả về vào State hiển thị trên các ô Input/Textarea
-        setMetadata(prev => ({ ...prev, [type]: data.data }));
-      } else {
-        alert("Lỗi từ server: " + data.detail);
-      }
-      
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi kết nối Backend. Không thể tạo " + type);
-    } finally {
-      // Tắt hiệu ứng loading
-      setLoadingMeta(prev => ({ ...prev, [type]: false }));
-    }
   };
 
   // 6. HÀM SELECT ALL READY CHAPTERS
@@ -517,71 +470,6 @@ export default function RenderStudioPage() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="shadow-sm border-slate-200 mt-6 xl:col-span-2">
-              <CardHeader className="bg-white border-b">
-                <CardTitle className="flex items-center gap-2">
-                  Youtube Metadata (SEO)
-                </CardTitle>
-                <CardDescription>
-                  Tạo tiêu đề, câu hook và mô tả cuốn hút để đăng Youtube/TikTok.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6 bg-slate-50">
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Tên truyện chính thức (≤ 60 ký tự)</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('title')} disabled={loadingMeta.title} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.title ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.title} onChange={e => setMetadata({...metadata, title: e.target.value})} className="bg-white font-medium" placeholder="Bấm 'Tạo lại' để AI sinh tên truyện..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Tiêu đề Video / Câu Hook (≤ 60 ký tự)</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('hook')} disabled={loadingMeta.hook} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.hook ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.hook} onChange={e => setMetadata({...metadata, hook: e.target.value})} className="bg-white font-medium" placeholder="VD: Trót yêu bạn thân 10 năm và cái kết đắng..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Chữ Overlay trên Thumbnail</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('overlay')} disabled={loadingMeta.overlay} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.overlay ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.overlay} onChange={e => setMetadata({...metadata, overlay: e.target.value})} className="bg-white font-medium" placeholder="Câu thả thính hoặc dấu chấm hỏi lớn..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Thể loại</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('type')} disabled={loadingMeta.type} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.type ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.type} onChange={e => setMetadata({...metadata, type: e.target.value})} className="bg-white font-medium" placeholder="Thể loại video..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Mô tả (Không Spoil)</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('description')} disabled={loadingMeta.description} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.description ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Textarea value={metadata.description} onChange={e => setMetadata({...metadata, description: e.target.value})} className="bg-white h-24 resize-none" placeholder="Tóm tắt nội dung để người xem hiểu bối cảnh..." />
-                </div>
-
-              </CardContent>
-            </Card>
-
           </div>
         </div>
       </div>
