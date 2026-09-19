@@ -79,12 +79,22 @@ class ChapterItem(BaseModel):
     pov_character: str
     main_event: str
     primary_function: str
+    emotional_beat: str | None = ""
+    relationship_beat: str | None = ""
+    chapter_hook: str | None = ""
+    continuity_note: str | None = ""
 
 class BulkUpdateChaptersRequest(BaseModel):
     chapters: list[ChapterItem]
 
 class GenerateSingleChapterRequest(BaseModel):
     action_type: str  # "insert" hoặc "edit"
+    target_index: int
+    user_prompt: str
+    current_chapters: list
+
+class AnalyzeChapterIdeaRequest(BaseModel):
+    action_type: str
     target_index: int
     user_prompt: str
     current_chapters: list

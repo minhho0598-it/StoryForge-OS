@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Layers, ArrowRight, Save, X, Wand2, Map, Sparkles } from "lucide-react";
+import { Loader2, BookOpen, Layers, ArrowRight, Save, X, Wand2, Map, Sparkles, Activity, ChevronDown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
@@ -113,9 +113,10 @@ const PRIMARY_FUNCTIONS = [
   "Turning Point (Bước ngoặt)",
   "Midpoint (Điểm giữa)",
   "Climax (Cao trào)",
+  "Falling Action (Hạ nhiệt)",
   "Resolution (Giải quyết)",
   "Lore (Hé lộ thông tin thế giới/bí mật)",
-  "Khác (Chức năng phụ trợ)" // Fallback cho những logic cũ hoặc AI lỡ sinh lệch
+  "Khác (Chức năng phụ trợ)"
 ];
 
 export default function ArchitecturePage() {
@@ -148,14 +149,24 @@ export default function ArchitecturePage() {
 
   // === THÊM STATE CHO AI CHAPTER ===
   const [isAiChapModalOpen, setIsAiChapModalOpen] = useState(false);
+  const [aiChapStep, setAiChapStep] = useState<1 | 2>(1); // 1: Input ý tưởng, 2: Nhận phản biện
   const [aiChapAction, setAiChapAction] = useState<"insert" | "edit">("insert");
   const [targetChapIndex, setTargetChapIndex] = useState(0);
   const [aiChapPrompt, setAiChapPrompt] = useState("");
   const [isGeneratingAiChap, setIsGeneratingAiChap] = useState(false);
 
+  const [userOriginalPrompt, setUserOriginalPrompt] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiAnalysisData, setAiAnalysisData] = useState<any>(null); // Chứa critique và suggested_prompt
+
   const [isSavingBibleChanges, setIsSavingBibleChanges] = useState(false);
   const [isSavingPacingChanges, setIsSavingPacingChanges] = useState(false);
 
+  // Thêm state cho modal đánh giá
+  const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [evalData, setEvalData] = useState<any>(null);
+  
   useEffect(() => {
     fetch(`http://localhost:8765/api/projects/${projectId}`)
       .then((res) => res.json())
@@ -169,6 +180,7 @@ export default function ArchitecturePage() {
       });
     fetchChapters();
   }, [projectId]);
+
 
   const fetchChapters = async () => {
     fetch(`http://localhost:8765/api/projects/${projectId}/chapters`)
@@ -251,6 +263,7 @@ export default function ArchitecturePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chapters: chapters })
       });
+      setEvalData(null);
       setIsPacingDirty(false);
       // Tải lại danh sách để lấy ID mới do Supabase cấp cho các chương vừa tạo
       fetchChapters(); 
@@ -314,6 +327,7 @@ export default function ArchitecturePage() {
     setIsBibleDirty(true); // Chỉ bật cờ Bible
   };
 
+  // Cập nhật mục tiêu chương (goal)
   const updateChapterGoal = (index: number, newGoal: string) => {
     const newChaps = [...chapters];
     newChaps[index].goal = newGoal;
@@ -321,6 +335,7 @@ export default function ArchitecturePage() {
     setIsPacingDirty(true); // Chỉ bật cờ Pacing
   };
 
+  // 4. THÊM / XÓA NHÂN VẬT & QUAN HỆ
   const addCharacter = () => {
     const newData = {
       ...bibleData,
@@ -330,6 +345,7 @@ export default function ArchitecturePage() {
     handleSaveBible();
   };
 
+  // XÓA NHÂN VẬT
   const removeCharacter = (index: number) => {
     const newChars = [...(bibleData?.characters || [])];
     newChars.splice(index, 1);
@@ -338,6 +354,7 @@ export default function ArchitecturePage() {
     handleSaveBible();
   };
 
+  // THÊM QUAN HỆ
   const addRelationship = () => {
     const newData = {
       ...bibleData,
@@ -347,6 +364,7 @@ export default function ArchitecturePage() {
     handleSaveBible();
   };
 
+  // XÓA QUAN HỆ
   const removeRelationship = (index: number) => {
     const newRels = [...(bibleData?.relationship_dynamics || [])];
     newRels.splice(index, 1);
@@ -355,7 +373,7 @@ export default function ArchitecturePage() {
     handleSaveBible();
   };
 
-  
+  // 5. HÀM GỌI API TẠO NHÂN VẬT & QUAN HỆ BẰNG AI
   const generateAiCharacter = async () => {
     if (!aiCharPrompt.trim()) return alert("Vui lòng nhập mô tả nhân vật!");
     
@@ -393,7 +411,7 @@ export default function ArchitecturePage() {
     }
   };
 
-
+  // 6. HÀM GỌI API TẠO QUAN HỆ BẰNG AI
   const generateAiRelationship = async () => {
     if (!aiRelPrompt.trim()) return alert("Vui lòng nhập mô tả mối quan hệ!");
     
@@ -431,61 +449,114 @@ export default function ArchitecturePage() {
     }
   };
 
+  // 7. HÀM MỞ MODAL AI CHAPTER (DÙNG CHO CẢ INSERT VÀ EDIT)
+  const openAiChapModal = (action: "insert" | "edit", index: number) => {
+    setAiChapAction(action);
+    setTargetChapIndex(index);
+    setUserOriginalPrompt("");
+    setAiChapStep(1);
+    setAiAnalysisData(null);
+    setIsAiChapModalOpen(true);
+  };
 
-  const handleAiChapterSubmit = async () => {
-    if (!aiChapPrompt.trim()) return alert("Vui lòng nhập yêu cầu cho AI!");
-    
-    setIsGeneratingAiChap(true);
+  // 8. HÀM GỌI API PHÂN TÍCH Ý TƯỞNG CHƯƠNG (BƯỚC 1)
+  const analyzeAiChapterIdea = async () => {
+    if (!userOriginalPrompt.trim()) return alert("Vui lòng nhập ý tưởng!");
+    setIsAnalyzing(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-single-chapter`, {
+      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/analyze-chapter-idea`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action_type: aiChapAction,
           target_index: targetChapIndex,
-          user_prompt: aiChapPrompt,
+          user_prompt: userOriginalPrompt,
+          current_chapters: chapters
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        setAiAnalysisData(result.data);
+        setAiChapStep(2); // Chuyển sang màn Review
+      } else alert("Lỗi phân tích: " + result.detail);
+    } catch (e) { alert("Mất kết nối Backend."); } 
+    finally { setIsAnalyzing(false); }
+  };
+
+  // 9. HÀM GỌI API TẠO CHƯƠNG CUỐI CÙNG (BƯỚC 2)
+  const generateFinalAiChapters = async (finalPromptToUse: string) => {
+    if (!finalPromptToUse || finalPromptToUse.trim() === "") {
+      return;
+    }
+
+    setIsGeneratingAiChap(true);
+    try {
+      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-dynamic-chapters`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action_type: aiChapAction,
+          target_index: targetChapIndex,
+          user_prompt: finalPromptToUse,
           current_chapters: chapters
         })
       });
       const result = await res.json();
       
       if (result.success) {
-        const newChapterData = result.data;
+        // Nhận về một MẢNG chứa 1 hoặc nhiều chapters
+        const newGeneratedChapters = result.data.map((c: any) => ({
+          ...c,
+          temp_id: crypto.randomUUID(), // Ép ID tạm an toàn
+          status: "Drafting Pending"
+        }));
+        
         const newChaps = [...chapters];
         
         if (aiChapAction === "insert") {
-          // Chèn vào vị trí index
-          newChaps.splice(targetChapIndex, 0, {
-            ...newChapterData,
-            temp_id: crypto.randomUUID() // <-- THÊM DÒNG NÀY
-          });
+          // Nếu chèn, xả mảng vào vị trí đó
+          newChaps.splice(targetChapIndex, 0, ...newGeneratedChapters);
         } else {
-          // Chép đè id cũ để không bị mất liên kết DB, chỉ đè nội dung mới
-          newChaps[targetChapIndex] = { ...newChaps[targetChapIndex], ...newChapterData };
+          // Nếu edit, thay thế 1 chương cũ bằng 1 (hoặc N) chương mới
+          // Giữ lại id thật của DB cho phần tử đầu tiên (nếu có) để không bị mất kết nối
+          const originalId = newChaps[targetChapIndex].id;
+          if (originalId) newGeneratedChapters[0].id = originalId;
+          
+          newChaps.splice(targetChapIndex, 1, ...newGeneratedChapters);
         }
         
         // Đánh lại số thứ tự
         const renumberedChaps = newChaps.map((c, i) => ({ ...c, chapter_number: i + 1 }));
         setChapters(renumberedChaps);
         setIsPacingDirty(true);
-        
         setIsAiChapModalOpen(false);
-        setAiChapPrompt("");
-      } else {
-        alert("Lỗi tạo chương: " + result.detail);
-      }
-    } catch (e) {
-      alert("Mất kết nối Backend.");
-    } finally {
-      setIsGeneratingAiChap(false);
-    }
+      } else alert("Lỗi tạo chương: " + result.detail);
+    } catch (e) { alert("Mất kết nối Backend."); } 
+    finally { setIsGeneratingAiChap(false); }
   };
 
-  const openAiChapModal = (action: "insert" | "edit", index: number) => {
-    setAiChapAction(action);
-    setTargetChapIndex(index);
-    setAiChapPrompt("");
-    setIsAiChapModalOpen(true);
+  // 10. HÀM GỌI API ĐÁNH GIÁ PACING (AI EVALUATE)
+  const evaluatePacing = async () => {
+    // Ý TƯỞNG 1: CACHING & BẮT LỖI DIRTY
+    if (isPacingDirty) {
+      alert("Bạn có thay đổi chưa lưu! Vui lòng ấn nút [Lưu Pacing] ở góc dưới màn hình trước để AI phân tích trên cấu trúc mới nhất nhé.");
+      return;
+    }
+    
+    setIsEvalModalOpen(true); // Luôn mở modal
+    if (evalData) return;     // Nếu đã có cache thì DỪNG LẠI, không gọi API nữa (Chống spam)
+
+    setIsEvaluating(true);
+    try {
+      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/evaluate-pacing`, { method: "POST" });
+      const result = await res.json();
+      if (result.success) setEvalData(result.data);
+    } catch (e) {
+      alert("Lỗi kết nối AI Đánh giá.");
+      setIsEvalModalOpen(false);
+    } finally {
+      setIsEvaluating(false);
+    }
   };
 
   return (
@@ -1184,28 +1255,45 @@ export default function ArchitecturePage() {
           <TabsContent value="pacing">
             <Card className="border-slate-200 shadow-sm min-h-[50vh] flex flex-col">
               
-              <CardHeader className="bg-slate-100 rounded-t-lg border-b pb-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Layers className="h-5 w-5 text-indigo-600" />
-                    Khung Chương (Pacing)
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    Phân bổ thời lượng, bối cảnh và diễn biến từng chương.
-                  </CardDescription>
-                </div>
+              <CardHeader className="rounded-t-lg border-b pb-4 flex flex-row items-center justify-between">
+                {/* ========================================================== */}
+                {/* FLOATING ACTION BUTTONS (DÀNH RIÊNG CHO TAB PACING) */}
+                {/* ========================================================== */}
+                {pacingStatus === "done" && !isPacingDirty && !isBibleDirty && (
+                  // Thêm items-end để khi nút dài ra, nó sẽ đẩy về bên trái và giữ cố định lề phải
+                  <div className="fixed bottom-6 right-8 flex flex-col items-end gap-3 z-40 animate-in fade-in slide-in-from-bottom-5">
+                    
+                    {/* Nút Đánh giá */}
+                    <Button 
+                      onClick={evaluatePacing} 
+                      className="group relative flex items-center justify-start rounded-full shadow-lg p-0 h-12 w-12 hover:w-[190px] bg-white border border-amber-200 text-amber-600 hover:bg-amber-50 font-bold transition-all duration-300 overflow-hidden"
+                    >
+                      {/* Vùng chứa Icon luôn cố định 48px ở đầu */}
+                      <div className="flex items-center justify-center min-w-[3rem] h-full">
+                        <Activity className="h-5 w-5" /> 
+                      </div>
+                      {/* Vùng chữ (Mặc định ẩn, hiện ra khi hover) */}
+                      <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                        Đánh giá Pacing
+                      </span>
+                    </Button>
 
-                {/* NÚT TẠO LẠI (AI): Luôn hiện để user có thể đập đi chia lại chương */}
-                <Button
-                  onClick={generatePacing}
-                  disabled={pacingLoading}
-                  variant="secondary"
-                  size="sm"
-                  className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
-                >
-                  {pacingLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                  {chapters.length > 0 ? "AI Tạo Cấu Trúc Khác" : "AI Tạo Cấu Trúc"}
-                </Button>
+                    {/* Nút AI Tạo Cấu Trúc */}
+                    <Button 
+                      onClick={generatePacing} 
+                      disabled={pacingLoading} 
+                      className="group relative flex items-center justify-start rounded-full shadow-lg p-0 h-12 w-12 hover:w-[210px] bg-indigo-600 text-white hover:bg-indigo-700 font-bold transition-all duration-300 overflow-hidden"
+                    >
+                      <div className="flex items-center justify-center min-w-[3rem] h-full">
+                        {pacingLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
+                      </div>
+                      <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                        {chapters.length > 0 ? "AI Tạo cấu trúc khác" : "AI Tạo cấu trúc"}
+                      </span>
+                    </Button>
+
+                  </div>
+                )}
               </CardHeader>
               
               <CardContent className="flex-1 p-6 bg-slate-50 relative">
@@ -1326,45 +1414,54 @@ export default function ArchitecturePage() {
                         
                         <Separator className="bg-slate-100" />
 
-                        {/* NỘI DUNG CHƯƠNG (CODE CỦA BẠN ĐÃ UPDATE LÚC NÃY) */}
+                        {/* NỘI DUNG CHƯƠNG */}
                         <div className="flex flex-col gap-5">
                           <div className="space-y-2 w-full md:w-[350px]">
-                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                              🎯 Chức năng (Primary Function)
-                            </Label>
-                            <Select
-                              value={chap.primary_function || ""}
-                              onValueChange={(value) => updateChapterField(idx, "primary_function", value)}
-                            >
-                              <SelectTrigger className="h-10 bg-slate-50 border-slate-200 focus:ring-indigo-500 font-medium text-slate-700">
-                                <SelectValue placeholder="Chọn chức năng của chương..." />
-                              </SelectTrigger>
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">🎯 Chức năng (Primary Function)</Label>
+                            <Select value={chap.primary_function || ""} onValueChange={(v) => updateChapterField(idx, "primary_function", v)}>
+                              <SelectTrigger className="h-10 bg-slate-50 border-slate-200 focus:ring-indigo-500 font-medium text-slate-700"><SelectValue placeholder="Chọn chức năng..." /></SelectTrigger>
                               <SelectContent className="max-h-[350px] min-w-[300px]">
-                                {PRIMARY_FUNCTIONS.map((func) => (
-                                  <SelectItem key={func} value={func} className="text-sm cursor-pointer py-2.5">
-                                    {func}
-                                  </SelectItem>
-                                ))}
+                                {PRIMARY_FUNCTIONS.map((func) => <SelectItem key={func} value={func} className="py-2.5">{func}</SelectItem>)}
                                 {chap.primary_function && !PRIMARY_FUNCTIONS.includes(chap.primary_function) && (
-                                  <SelectItem value={chap.primary_function} className="text-sm italic text-amber-600 py-2.5">
-                                    {chap.primary_function} (Cũ)
-                                  </SelectItem>
+                                  <SelectItem value={chap.primary_function} className="italic text-amber-600 py-2.5">{chap.primary_function} (Cũ)</SelectItem>
                                 )}
                               </SelectContent>
                             </Select>
                           </div>
 
                           <div className="space-y-2">
-                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                              🎬 Sự kiện chính (Main Event)
-                            </Label>
-                            <Textarea 
-                              className="resize-y min-h-[120px] text-sm leading-relaxed focus-visible:ring-indigo-500 bg-white"
-                              value={chap.main_event || (chap.goal || "")} 
-                              onChange={(e) => updateChapterField(idx, "main_event", e.target.value)}
-                              placeholder="Mô tả sự kiện cụ thể diễn ra, hành động của nhân vật..."
-                            />
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">🎬 Sự kiện chính (Main Event)</Label>
+                            <Textarea className="resize-y min-h-[90px] text-sm leading-relaxed bg-white" value={chap.main_event || ""} onChange={(e) => updateChapterField(idx, "main_event", e.target.value)} placeholder="Mô tả sự kiện cụ thể diễn ra..." />
                           </div>
+
+                          {/* ACCORDION THÔNG TIN MỞ RỘNG (4 TRƯỜNG MỚI) */}
+                          <Accordion multiple={false} className="w-full border rounded-lg bg-slate-50">
+                            <AccordionItem value="advanced" className="border-none">
+                              <AccordionTrigger className="px-4 py-3 text-xs font-semibold text-slate-600 hover:no-underline hover:text-indigo-600">
+                                Hiển thị Cấu trúc Mở rộng (Cảm xúc, Hook, Ghi chú...)
+                              </AccordionTrigger>
+                              <AccordionContent className="px-4 pb-4 pt-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-indigo-500 font-bold">Biến chuyển Cảm xúc</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.emotional_beat || ""} onChange={(e) => updateChapterField(idx, "emotional_beat", e.target.value)} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-pink-500 font-bold">Biến chuyển Quan hệ</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.relationship_beat || ""} onChange={(e) => updateChapterField(idx, "relationship_beat", e.target.value)} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-amber-500 font-bold">Điểm neo (Chapter Hook)</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.chapter_hook || ""} onChange={(e) => updateChapterField(idx, "chapter_hook", e.target.value)} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-slate-500 font-bold">Lưu ý cho chương sau</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.continuity_note || ""} onChange={(e) => updateChapterField(idx, "continuity_note", e.target.value)} />
+                                  </div>
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
                         </div>
                       </div>
 
@@ -1479,9 +1576,9 @@ export default function ArchitecturePage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL AI CHÈN/SỬA CHƯƠNG */}
+      {/* MODAL AI CHÈN/SỬA CHƯƠNG (2-STEP WIZARD) */}
       <Dialog open={isAiChapModalOpen} onOpenChange={setIsAiChapModalOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-indigo-600" />
@@ -1489,27 +1586,116 @@ export default function ArchitecturePage() {
                 ? `AI Tạo Chương Mới (Vị trí ${targetChapIndex + 1})` 
                 : `AI Sửa Chương ${targetChapIndex + 1}`}
             </DialogTitle>
-            <DialogDescription>
-              {aiChapAction === "insert" 
-                ? "Mô tả sự kiện bạn muốn chèn vào vị trí này. AI sẽ tự liên kết với mạch truyện trước và sau."
-                : "Chỉ ra điểm bạn chưa ưng ý ở chương này (Ví dụ: Thêm một chút drama, đổi điểm nhìn sang nam chính...)"}
-            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <Textarea 
-              placeholder={aiChapAction === "insert" ? "VD: Nam chính vô tình phát hiện ra bí mật trong điện thoại..." : "VD: Làm cho cuộc cãi vã trở nên gay gắt hơn..."}
-              value={aiChapPrompt}
-              onChange={(e) => setAiChapPrompt(e.target.value)}
-              className="resize-none h-32"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAiChapModalOpen(false)}>Hủy</Button>
-            <Button onClick={handleAiChapterSubmit} disabled={isGeneratingAiChap || !aiChapPrompt} className="bg-indigo-600 hover:bg-indigo-700">
-              {isGeneratingAiChap ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
-              {aiChapAction === "insert" ? "Tạo Chương Mới" : "Cập Nhật Chương"}
-            </Button>
-          </DialogFooter>
+
+          {aiChapStep === 1 ? (
+            // BƯỚC 1: NHẬP Ý TƯỞNG
+            <div className="grid gap-4 py-4">
+              <p className="text-sm text-slate-500">
+                Hãy viết một ý tưởng bất kỳ. Đừng lo về Logic, AI Script Doctor sẽ đánh giá và điều chỉnh giúp bạn.
+              </p>
+              <Textarea 
+                placeholder="VD: Hai người đi du lịch, bị kẹt vì mưa bão, phải ngủ chung một phòng..."
+                value={userOriginalPrompt}
+                onChange={(e) => setUserOriginalPrompt(e.target.value)}
+                className="resize-none h-32"
+              />
+              <div className="flex justify-end mt-2">
+                <Button onClick={analyzeAiChapterIdea} disabled={isAnalyzing || !userOriginalPrompt} className="bg-indigo-600 hover:bg-indigo-700">
+                  {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Activity className="h-4 w-4 mr-2"/>}
+                  Phân Tích Khả Thi
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // BƯỚC 2: PHẢN BIỆN & CHỌN LỰA
+            <div className="py-2 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">Điểm Logic: {aiAnalysisData?.feasibility_score}</Badge>
+                  <span className="font-bold text-sm text-amber-800">Góp ý từ Cố vấn AI:</span>
+                </div>
+                <p className="text-sm text-slate-700 italic">"{aiAnalysisData?.critique}"</p>
+              </div>
+
+              <div className="space-y-3 mt-4">
+                <p className="text-sm font-semibold text-slate-800">Bạn muốn dùng phương án nào để sinh kịch bản?</p>
+                
+                {/* Lựa chọn 1: Dùng prompt xịn của AI */}
+                <div className="border border-indigo-200 bg-indigo-50/30 p-3 rounded-lg hover:bg-indigo-50 cursor-pointer" onClick={() => generateFinalAiChapters(aiAnalysisData?.suggested_prompt)}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold text-indigo-700 uppercase">✨ Đề xuất của AI (Khuyên dùng)</span>
+                  </div>
+                  <p className="text-xs text-slate-600">{aiAnalysisData?.suggested_prompt}</p>
+                </div>
+
+                {/* Lựa chọn 2: Cố chấp dùng prompt gốc */}
+                <div className="border border-slate-200 p-3 rounded-lg hover:bg-slate-50 cursor-pointer" onClick={() => generateFinalAiChapters(userOriginalPrompt)}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Ý tưởng gốc của bạn</span>
+                  </div>
+                  <p className="text-xs text-slate-400">{userOriginalPrompt}</p>
+                </div>
+              </div>
+              
+              {isGeneratingAiChap && (
+                <div className="flex items-center justify-center text-indigo-600 mt-4 text-sm font-medium">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2"/> Đang vung bút vẽ kịch bản...
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL ĐÁNH GIÁ PACING */}
+      <Dialog open={isEvalModalOpen} onOpenChange={setIsEvalModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-amber-600"/> Báo cáo Đánh giá Cấu trúc (Pacing)</DialogTitle>
+          </DialogHeader>
+          
+          {isEvaluating ? (
+            <div className="py-12 flex flex-col items-center justify-center text-slate-500">
+              <Loader2 className="h-10 w-10 animate-spin mb-4 text-amber-500" />
+              <p className="animate-pulse">AI Script Doctor đang đọc và phân tích kịch bản...</p>
+            </div>
+          ) : evalData ? (
+            <div className="space-y-6 py-4">
+              <div className="flex items-center justify-between bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <div className="text-sm font-medium text-amber-800">{evalData.summary}</div>
+                <div className="text-3xl font-black text-amber-600 ml-4">{evalData.overall_score}/10</div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-green-600">✅ Điểm sáng</h4>
+                  <ul className="text-xs space-y-1 list-disc pl-4 text-slate-600">
+                    {evalData.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-red-500">⚠️ Điểm yếu / Lỗ hổng</h4>
+                  <ul className="text-xs space-y-1 list-disc pl-4 text-slate-600">
+                    {evalData.weaknesses.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                  </ul>
+                </div>
+              </div>
+
+              {evalData.suggestions.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-slate-800 border-b pb-2">Đề xuất sửa chữa</h4>
+                  {evalData.suggestions.map((s: any, i: number) => (
+                    <div key={i} className="bg-slate-50 p-3 rounded border text-sm">
+                      <p className="font-bold text-indigo-600">{s.chapter}</p>
+                      <p className="text-red-600 mt-1"><span className="font-semibold">Vấn đề:</span> {s.issue}</p>
+                      <p className="text-green-700 mt-1"><span className="font-semibold">Cách sửa:</span> {s.fix}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
       

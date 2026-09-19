@@ -8,6 +8,7 @@ from core.prompt_manager import prompt_manager
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
+    AnalyzeChapterIdeaRequest,
     BeatUpdateRequest,
     BulkBeatUpdateRequest,
     BulkUpdateChaptersRequest,
@@ -276,9 +277,12 @@ async def generate_pacing(project_id: str):
                 "title": chapter.get("title", f"Chương {chapter.get('chapter_number')}"),
                 "timeline_period": chapter.get("timeline_period", "Hiện tại"),
                 "pov_character": chapter.get("character_focus", "Unknown"),
-                # TÁCH RIÊNG 2 TRƯỜNG NÀY RA
                 "main_event": chapter.get("main_event", ""),
                 "primary_function": chapter.get("primary_function", ""),
+                "emotional_beat": chapter.get("emotional_beat", ""),
+                "relationship_beat": chapter.get("relationship_beat", ""),
+                "chapter_hook": chapter.get("chapter_hook", ""),
+                "continuity_note": chapter.get("continuity_note", ""),
                 "status": "Drafting Pending"
             })
             
@@ -296,24 +300,50 @@ async def generate_pacing(project_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/projects/{project_id}/generate-single-chapter")
-async def generate_single_chapter(project_id: str, request: GenerateSingleChapterRequest):
-    """
-    Gọi AI để chèn thêm 1 chương mới hoặc sửa 1 chương có sẵn dựa trên yêu cầu của User.
-    """
+@app.post("/api/projects/{project_id}/evaluate-pacing")
+async def evaluate_pacing(project_id: str):
     try:
-        # Lấy Story Bible để AI hiểu nhân vật & bối cảnh
-        db_res = supabase.table("projects").select("story_bible").eq("id", project_id).execute()
-        if not db_res.data or not db_res.data[0].get("story_bible"):
-            raise HTTPException(status_code=400, detail="Dự án chưa có Story Bible.")
-        
-        story_bible = db_res.data[0]["story_bible"]
+        # Lấy Bible và Chapters
+        proj_res = supabase.table("projects").select("story_bible").eq("id", project_id).execute()
+        chap_res = (
+            supabase.table("chapters")
+            .select(
+                "chapter_number, title, primary_function, main_event, emotional_beat, relationship_beat, timeline_period, chapter_hook, continuity_note"
+            )
+            .eq("project_id", project_id)
+            .order("chapter_number")
+            .execute()
+        )
 
-        # Gọi LLM
-        optimized_bible = get_optimized_bible(story_bible, task="single_chapter")
-        system_prompt = prompt_manager.load_prompt("single_chapter_system.md")
+        if not proj_res.data or not chap_res.data:
+            raise HTTPException(status_code=400, detail="Thiếu dữ liệu để đánh giá.")
+            
+        optimized_bible = get_optimized_bible(proj_res.data[0].get("story_bible"), task="pacing")
+        
+        system_prompt = prompt_manager.load_prompt("evaluate_pacing_system.md")
         user_prompt = prompt_manager.load_prompt(
-            "single_chapter_user.md",
+            "evaluate_pacing_user.md",
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            chapters=json.dumps(chap_res.data, ensure_ascii=False)
+        )
+        
+        result_json = await generate_json(system_prompt, user_prompt)
+        return {"success": True, "data": result_json}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/analyze-chapter-idea")
+async def analyze_chapter_idea(project_id: str, request: AnalyzeChapterIdeaRequest):
+    """Bước 1: Trả về lời phản biện (Critique) cho ý tưởng của User."""
+    try:
+        proj_res = supabase.table("projects").select("story_bible").eq("id", project_id).execute()
+        optimized_bible = get_optimized_bible(proj_res.data[0].get("story_bible"), task="single_chapter")
+        
+        system_prompt = prompt_manager.load_prompt("analyze_chapter_idea_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "analyze_chapter_idea_user.md",
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             current_chapters=json.dumps(request.current_chapters, ensure_ascii=False),
             action_type=request.action_type,
@@ -321,12 +351,35 @@ async def generate_single_chapter(project_id: str, request: GenerateSingleChapte
             user_prompt=request.user_prompt
         )
         
+        result = await generate_json(system_prompt, user_prompt)
+        return {"success": True, "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/generate-dynamic-chapters")
+async def generate_dynamic_chapters(project_id: str, request: GenerateSingleChapterRequest):
+    """Bước 2: Nhận Prompt (Gốc hoặc Đã sửa) và sinh ra 1 đến N chương."""
+    try:
+        proj_res = supabase.table("projects").select("story_bible").eq("id", project_id).execute()
+        optimized_bible = get_optimized_bible(proj_res.data[0].get("story_bible"), task="single_chapter")
+
+        system_prompt = prompt_manager.load_prompt("single_chapter_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "single_chapter_user.md",
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            current_chapters=json.dumps(request.current_chapters, ensure_ascii=False),
+            action_type=request.action_type,
+            target_index=request.target_index,
+            user_prompt=request.user_prompt  # Đây có thể là Prompt do AI gợi ý ở Bước 1
+        )
+        
         result_json = await generate_json(system_prompt, user_prompt)
         
-        if "chapter" not in result_json:
-            raise ValueError("AI không trả về dữ liệu 'chapter'.")
+        if "chapters" not in result_json:
+            raise ValueError("AI không trả về mảng 'chapters'.")
             
-        return {"success": True, "data": result_json["chapter"]}
+        return {"success": True, "data": result_json["chapters"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -418,7 +471,11 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
                 "timeline_period": chap.timeline_period,
                 "pov_character": chap.pov_character,
                 "main_event": chap.main_event,
-                "primary_function": chap.primary_function
+                "primary_function": chap.primary_function,
+                "emotional_beat": chap.emotional_beat,
+                "relationship_beat": chap.relationship_beat,
+                "chapter_hook": chap.chapter_hook,
+                "continuity_note": chap.continuity_note
             }
             
             # Nếu là chương cũ (có ID thật trên DB) -> Đưa vào mảng Update
@@ -640,11 +697,10 @@ async def get_single_project(project_id: str):
 @app.get("/api/projects/{project_id}/chapters")
 async def get_chapters(project_id: str):
     try:
-        # Thêm main_event, primary_function vào select()
-        columns = "id, chapter_number, title, pov_character, status, timeline_period, main_event, primary_function"
+        columns = "id, chapter_number, title, pov_character, status, timeline_period, main_event, primary_function, emotional_beat, relationship_beat, chapter_hook, continuity_note"
         res = supabase.table("chapters").select(columns).eq("project_id", project_id).order("chapter_number").execute()
         return {"success": True, "data": res.data}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/chapters/{chapter_id}/beats")
