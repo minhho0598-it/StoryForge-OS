@@ -8,11 +8,13 @@ from core.prompt_manager import prompt_manager
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
+    AnalyzeBeatTextRequest,
     AnalyzeChapterIdeaRequest,
     BeatUpdateRequest,
     BulkBeatUpdateRequest,
     BulkUpdateChaptersRequest,
     ChapterUpdateRequest,
+    EditBeatTextRequest,
     GenerateCharacterRequest,
     GenerateRelationshipRequest,
     GenerateSingleChapterRequest,
@@ -390,20 +392,38 @@ async def generate_dynamic_chapters(project_id: str, request: GenerateSingleChap
 @app.post("/api/chapters/{chapter_id}/generate-beats")
 async def generate_beats(chapter_id: str):
     try:
-        # Lấy thông tin chapter và project liên quan
-        chap_res = supabase.table("chapters").select("id, chapter_number, title, main_event, primary_function, pov_character, timeline_period, projects(story_bible, current_memory)").eq("id", chapter_id).execute()
-        if not chap_res.data: raise HTTPException(status_code=404, detail="Chapter not found")
+        # Lấy thông tin chapter (bao gồm 4 trường mới) và project liên quan
+        chap_res = supabase.table("chapters").select(
+            "id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, current_memory)"
+        ).eq("id", chapter_id).execute()
+        
+        if not chap_res.data: 
+            raise HTTPException(status_code=404, detail="Chapter not found")
+            
         chapter = chap_res.data[0]
         project = chapter["projects"]
         
-        # Load Prompts
+        # Đóng gói thông tin Chapter để mớm cho AI
+        chapter_info = {
+            "title": chapter["title"],
+            "primary_function": chapter.get("primary_function"),
+            "main_event": chapter.get("main_event"),
+            "emotional_beat": chapter.get("emotional_beat"),
+            "relationship_beat": chapter.get("relationship_beat"),
+            "chapter_hook": chapter.get("chapter_hook"),
+            "continuity_note": chapter.get("continuity_note")
+        }
+        
+        # Lọc Story Bible (Tác vụ: beat_breakdown)
         optimized_bible = get_optimized_bible(project.get("story_bible"), task="beat_breakdown")
+        
+        # Load Prompts
         system_prompt = prompt_manager.load_prompt("beat_system.md")
         user_prompt = prompt_manager.load_prompt(
             "beat_user.md",
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
-            chapter_info=json.dumps({"title": chapter["title"], "main_event": chapter["main_event"], "primary_function": chapter["primary_function"], "pov": chapter["pov_character"], "timeline_period": chapter["timeline_period"]}),
-            current_memory=project.get("current_memory", "Đây là chương đầu tiên.")
+            chapter_info=json.dumps(chapter_info, ensure_ascii=False),
+            current_memory=json.dumps(project.get("current_memory", {}), ensure_ascii=False) if project.get("current_memory") else "Đây là chương đầu tiên."
         )
         
         # Gọi LLM sinh JSON Beats
@@ -412,31 +432,35 @@ async def generate_beats(chapter_id: str):
         # Xóa beats cũ nếu có (trường hợp user ấn generate lại)
         supabase.table("beats").delete().eq("chapter_id", chapter_id).execute()
         
-        # Insert vào DB (SỬA ĐOẠN NÀY)
+        # Bắt lỗi an toàn nếu AI không sinh được beats
+        if "beats" not in beats_json or not isinstance(beats_json["beats"], list):
+            raise Exception("AI không trả về định dạng mảng beats hợp lệ.")
+            
+        # Insert vào DB
         beats_to_insert = []
         for index, beat in enumerate(beats_json.get("beats", [])):
-            beat_order = index + 1 # 1, 2, 3...
-            
-            # Ép tên ID chuẩn: VD "C1_B1", "C2_B3"
+            beat_order = index + 1
             clean_beat_id = f"C{chapter['chapter_number']}_B{beat_order}"
             
             beats_to_insert.append({
                 "chapter_id": chapter_id,
-                "beat_id": clean_beat_id,  # Lấy ID ta vừa ép chuẩn
-                "beat_order": beat_order,  # Lưu số thứ tự để sau này sort
+                "beat_id": clean_beat_id,
+                "beat_order": beat_order,
                 "location": beat.get("location_and_atmosphere", "Chưa xác định"),
                 "characters_present": ", ".join(beat.get("characters_present", [])),
                 "action_and_dialogue": f"Action: {beat.get('action_and_sensory_focus')}\nDialogue: {beat.get('dialogue_and_subtext')}",
                 "emotional_shift": beat.get("emotional_shift")
             })
             
-        supabase.table("beats").insert(beats_to_insert).execute()
+        if beats_to_insert:
+            supabase.table("beats").insert(beats_to_insert).execute()
         
         # Cập nhật status chapter
         supabase.table("chapters").update({"status": "Beats Generated"}).eq("id", chapter_id).execute()
         
         return {"success": True, "message": f"Tạo thành công {len(beats_to_insert)} beats."}
     except Exception as e:
+        print(f"[Error Generate Beats] {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -640,6 +664,104 @@ async def bulk_update_beats(request: BulkBeatUpdateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/beats/{beat_id}/analyze-text-idea")
+async def analyze_beat_text_idea(beat_id: str, request: AnalyzeBeatTextRequest):
+    try:
+        if not request.current_text:
+            raise HTTPException(status_code=400, detail="Chưa có văn bản nháp. Hãy bấm 'AI Viết Nháp' trước khi sửa.")
+
+        beat_res = supabase.table("beats").select("*, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible), projects(*))").eq("id", beat_id).execute()
+        beat = beat_res.data[0]
+        chapter = beat["chapters"]
+        project = chapter["projects"]
+        
+        # Đóng gói danh sách character của beat
+        chars_str = beat.get("characters_present", "")
+        present_chars_list = [c.strip() for c in chars_str.split(",") if c.strip()]
+
+        # Đóng gói thông tin Chapter để mớm cho AI
+        chapter_info = {
+            "title": chapter["title"],
+            "primary_function": chapter.get("primary_function"),
+            "main_event": chapter.get("main_event"),
+            "emotional_beat": chapter.get("emotional_beat"),
+            "relationship_beat": chapter.get("relationship_beat"),
+            "chapter_hook": chapter.get("chapter_hook"),
+            "continuity_note": chapter.get("continuity_note")
+        }
+        
+        # Gọi hàm lọc
+        optimized_bible = get_optimized_bible(
+            project.get("story_bible", {}), 
+            task="drafting", 
+            present_characters=present_chars_list
+        )
+            
+        system_prompt = prompt_manager.load_prompt("analyze_beat_text_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "analyze_beat_text_user.md",
+            current_text=request.current_text,
+            user_prompt=request.user_prompt,
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            chapter_info=json.dumps(chapter_info, ensure_ascii=False),
+            beat_data=json.dumps(beat, ensure_ascii=False)
+        )
+        result = await generate_json(system_prompt, user_prompt)
+        return {"success": True, "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/beats/{beat_id}/edit-text")
+async def edit_beat_text(beat_id: str, request: EditBeatTextRequest):
+    try:
+        beat_res = supabase.table("beats").select("id, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible), projects(*))").eq("id", beat_id).execute()
+        beat = beat_res.data[0]
+        chapter = beat["chapters"]
+        project = chapter["projects"]
+        
+        # Đóng gói danh sách character của beat
+        chars_str = beat.get("characters_present", "")
+        present_chars_list = [c.strip() for c in chars_str.split(",") if c.strip()]
+
+        # Đóng gói thông tin Chapter để mớm cho AI
+        chapter_info = {
+            "title": chapter["title"],
+            "primary_function": chapter.get("primary_function"),
+            "main_event": chapter.get("main_event"),
+            "emotional_beat": chapter.get("emotional_beat"),
+            "relationship_beat": chapter.get("relationship_beat"),
+            "chapter_hook": chapter.get("chapter_hook"),
+            "continuity_note": chapter.get("continuity_note")
+        }
+        
+        # Gọi hàm lọc
+        optimized_bible = get_optimized_bible(
+            project.get("story_bible", {}), 
+            task="drafting", 
+            present_characters=present_chars_list
+        )
+        
+        system_prompt = prompt_manager.load_prompt("edit_beat_text_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "edit_beat_text_user.md",
+            current_text=request.current_text,
+            user_prompt=request.user_prompt,
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            chapter_info=json.dumps(chapter_info, ensure_ascii=False)
+        )
+        
+        # Gọi hàm trả về Text (XML tag) giống hệt lúc Draft
+        new_text = await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+        
+        # Cập nhật trực tiếp văn bản vào DB
+        supabase.table("beats").update({"ai_draft_text": new_text}).eq("id", beat_id).execute()
+        
+        return {"success": True, "text": new_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==========================================
 # 6. REFINE CHAPTER (BIÊN TẬP TOÀN BỘ CHƯƠNG)
 # ==========================================
@@ -647,16 +769,41 @@ async def bulk_update_beats(request: BulkBeatUpdateRequest):
 async def refine_chapter(chapter_id: str):
     try:
         # Lấy tất cả các beats của chương này
-        beats_res = supabase.table("beats").select("ai_draft_text").eq("chapter_id", chapter_id).order("beat_order").execute()
+        beats_res = supabase.table("beats").select("ai_draft_text, characters_present").eq("chapter_id", chapter_id).order("beat_order").execute()
+        project_res = supabase.table("chapters").select("chapter_number, project_id, projects(story_bible)").eq("id", chapter_id).single().execute()
         
         # Nối tất cả các bản nháp lại thành 1 chương hoàn chỉnh
         full_draft_text = "\n\n".join([b["ai_draft_text"] for b in beats_res.data if b.get("ai_draft_text")])
+
+        # Lấy ra đối tượng story_bile thô
+        story_bible = project_res.data.get("story_bible", {})
         
         if not full_draft_text:
             raise HTTPException(status_code=400, detail="Chưa có bản nháp nào được viết trong chương này.")
 
+        # Nối tất cả danh sách nhân vật có trong tất cả các beat
+        present_chars_list = list(dict.fromkeys(
+            character.strip()
+            for beat in beats_res.data
+            for character in (beat.get("characters_present") or "").split(",")
+            if character.strip()
+        ))
+        # In ra danh sách nhân vật
+        print(f"Danh sách nhân vật của chapter {project_res.data.get('chapter_number')} là {present_chars_list}")
+        
+        # Gọi hàm lọc
+        optimized_bible = get_optimized_bible(
+            story_bible, 
+            task="drafting", 
+            present_characters=present_chars_list
+        )
+
         system_prompt = prompt_manager.load_prompt("refine_system.md")
-        user_prompt = prompt_manager.load_prompt("refine_user.md", chapter_draft_text=full_draft_text)
+        user_prompt = prompt_manager.load_prompt(
+            "refine_user.md", 
+            chapter_draft_text=full_draft_text,
+            story_bible=optimized_bible
+        )
         
         final_text = await generate_text_xml(system_prompt, user_prompt, target_tag="final_polished_chapter")
         
@@ -668,6 +815,7 @@ async def refine_chapter(chapter_id: str):
         
         return {"success": True, "final_content": final_text,"message": "Biên tập thành công!"}
     except Exception as e:
+        print(f"{e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
