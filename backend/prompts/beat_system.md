@@ -51,10 +51,14 @@ Cấu trúc như sau:
   "beats": [
     {
       "beat_id": "Mã beat (VD: C[Số Chương]_B[Số Beat])",
-      "location_and_atmosphere": "Địa điểm & Bầu không khí (VD: Quán ốc ven đường 11h đêm, ồn ào mùi khói).",
-      "characters_present": ["NV 1", "NV 2"],
-      "action_and_sensory_focus": "Hành động chính? Đạo cụ đời thường nào cần miêu tả?",
-      "dialogue_and_subtext": "Chủ đề hội thoại? Ẩn ý ngầm (subtext) sau câu nói là gì?",
+      "location_and_atmosphere": "Địa điểm & Bầu không khí (VD: Quán ốc ven đường 11h đêm, Ồn ào mùi khói bếp,...)",
+      "characters_present": [
+        "BẮT BUỘC liệt kê CHÍNH XÁC TÊN RIÊNG của các nhân vật có mặt (Ví dụ: 'Hoàng Nam', 'Bích Ngọc'). TUYỆT ĐỐI KHÔNG dùng danh từ chung chung như 'cả nhà', 'hai người', 'nhân vật chính', 'bạn bè'."
+      ],
+      "main_action": "Hành động chính?",
+      "sensory_focus": "Đạo cụ đời thường nào cần miêu tả?",
+      "dialogue": "Chủ đề hội thoại?",
+      "subtext": "Ẩn ý ngầm (subtext) sau câu nói là gì?",
       "emotional_shift": "Cảm xúc thay đổi từ [Trạng thái A] sang [Trạng thái B]."
     }
   ]
