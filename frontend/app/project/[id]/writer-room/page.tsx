@@ -5,10 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, PenTool, LayoutList, CheckCircle2, Wand2, Save, X, Sparkles, Activity, Camera, MessageSquare, HeartPulse, List } from "lucide-react";
+import { Loader2, PenTool, LayoutList, CheckCircle2, Wand2, Save, X, Sparkles, Activity, Camera, MessageSquare, HeartPulse, List, Copy, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 
 export default function WriterRoomPage() {
   const params = useParams();
@@ -40,6 +39,9 @@ export default function WriterRoomPage() {
   const [isGeneratingAiBeat, setIsGeneratingAiBeat] = useState(false);
 
   const [activeScrollBeatId, setActiveScrollBeatId] = useState<string | null>(null);
+
+  // State quản lý hiệu ứng Copy
+  const [isCopied, setIsCopied] = useState(false);
   
 
   const DONE_WRITING_STATUSES = [
@@ -371,6 +373,15 @@ export default function WriterRoomPage() {
     finally { setIsGeneratingAiBeat(false); }
   };
 
+  // Hàm xử lý Copy
+  const handleCopyChapter = () => {
+    if (selectedChapter?.final_content) {
+      navigator.clipboard.writeText(selectedChapter.final_content);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-white">
       {/* SIDEBAR TRÁI: DANH SÁCH CHƯƠNG */}
@@ -502,10 +513,24 @@ export default function WriterRoomPage() {
                     </div>
 
                     <Card className="border-indigo-100 shadow-md">
-                      <CardHeader className="bg-white border-b sticky top-0 z-10">
-                        <CardTitle className="text-lg text-slate-800 flex justify-between items-center">
-                          Bản thảo hoàn thiện (Final Content)
-                        </CardTitle>
+                      <CardHeader className="bg-white border-b sticky top-0 z-10 py-3">
+                        <div className="flex justify-between items-center w-full">
+                          <CardTitle className="text-lg text-slate-800">
+                            Bản thảo hoàn thiện (Final Content)
+                          </CardTitle>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={handleCopyChapter}
+                            className="h-8 px-3 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          >
+                            {isCopied ? (
+                              <><Check className="mr-2 h-4 w-4 text-green-600"/> Đã Copy</>
+                            ) : (
+                              <><Copy className="mr-2 h-4 w-4"/> Copy toàn bộ</>
+                            )}
+                          </Button>
+                        </div>
                       </CardHeader>
                       <CardContent className="p-0">
                         <Textarea 
@@ -544,9 +569,6 @@ export default function WriterRoomPage() {
                                 <CardTitle className="text-base text-slate-700 font-bold">{beat.beat_id}</CardTitle>
                                 <span className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-full">{beat.location}</span>
                               </div>
-                              <Button variant="outline" size="sm" onClick={() => openAiBeatModal(index)} disabled={batchDrafting || refining} className="h-7 text-xs border-amber-200 text-amber-600 hover:bg-amber-50">
-                                <Sparkles className="mr-1 h-3 w-3"/> Sửa Kịch Bản Cảnh
-                              </Button>
                             </div>
                           </CardHeader>
                           <CardContent className="p-0">
@@ -635,7 +657,7 @@ export default function WriterRoomPage() {
                                       setUserBeatPrompt("");
                                       setAiBeatStep(1);
                                       setAiBeatAnalysisData(null);
-                                      setIsAiBeatModalOpen(true); // Mở Modal Edit Text (Lúc nãy viết lộn tên hàm)
+                                      setIsAiBeatModalOpen(true); // Mở Modal Edit Text
                                     }} disabled={draftingBeatId === beat.id || batchDrafting || refining} className="border-amber-200 text-amber-700 hover:bg-amber-50">
                                       <Sparkles className="mr-2 h-4 w-4"/> AI Sửa Đoạn Này
                                     </Button>
@@ -657,7 +679,7 @@ export default function WriterRoomPage() {
               {/* ========================================= */}
               {/* CỘT PHẢI: MỤC LỤC BEAT (TOC) NEO CỐ ĐỊNH */}
               {/* ========================================= */}
-              {beats.length > 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status) && (
+              { !loadingBeats && beats.length > 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status) && (
                 <div className="hidden xl:block sticky top-0 w-56 shrink-0 pt-2 transition-opacity duration-300">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                     <List className="h-4 w-4"/> Mục lục Nhịp truyện

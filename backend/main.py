@@ -278,7 +278,7 @@ async def generate_pacing(project_id: str):
                 "chapter_number": chapter.get("chapter_number"),
                 "title": chapter.get("title", f"Chương {chapter.get('chapter_number')}"),
                 "timeline_period": chapter.get("timeline_period", "Hiện tại"),
-                "pov_character": chapter.get("character_focus", "Unknown"),
+                "pov_character": chapter.get("pov_character", "Unknown"),
                 "main_event": chapter.get("main_event", ""),
                 "primary_function": chapter.get("primary_function", ""),
                 "emotional_beat": chapter.get("emotional_beat", ""),
@@ -448,7 +448,7 @@ async def generate_beats(chapter_id: str):
                 "beat_order": beat_order,
                 "location": beat.get("location_and_atmosphere", "Chưa xác định"),
                 "characters_present": ", ".join(beat.get("characters_present", [])),
-                "action_and_dialogue": f"Action: {beat.get('action_and_sensory_focus')}\nDialogue: {beat.get('dialogue_and_subtext')}",
+                "action_and_dialogue": f"Action: {beat.get('main_action')}. Props: {beat.get('sensory_focus')}\nDialogue: {beat.get('dialogue')}. Subtext: {beat.get('subtext')}",
                 "emotional_shift": beat.get("emotional_shift")
             })
             
@@ -529,22 +529,17 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
 async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks):
     try:
         # 1. Lấy tất cả các beats của chương, sắp xếp đúng thứ tự
-        chapter_res = supabase.table("chapters").select("main_event, primary_function, pov_character, timeline_period").eq("id", chapter_id).execute()
+        chapter_res = supabase.table("chapters").select("pov_character, projects(id, story_bible)").eq("id", chapter_id).execute()
         beats_res = supabase.table("beats").select("*").eq("chapter_id", chapter_id).order("beat_order").execute()
         beats = beats_res.data
-        chapter_info = chapter_res.data[0] if chapter_res.data else {}
+        project = chapter_res.data[0]["projects"]
+        project_id = project["id"]
         
         if not beats:
             raise HTTPException(status_code=400, detail="Chương này chưa có nhịp truyện (Beats) nào.")
 
-        # Lấy thông tin Project để lấy Memory
-        chapter_res = supabase.table("chapters").select("projects(id, story_bible)").eq("id", chapter_id).execute()
-        project = chapter_res.data[0]["projects"]
-        project_id = project["id"]
-
         # 2. CHẠY TUẦN TỰ QUA TỪNG BEAT
         previous_text = ""
-        
         for beat in beats:
             # Lấy Memory mới nhất trực tiếp từ DB cho TỪNG vòng lặp (vì Memory có thể thay đổi sau mỗi Beat)
             curr_proj = supabase.table("projects").select("current_memory").eq("id", project_id).execute()
@@ -558,7 +553,8 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
             optimized_bible = get_optimized_bible(
                 project.get("story_bible", {}), 
                 task="drafting", 
-                present_characters=present_chars_list
+                present_characters=present_chars_list,
+                pov_character=chapter_res.data[0].get("pov_character", "")
             )
             system_prompt = prompt_manager.load_prompt("draft_system.md")
             user_prompt = prompt_manager.load_prompt(
@@ -608,9 +604,10 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
 async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, previous_text: str = ""):
     try:
         # 1. Lấy Data
-        beat_res = supabase.table("beats").select("*, chapters(*, projects(*))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("*, chapters(pov_character, projects(current_memory, story_bible))").eq("id", beat_id).execute()
         beat = beat_res.data[0]
-        project = beat["chapters"]["projects"]
+        chapter = beat["chapter"]
+        project = chapter["projects"]
         project_id = project["id"]
         
         current_memory_data = project.get("current_memory", {})
@@ -623,7 +620,8 @@ async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, pre
         optimized_bible = get_optimized_bible(
             project.get("story_bible", {}), 
             task="drafting", 
-            present_characters=present_chars_list
+            present_characters=present_chars_list,
+            pov_character=chapter.get("pov_character", "")
         )
         system_prompt = prompt_manager.load_prompt("draft_system.md")
         user_prompt = prompt_manager.load_prompt(
@@ -670,7 +668,7 @@ async def analyze_beat_text_idea(beat_id: str, request: AnalyzeBeatTextRequest):
         if not request.current_text:
             raise HTTPException(status_code=400, detail="Chưa có văn bản nháp. Hãy bấm 'AI Viết Nháp' trước khi sửa.")
 
-        beat_res = supabase.table("beats").select("*, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible), projects(*))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("*, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible))").eq("id", beat_id).execute()
         beat = beat_res.data[0]
         chapter = beat["chapters"]
         project = chapter["projects"]
@@ -715,7 +713,7 @@ async def analyze_beat_text_idea(beat_id: str, request: AnalyzeBeatTextRequest):
 @app.post("/api/beats/{beat_id}/edit-text")
 async def edit_beat_text(beat_id: str, request: EditBeatTextRequest):
     try:
-        beat_res = supabase.table("beats").select("id, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible), projects(*))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("id, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible))").eq("id", beat_id).execute()
         beat = beat_res.data[0]
         chapter = beat["chapters"]
         project = chapter["projects"]
@@ -1270,19 +1268,18 @@ async def background_update_memory(project_id: str, old_memory: dict, new_text: 
 
 import copy
 
-def get_optimized_bible(full_bible: dict, task: str, present_characters: list = None) -> dict:
+
+def get_optimized_bible(full_bible: dict, task: str, present_characters: list = None, pov_character: str = "") -> dict:
     """
     Hàm gọt dũa Story Bible tùy theo tác vụ của AI để tránh pha loãng ngữ cảnh (Context Dilution).
     """
     if not full_bible:
         return {}
-        
+
     optimized = copy.deepcopy(full_bible)
-    
+
     # ====================================================
     # TÁC VỤ 1: PACING & SINGLE CHAPTER (Kiến trúc vĩ mô)
-    # Cần: Động cơ, Mâu thuẫn, Arc tổng thể.
-    # Bỏ: Ngoại hình, thói quen lặt vặt, chi tiết sinh hoạt.
     # ====================================================
     if task in ["pacing", "single_chapter"]:
         if "characters" in optimized:
@@ -1291,66 +1288,82 @@ def get_optimized_bible(full_bible: dict, task: str, present_characters: list = 
                 char.pop("habits", None)
                 char.pop("living_situation", None)
                 char.pop("career_and_financial_status", None)
-        
+
         if "world_building" in optimized:
             optimized["world_building"].pop("daily_life", None)
-            
-        # Riêng single_chapter (sửa 1 chương) thì bỏ luôn cấu trúc cảm xúc tổng thể cho nhẹ
+
         if task == "single_chapter":
             optimized.pop("emotional_architecture", None)
             optimized.pop("story_continuity", None)
 
-
     # ====================================================
     # TÁC VỤ 2: BEAT BREAKDOWN (Đạo diễn chia cảnh)
-    # Cần: Tính cách, Nỗi sợ, Bí mật, Quy tắc hội thoại.
-    # Bỏ: Cấu trúc Arc dài hạn, Diện mạo, Định dạng Vibe tổng.
     # ====================================================
     elif task == "beat_breakdown":
         if "characters" in optimized:
             for char in optimized.get("characters", []):
-                char.pop("appearance", None) # Không cần tả quần áo lúc lên kịch bản hành động
-                char.pop("character_arc", None) # Quá dài cho 1 chương ngắn
-                
+                char.pop("appearance", None)
+                char.pop("character_arc", None)
+
         if "world_building" in optimized:
             optimized["world_building"].pop("cultural_context", None)
             optimized["world_building"].pop("past_setting", None)
-            
-        optimized.pop("emotional_architecture", None)
-        # Bỏ Story Identity (vì Prompt đã có sẵn chapter goal và memory)
-        optimized.pop("story_identity", None) 
 
+        optimized.pop("emotional_architecture", None)
+        optimized.pop("story_identity", None)
 
     # ====================================================
     # TÁC VỤ 3: DRAFTING (Nhà văn viết chữ) - LỌC CỰC MẠNH
-    # Cần: Ngoại hình, Thói quen, Đạo cụ, Quan hệ của ĐÚNG người có mặt.
-    # Bỏ: Toàn bộ Theme, Premise, Conflict tổng thể để tránh văn mẫu.
     # ====================================================
     elif task == "drafting":
-        # 1. LỌC NHÂN VẬT: Chỉ giữ lại những người có tên trong mảng present_characters
-        if "characters" in optimized and present_characters:
-            filtered_chars = [
-                c for c in optimized["characters"]
-                if any(p.lower() in c.get("name", "").lower() for p in present_characters)
-            ]
-            optimized["characters"] = filtered_chars or optimized["characters"] # Fallback an toàn
-            
-        # 2. LỌC QUAN HỆ: Chỉ giữ quan hệ liên quan đến người đang có mặt
-        if "relationship_dynamics" in optimized and present_characters:
-            filtered_rels = [
-                r for r in optimized["relationship_dynamics"]
-                if any(b.lower() in [p.lower() for p in present_characters] for b in r.get("between", []))
-            ]
-            optimized["relationship_dynamics"] = filtered_rels
-            
-        # 3. LỌC SIÊU METADATA: Ép AI chỉ tập trung vào cảnh trước mắt (Show, don't tell)
-        keys_to_drop = [
-            "story_identity",          # Tránh viết lan man về thông điệp truyện
-            "conflict_system",         # Tránh kể lể mâu thuẫn gia tộc/xã hội
-            "story_continuity",        # Tránh nhắc lại hạt giống ý tưởng
-            "emotional_architecture"   # Tránh tả cảm xúc kiểu nhảy cóc
-        ]
+        if "characters" in optimized:
+            search_terms = [p.lower().strip() for p in (present_characters or []) if p]
+            if pov_character:
+                search_terms.append(pov_character.lower().strip())
+
+            # FIX #1: Nếu không có bất kỳ thông tin nhân vật có mặt nào được truyền vào,
+            # KHÔNG được coi tất cả là "vắng mặt" (sẽ làm mất hết appearance/personality
+            # của mọi nhân vật). Fallback an toàn: coi như ai cũng có thể xuất hiện.
+            no_filter_info = len(search_terms) == 0
+
+            for char in optimized["characters"]:
+                char_name = char.get("name", "").lower()
+                is_present = no_filter_info or any(
+                    st in char_name or char_name in st for st in search_terms
+                )
+
+                if not is_present:
+                    # FIX #2: Cắt tỉa triệt để hơn cho nhân vật vắng mặt, đúng với ý đồ
+                    # "chỉ giữ Tên, Vai trò và Quan hệ" — bổ sung các trường còn sót lại
+                    # trước đây (đặc biệt secrets_or_insecurities, có thể là spoiler
+                    # chưa tới lúc tiết lộ).
+                    for field in (
+                        "appearance",
+                        "habits",
+                        "fear",
+                        "emotional_need",
+                        "internal_conflict",
+                        "personality",
+                        "character_arc",
+                        "secrets_or_insecurities",
+                        "external_pressure",
+                        "timeline_evolution",
+                        "career_and_financial_status",
+                        "living_situation",
+                    ):
+                        char.pop(field, None)
+                # Người có mặt: giữ nguyên toàn bộ để AI có tư liệu miêu tả giác quan.
+                # Lưu ý: character_arc (bao gồm ending_state/truth_they_learn) vẫn được
+                # giữ đầy đủ cho người có mặt — nếu đây không phải chủ đích (sợ AI viết
+                # "đi trước" tiến độ arc ở beat sớm), cần lọc thêm ở bước này.
+
+        # Giữ lại toàn bộ `relationship_dynamics` để AI biết cách xưng hô (Anh-Em, Tôi-Cô...).
+
+        keys_to_drop = ["story_identity", "conflict_system", "story_continuity", "emotional_architecture"]
         for k in keys_to_drop:
             optimized.pop(k, None)
+
+        if "world_building" in optimized:
+            optimized["world_building"].pop("socio_economic_pressures", None)
 
     return optimized
