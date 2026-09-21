@@ -58,10 +58,11 @@ Chỉ trả về JSON theo đúng cấu trúc sau. TÙY VÀO ĐỘ LỚN CỦA �
     "chapter_number": "Số thứ tự chương SAU KHI chèn/sửa, tính theo target_index và action_type (xem hướng dẫn renumbering bên dưới).",
     "title": "Tên chương",
     "timeline_period": "Mốc thời gian của chapter này — hiện tại, một mốc quá khứ cụ thể, hoặc flashback — xác định dựa theo timeline_structure thực tế của Story Bible cho câu chuyện này.",
-    "pov_character": "Nhân vật góc nhìn",
+    "pov_character": [
+        "Chương được kể dưới góc nhìn của ai, BẮT BUỘC liệt kê CHÍNH XÁC TÊN RIÊNG của các nhân vật (Ví dụ: 'Hoàng Nam', 'Bích Ngọc'). TUYỆT ĐỐI KHÔNG dùng danh từ chung chung như 'cả nhà', 'hai người', 'nhân vật chính', 'bạn bè'."
+      ],
     "primary_function": "BẮT BUỘC CHỌN 1 TRONG CÁC GIÁ TRỊ SAU ĐÂY (Giữ nguyên văn tiếng Anh/Việt): 'Setup (Thiết lập cơ bản)', 'Inciting Incident (Biến cố kích hoạt)', 'Character Development (Phát triển nhân vật)', 'Relationship Development (Phát triển quan hệ)', 'Rising Action (Leo thang xung đột)', 'Turning Point (Bước ngoặt)', 'Midpoint (Điểm giữa)', 'Climax (Cao trào)', 'Resolution (Giải quyết)', 'Lore (Hé lộ thông tin thế giới/bí mật)'.",
     "main_event": "Sự kiện chính.",
-    "character_focus": "Nhân vật được tập trung trong chương này.",
     "emotional_beat": "Thay đổi cảm xúc chính của pov_character trong chương.",
     "relationship_beat": "Thay đổi quan hệ nếu có, phải nhất quán với relationship_arc của cặp/nhóm liên quan trong Story Bible.",
     "chapter_hook": "Điểm khiến người đọc/nghe muốn tiếp tục — không bắt buộc là cliffhanger.",

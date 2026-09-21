@@ -98,3 +98,11 @@ class AnalyzeChapterIdeaRequest(BaseModel):
     target_index: int
     user_prompt: str
     current_chapters: list
+
+class AnalyzeBeatTextRequest(BaseModel):
+    user_prompt: str
+    current_text: str
+
+class EditBeatTextRequest(BaseModel):
+    user_prompt: str
+    current_text: str
