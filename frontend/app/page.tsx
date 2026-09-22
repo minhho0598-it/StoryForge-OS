@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FolderOpen, Clock, ArrowRight } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -14,8 +15,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8765/api/projects")
-      .then(res => res.json())
+    apiClient.get<any[]>("/api/projects")
       .then(data => {
         if (data.success) {
           setProjects(data.data);

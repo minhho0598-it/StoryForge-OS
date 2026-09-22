@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-type ApiResponse<T = unknown> = { success: boolean; data?: T; [key: string]: unknown };
+type ApiResponse<T = unknown> = { success: boolean; data: T; [key: string]: unknown };
 
 async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   // Luôn đọc backend_url MỚI NHẤT tại thời điểm gọi — không cache, không hardcode.
@@ -46,7 +46,7 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
     throw new ApiError((payload as { message?: string }).message || "Backend từ chối yêu cầu.");
   }
 
-  return payload ?? ({ success: true } as ApiResponse<T>);
+  return payload ?? ({ success: true, data: undefined as T } as ApiResponse<T>);
 }
 
 export const apiClient = {

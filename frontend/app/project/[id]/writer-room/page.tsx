@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, PenTool, LayoutList, CheckCircle2, Wand2, Save, X, Sparkles, Activity, Camera, MessageSquare, HeartPulse, List, Copy, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { apiClient } from "@/lib/api-client";
 
 export default function WriterRoomPage() {
   const params = useParams();
@@ -69,8 +70,7 @@ export default function WriterRoomPage() {
 
   // 1. Tải danh sách Chương khi vào trang
   useEffect(() => {
-    fetch(`http://localhost:8765/api/projects/${projectId}/chapters`)
-      .then(res => res.json())
+    apiClient.get<any[]>(`/api/projects/${projectId}/chapters`)
       .then(data => {
         if (data.success) setChapters(data.data);
       });
@@ -83,8 +83,7 @@ export default function WriterRoomPage() {
     if (DONE_WRITING_STATUSES.includes(selectedChapter.status) && !selectedChapter.final_content) {
       // Nếu chương đã hoàn thiện, không cần tải beats nữa, chuyển qua tải final_content
       setBeats([]);
-      fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}`)
-        .then(res => res.json())
+      apiClient.get<any>(`/api/chapters/${selectedChapter.id}`)
         .then(data => {
           if (data.success) {
             setSelectedChapter((prev: any) => ({ ...prev, final_content: data.data.final_content }));
@@ -93,8 +92,7 @@ export default function WriterRoomPage() {
       return;
     } else if (!DONE_WRITING_STATUSES.includes(selectedChapter.status)) {
       setLoadingBeats(true);
-      fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/beats`)
-        .then(res => res.json())
+      apiClient.get<any[]>(`/api/chapters/${selectedChapter.id}/beats`)
         .then(data => {
           if (data.success) setBeats(data.data);
         })
@@ -129,21 +127,13 @@ export default function WriterRoomPage() {
       // Lưu Beats (nếu có thay đổi)
       if (isBeatsDirty && beats.length > 0) {
         const payload = beats.map(b => ({ id: b.id, draft_text: b.ai_draft_text }));
-        await fetch(`http://localhost:8765/api/beats/bulk-update`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ beats: payload })
-        });
+        await apiClient.put(`/api/beats/bulk-update`, { beats: payload });
         setIsBeatsDirty(false);
       }
 
       // Lưu Bản Final (nếu có thay đổi)
       if (isFinalDirty && selectedChapter) {
-        await fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ final_content: selectedChapter.final_content })
-        });
+        await apiClient.put(`/api/chapters/${selectedChapter.id}`, { final_content: selectedChapter.final_content });
         setIsFinalDirty(false);
       }
       
@@ -161,12 +151,10 @@ export default function WriterRoomPage() {
     if (!selectedChapter) return;
     setLoadingBeats(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/generate-beats`, { method: "POST" });
-      const result = await res.json();
+      const result = await apiClient.post<any>(`/api/chapters/${selectedChapter.id}/generate-beats`);
       if (result.success) {
         // Gọi lại api lấy beats mới
-        const newBeatsRes = await fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/beats`);
-        const newBeats = await newBeatsRes.json();
+        const newBeats = await apiClient.get<any[]>(`/api/chapters/${selectedChapter.id}/beats`);
         setBeats(newBeats.data);
       }
     } catch (error) {
@@ -185,8 +173,7 @@ export default function WriterRoomPage() {
         ? encodeURIComponent(beats[index - 1].ai_draft_text.slice(-1500)) 
         : "";
 
-      const res = await fetch(`http://localhost:8765/api/beats/${beatId}/draft?previous_text=${previousText}`, { method: "POST" });
-      const result = await res.json();
+      const result = await apiClient.post<any>(`/api/beats/${beatId}/draft?previous_text=${previousText}`);
       
       if (result.success) {
         // Cập nhật text mới vào state ngay lập tức
@@ -264,8 +251,7 @@ export default function WriterRoomPage() {
     if (!selectedChapter) return;
     setRefining(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/refine`, { method: "POST" });
-      const result = await res.json();
+      const result = await apiClient.post<any>(`/api/chapters/${selectedChapter.id}/refine`);
       if (result.success) {
         alert("Đã biên tập thành công! Chương đã khóa sổ.");
         // Cập nhật lại UI để hiển thị bài chốt
@@ -298,14 +284,12 @@ export default function WriterRoomPage() {
     alert("Hệ thống bắt đầu viết toàn bộ các cảnh. Quá trình này có thể tốn vài phút. Vui lòng không đóng trang.");
 
     try {
-      const res = await fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/batch-draft`, { method: "POST" });
-      const result = await res.json();
+      const result = await apiClient.post<any>(`/api/chapters/${selectedChapter.id}/batch-draft`);
       
       if (result.success) {
         alert(result.message);
         // Tải lại danh sách Beats để hiển thị chữ lên màn hình
-        const newBeatsRes = await fetch(`http://localhost:8765/api/chapters/${selectedChapter.id}/beats`);
-        const newBeats = await newBeatsRes.json();
+        const newBeats = await apiClient.get<any[]>(`/api/chapters/${selectedChapter.id}/beats`);
         setBeats(newBeats.data);
       } else {
          alert("Lỗi Backend: " + result.detail);
@@ -332,12 +316,7 @@ export default function WriterRoomPage() {
       const beatId = beats[targetBeatIndex].id;
       const currentText = beats[targetBeatIndex].ai_draft_text || "";
       
-      const res = await fetch(`http://localhost:8765/api/beats/${beatId}/analyze-text-idea`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_prompt: userBeatPrompt, current_text: currentText })
-      });
-      const result = await res.json();
+      const result = await apiClient.post<any>(`/api/beats/${beatId}/analyze-text-idea`, { user_prompt: userBeatPrompt, current_text: currentText });
       if (result.success) {
         setAiBeatAnalysisData(result.data);
         setAiBeatStep(2);
@@ -353,12 +332,7 @@ export default function WriterRoomPage() {
       const beatId = beats[targetBeatIndex].id;
       const currentText = beats[targetBeatIndex].ai_draft_text || "";
 
-      const res = await fetch(`http://localhost:8765/api/beats/${beatId}/edit-text`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_prompt: finalPromptToUse, current_text: currentText })
-      });
-      const result = await res.json();
+      const result = await apiClient.post<any>(`/api/beats/${beatId}/edit-text`, { user_prompt: finalPromptToUse, current_text: currentText });
       
       if (result.success) {
         // Ghi đè văn bản mới vào State, kích hoạt cờ Lưu

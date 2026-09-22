@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Users, MapPin, Swords, Target, Play } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
 
 export default function OverviewPage() {
   const params = useParams();
@@ -16,8 +17,7 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:8765/api/projects/${projectId}`)
-      .then(res => res.json())
+    apiClient.get(`/api/projects/${projectId}`)
       .then(data => {
         if (data.success) setProject(data.data);
       })

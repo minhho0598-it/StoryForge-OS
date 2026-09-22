@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, BrainCircuit, PenTool } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { apiClient } from "@/lib/api-client";
 
 interface Idea { id: number; title: string; vietnamese_context: string; situational_irony: string; logline: string; micro_conflict: string; vibe: string; }
 
@@ -28,16 +29,11 @@ export default function NewProjectPage() {
     setLoading(true); setIdeas([]); setSelectedIdea(null); setAnalyzedVibe("");
     
     try {
-      const response = await fetch("http://localhost:8765/api/ideation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ story_premise: premise }),
-      });
-      const result = await response.json();
+      const result = await apiClient.post<Idea[]>("/api/ideation", { story_premise: premise });
       
       if (result.success) {
         setIdeas(result.data);
-        setAnalyzedVibe(result.analyzed_vibe);
+        setAnalyzedVibe(String(result.analyzed_vibe ?? ""));
       }
     } catch (e) { 
       alert("Lỗi kết nối Backend."); 
@@ -50,10 +46,7 @@ export default function NewProjectPage() {
   const handleCreateProject = async (idea: Idea) => {
     setCreatingProject(true);
     try {
-      const response = await fetch("http://localhost:8765/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const result = await apiClient.post("/api/projects", {
           title: idea.title, 
           vibe: idea.vibe, 
           logline: idea.logline,
@@ -61,9 +54,7 @@ export default function NewProjectPage() {
           situational_irony: idea.situational_irony,
           micro_conflict: idea.micro_conflict, 
           story_premise: premise, // Lưu lại bản gốc
-        }),
-      });
-      const result = await response.json();
+        });
       if (result.success) {
         router.push(`/project/${result.project_id}/overview`);
       }
