@@ -48,6 +48,9 @@ class MetadataGenerateRequest(BaseModel):
     target_type: str
     tone: str = "Cân bằng"
 
+class UpdateVideoMetadataRequest(BaseModel):
+    video_metadata: dict
+
 class UpdateBibleRequest(BaseModel):
     story_bible: dict
 

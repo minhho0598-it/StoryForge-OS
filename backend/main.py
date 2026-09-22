@@ -23,6 +23,7 @@ from schemas import (
     ProjectCreateRequest,
     UpdateBibleRequest,
     UpdateRenderConfigRequest,
+    UpdateVideoMetadataRequest,
 )
 from services.llm_service import generate_json, generate_text_xml
 from services.tts_service import generate_audio_file
@@ -974,6 +975,17 @@ async def generate_video_metadata(project_id: str, request: MetadataGenerateRequ
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.put("/api/projects/{project_id}/update-video-metadata")
+async def update_render_config(project_id: str, request: UpdateVideoMetadataRequest):
+    try:
+        supabase.table("projects").update({"video_metadata": request.video_metadata}).eq(
+            "id", project_id
+        ).execute()
+        return {"success": True, "message": "Cập nhật video metadata thành công."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def background_batch_render(project_id: str, config: dict, target_chapter_ids: list):
     print(f"[Batch Render] Bắt đầu xử lý cho Project: {project_id}")
     
@@ -1177,6 +1189,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                 "-f", "concat", "-safe", "0",
                 "-i", list_file_path,
+                "-filter:a", "volume=3dB",
                 "-c:a", "aac",        
                 "-b:a", "192k",       
                 "-ar", "44100",       
