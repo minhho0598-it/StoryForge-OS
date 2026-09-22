@@ -33,3 +33,4 @@ yarn-error.log*
 PROJECT_DOCS.md
 **/__pycache__/
 *.py[cod]
+PROJECT_SPEC.md
