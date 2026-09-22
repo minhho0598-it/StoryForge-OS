@@ -14,6 +14,15 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, PlayCircle, Settings2, CheckCircle2, Clock, FileWarning, Wand2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { apiClient } from "@/lib/api-client";
+
+type RenderStatusResponse = {
+  success: boolean;
+  project_status: string;
+  project_progress?: number;
+  task_msg?: string;
+  chapters: any[];
+};
 
 export default function RenderStudioPage() {
   const params = useParams();
@@ -49,12 +58,10 @@ export default function RenderStudioPage() {
   // 1. HÀM FETCH INITIAL (Đọc Profile Config từ DB nếu có)
   const fetchInitialData = async () => {
     try {
-      const [chapRes, projRes] = await Promise.all([
-        fetch(`http://localhost:8765/api/projects/${projectId}/chapters`),
-        fetch(`http://localhost:8765/api/projects/${projectId}`)
+      const [chapData, projData] = await Promise.all([
+        apiClient.get<any[]>(`/api/projects/${projectId}/chapters`),
+        apiClient.get<any>(`/api/projects/${projectId}`)
       ]);
-      const chapData = await chapRes.json();
-      const projData = await projRes.json();
       
       if (chapData.success) {
         setChapters(chapData.data);
@@ -90,8 +97,7 @@ export default function RenderStudioPage() {
   // 2. HÀM POLLING CHI TIẾT
   const pollLightweightStatus = async () => {
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/status-only`);
-      const data = await res.json();
+      const data = (await apiClient.get<any>(`/api/projects/${projectId}/status-only`)) as unknown as RenderStatusResponse;
       
       if (data.success) {
         // [CẬP NHẬT MỚI Ở ĐÂY]
@@ -173,15 +179,10 @@ export default function RenderStudioPage() {
     setIsPolling(true); 
 
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/batch-render`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+      const data = await apiClient.post<any>(`/api/projects/${projectId}/batch-render`, {
             config: config, 
             target_chapter_ids: selectedChapterIds // Chuyển danh sách ID xuống Backend
-        }),
-      });
-      const data = await res.json();
+        });
       if (!data.success) {
         alert("Lỗi Backend.");
         forceRenderRef.current = false;
@@ -195,13 +196,7 @@ export default function RenderStudioPage() {
   // 5. HÀM LƯU PROFILE CONFIG VÀO DATABASE
   const handleSaveProfile = async () => {
     try {
-      await fetch(`http://localhost:8765/api/projects/${projectId}/update-render-config`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          render_config: config
-        }),
-      });
+      await apiClient.put(`/api/projects/${projectId}/update-render-config`, { render_config: config });
       alert("Đã lưu Cấu hình (Profile) thành công!");
     } catch (e) { alert("Lỗi khi lưu cấu hình."); }
   };

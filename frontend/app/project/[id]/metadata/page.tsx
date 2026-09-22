@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Wand2, Save, Hash, Share2, Smartphone, Copy, Check, ImagePlus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { apiClient } from "@/lib/api-client";
 
 export default function MetadataPage() {
   const params = useParams();
@@ -28,8 +29,7 @@ export default function MetadataPage() {
   const [copiedField, setCopiedField] = useState("");
 
   useEffect(() => {
-    fetch(`http://localhost:8765/api/projects/${projectId}`)
-      .then(res => res.json())
+    apiClient.get<any>(`/api/projects/${projectId}`)
       .then(data => {
         if (data.success) {
           if (data.data.video_metadata) setMetadata(prev => ({...prev, ...data.data.video_metadata}));
@@ -42,12 +42,7 @@ export default function MetadataPage() {
     setAiOptions(prev => ({ ...prev, [type]: [] })); 
     
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-metadata`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_type: type, tone: selectedTone })
-      });
-      const data = await res.json();
+      const data = await apiClient.post<any>(`/api/projects/${projectId}/generate-metadata`, { target_type: type, tone: selectedTone });
       
       if (data.success && data.data.length > 0) {
         if (['title', 'hook', 'overlay'].includes(type)) {
@@ -66,11 +61,7 @@ export default function MetadataPage() {
   const handleSaveMetadata = async () => {
     setIsSaving(true);
     try {
-      await fetch(`http://localhost:8765/api/projects/${projectId}/update-video-metadata`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ video_metadata: metadata }),
-      });
+      await apiClient.put(`/api/projects/${projectId}/update-video-metadata`, { video_metadata: metadata });
       alert("Đã lưu Metadata thành công!");
     } catch (e) { 
       alert("Lỗi khi lưu dữ liệu."); 

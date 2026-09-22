@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiClient } from "@/lib/api-client";
 
 
 /* ------------------------------------------------------------------ */
@@ -168,8 +169,7 @@ export default function ArchitecturePage() {
   const [evalData, setEvalData] = useState<any>(null);
   
   useEffect(() => {
-    fetch(`http://localhost:8765/api/projects/${projectId}`)
-      .then((res) => res.json())
+    apiClient.get<any>(`/api/projects/${projectId}`)
       .then((data) => {
         if (data.success) {
           if (data.data.story_bible) {
@@ -183,8 +183,7 @@ export default function ArchitecturePage() {
 
 
   const fetchChapters = async () => {
-    fetch(`http://localhost:8765/api/projects/${projectId}/chapters`)
-      .then((res) => res.json())
+    apiClient.get<any[]>(`/api/projects/${projectId}/chapters`)
       .then((data) => {
         if (data.success && data.data.length > 0) {
           setChapters(data.data);
@@ -197,11 +196,7 @@ export default function ArchitecturePage() {
   const handleSaveBible = async () => {
     setIsSavingBibleChanges(true);
     try {
-      await fetch(`http://localhost:8765/api/projects/${projectId}/update-bible`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ story_bible: bibleData }),
-      });
+      await apiClient.put(`/api/projects/${projectId}/update-bible`, { story_bible: bibleData });
       setIsBibleDirty(false); // Tắt cờ
     } catch (e) {
       alert("Lỗi khi lưu Story Bible.");
@@ -258,11 +253,7 @@ export default function ArchitecturePage() {
   const handleSavePacing = async () => {
     setIsSavingPacingChanges(true);
     try {
-      await fetch(`http://localhost:8765/api/projects/${projectId}/bulk-update-chapters`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chapters: chapters })
-      });
+      await apiClient.put(`/api/projects/${projectId}/bulk-update-chapters`, { chapters });
       setEvalData(null);
       setIsPacingDirty(false);
       // Tải lại danh sách để lấy ID mới do Supabase cấp cho các chương vừa tạo
@@ -278,10 +269,7 @@ export default function ArchitecturePage() {
   const generateBible = async () => {
     setBibleLoading(true);
     try {
-      const response = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-bible`, {
-        method: "POST",
-      });
-      const result = await response.json();
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-bible`);
 
       if (result.success) {
         setBibleData(result.data);
@@ -301,10 +289,7 @@ export default function ArchitecturePage() {
   const generatePacing = async () => {
     setPacingLoading(true);
     try {
-      const response = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-pacing`, {
-        method: "POST",
-      });
-      const result = await response.json();
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-pacing`);
 
       if (result.success) {
         alert(result.message);
@@ -379,15 +364,10 @@ export default function ArchitecturePage() {
     
     setIsGeneratingChar(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-character`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-character`, {
           user_prompt: aiCharPrompt,
           current_bible: bibleData // Đưa Bible hiện tại lên làm context
-        })
-      });
-      const result = await res.json();
+        });
       
       if (result.success) {
         // Chèn nhân vật mới vào list và tự động Bật cờ Dirty
@@ -417,15 +397,10 @@ export default function ArchitecturePage() {
     
     setIsGeneratingRel(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-relationship`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-relationship`, {
           user_prompt: aiRelPrompt,
           current_bible: bibleData // Truyền cả Bible lên
-        })
-      });
-      const result = await res.json();
+        });
       
       if (result.success) {
         // Chèn vào list và bật cờ Dirty
@@ -464,17 +439,12 @@ export default function ArchitecturePage() {
     if (!userOriginalPrompt.trim()) return alert("Vui lòng nhập ý tưởng!");
     setIsAnalyzing(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/analyze-chapter-idea`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/analyze-chapter-idea`, {
           action_type: aiChapAction,
           target_index: targetChapIndex,
           user_prompt: userOriginalPrompt,
           current_chapters: chapters
-        })
-      });
-      const result = await res.json();
+        });
       if (result.success) {
         setAiAnalysisData(result.data);
         setAiChapStep(2); // Chuyển sang màn Review
@@ -491,17 +461,12 @@ export default function ArchitecturePage() {
 
     setIsGeneratingAiChap(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-dynamic-chapters`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-dynamic-chapters`, {
           action_type: aiChapAction,
           target_index: targetChapIndex,
           user_prompt: finalPromptToUse,
           current_chapters: chapters
-        })
-      });
-      const result = await res.json();
+        });
       
       if (result.success) {
         // Nhận về một MẢNG chứa 1 hoặc nhiều chapters
@@ -548,8 +513,7 @@ export default function ArchitecturePage() {
 
     setIsEvaluating(true);
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/evaluate-pacing`, { method: "POST" });
-      const result = await res.json();
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/evaluate-pacing`);
       if (result.success) setEvalData(result.data);
     } catch (e) {
       alert("Lỗi kết nối AI Đánh giá.");
