@@ -3,7 +3,7 @@
 import Link from "next/link";
 // IMPORT THÊM useParams TỪ next/navigation
 import { usePathname, useParams } from "next/navigation"; 
-import { BookOpen, PenTool, Clapperboard, ChevronLeft, Home, Newspaper } from "lucide-react";
+import { BookOpen, PenTool, Clapperboard, ChevronLeft, Home, Newspaper, Settings } from "lucide-react";
 
 export default function ProjectLayout({
   children,
@@ -60,6 +60,12 @@ export default function ProjectLayout({
             className={`flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive('/metadata') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800'}`}>
             <Newspaper className="h-5 w-5" />
              Xuất Bản & SEO
+          </Link>
+
+          <Link href={`/project/${projectId}/settings`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${isActive('/settings') ? 'bg-slate-700 text-white font-medium shadow-md' : 'hover:bg-slate-800'}`}>
+            <Settings className="h-5 w-5" />
+            Cài Đặt
           </Link>
         </div>
       </div>

@@ -976,7 +976,7 @@ async def generate_video_metadata(project_id: str, request: MetadataGenerateRequ
 
 
 @app.put("/api/projects/{project_id}/update-video-metadata")
-async def update_render_config(project_id: str, request: UpdateVideoMetadataRequest):
+async def update_video_metadata(project_id: str, request: UpdateVideoMetadataRequest):
     try:
         supabase.table("projects").update({"video_metadata": request.video_metadata}).eq(
             "id", project_id
