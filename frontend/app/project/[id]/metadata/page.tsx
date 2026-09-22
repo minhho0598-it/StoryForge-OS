@@ -17,9 +17,8 @@ export default function MetadataPage() {
   const projectId = params.id as string;
 
   const [metadata, setMetadata] = useState({
-    title: "", hook: "", overlay: "", description: "", type: "", thumbnail_prompt: ""
+    title: "", hook: "", overlay: "", description: "", type: "", hashtag: "", thumbnail_prompt: ""
   });
-  const [renderConfig, setRenderConfig] = useState({}); 
   const [selectedTone, setSelectedTone] = useState("Kịch tính / Giật tít");
   const [aiOptions, setAiOptions] = useState<Record<string, string[]>>({});
   const [loadingMeta, setLoadingMeta] = useState<Record<string, boolean>>({});
@@ -34,7 +33,6 @@ export default function MetadataPage() {
       .then(data => {
         if (data.success) {
           if (data.data.video_metadata) setMetadata(prev => ({...prev, ...data.data.video_metadata}));
-          if (data.data.render_config) setRenderConfig(data.data.render_config);
         }
       });
   }, [projectId]);
@@ -68,10 +66,10 @@ export default function MetadataPage() {
   const handleSaveMetadata = async () => {
     setIsSaving(true);
     try {
-      await fetch(`http://localhost:8765/api/projects/${projectId}/update-render-config`, {
+      await fetch(`http://localhost:8765/api/projects/${projectId}/update-video-metadata`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ render_config: renderConfig, video_metadata: metadata }),
+        body: JSON.stringify({ video_metadata: metadata }),
       });
       alert("Đã lưu Metadata thành công!");
     } catch (e) { 
@@ -173,7 +171,7 @@ export default function MetadataPage() {
                   <div className="flex justify-between items-end">
                     <Label className="font-bold text-slate-700">1. Tên truyện chính thức</Label>
                     <div className="flex items-center gap-2">
-                      {renderCharCount(metadata.title, 80, 60)}
+                      {renderCharCount(metadata.title, 100, 80)}
                       <Button variant="ghost" size="sm" onClick={() => copyToClipboard(metadata.title, 'title')} className="h-7 px-2 text-slate-500 hover:text-slate-900">
                         {copiedField === 'title' ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
                       </Button>
@@ -190,7 +188,7 @@ export default function MetadataPage() {
                   <div className="flex justify-between items-end">
                     <Label className="font-bold text-slate-700">2. Câu Hook / Caption</Label>
                     <div className="flex items-center gap-2">
-                      {renderCharCount(metadata.hook, 100, 70)}
+                      {renderCharCount(metadata.hook, 65, 50)}
                       <Button variant="ghost" size="sm" onClick={() => copyToClipboard(metadata.hook, 'hook')} className="h-7 px-2 text-slate-500 hover:text-slate-900">
                         {copiedField === 'hook' ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
                       </Button>
@@ -224,7 +222,7 @@ export default function MetadataPage() {
 
                 <div className="space-y-1">
                   <div className="flex justify-between items-end">
-                    <Label className="font-bold text-slate-700">4. Thể loại (Hashtags)</Label>
+                    <Label className="font-bold text-slate-700">4. Thể loại</Label>
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="sm" onClick={() => copyToClipboard(metadata.type, 'type')} className="h-7 px-2 text-slate-500 hover:text-slate-900">
                         {copiedField === 'type' ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
@@ -234,12 +232,27 @@ export default function MetadataPage() {
                       </Button>
                     </div>
                   </div>
-                  <Input value={metadata.type} onChange={e => setMetadata({...metadata, type: e.target.value})} className="font-medium text-blue-600 pr-10" placeholder="#truyenaudio #ngontinh..." />
+                  <Input value={metadata.type} onChange={e => setMetadata({...metadata, type: e.target.value})} className="font-medium text-blue-600 pr-10" placeholder="Truyện tâm linh - kinh dị, Ngôn tình,..." />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex justify-between items-end">
-                    <Label className="font-bold text-slate-700">5. Mô tả chi tiết (Description)</Label>
+                    <Label className="font-bold text-slate-700">5. Hashtags</Label>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(metadata.hashtag, 'hashtag')} className="h-7 px-2 text-slate-500 hover:text-slate-900">
+                        {copiedField === 'hashtag' ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => generateMetadataItem('hashtag')} disabled={loadingMeta.hashtag} className="h-7 text-xs text-indigo-600 border-none">
+                        {loadingMeta.hashtag ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tự động điền
+                      </Button>
+                    </div>
+                  </div>
+                  <Input value={metadata.hashtag} onChange={e => setMetadata({...metadata, hashtag: e.target.value})} className="font-medium text-blue-600 pr-10" placeholder="#truyenaudio #ngontinh..." />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between items-end">
+                    <Label className="font-bold text-slate-700">6. Mô tả chi tiết (Description)</Label>
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="sm" onClick={() => copyToClipboard(metadata.description, 'description')} className="h-7 px-2 text-slate-500 hover:text-slate-900">
                         {copiedField === 'description' ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
