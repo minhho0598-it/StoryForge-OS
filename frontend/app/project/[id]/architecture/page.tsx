@@ -1367,7 +1367,7 @@ export default function ArchitecturePage() {
                               <Label className="text-[10px] text-indigo-600 uppercase tracking-widest ml-1">Góc nhìn (POV)</Label>
                               <Input 
                                 className="h-8 text-xs font-semibold text-indigo-800 bg-indigo-50/50 border-indigo-200 w-[130px]" 
-                                value={chap.pov_character || ""} 
+                                value={Array.isArray(chap.pov_character) ? chap.pov_character.join(", ") : chap.pov_character || ""} 
                                 onChange={(e) => updateChapterField(idx, "pov_character", e.target.value)}
                                 placeholder="Nhân vật..."
                               />
