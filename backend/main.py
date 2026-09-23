@@ -275,12 +275,15 @@ async def generate_pacing(project_id: str):
         chapters_to_insert = []
         
         for chapter in chapter_map:
+            pov_characters = chapter.get("pov_character", "Unknown")
+            if isinstance(pov_characters, list):
+                pov_characters = ", ".join(map(str, pov_characters))
             chapters_to_insert.append({
                 "project_id": project_id,
                 "chapter_number": chapter.get("chapter_number"),
                 "title": chapter.get("title", f"Chương {chapter.get('chapter_number')}"),
                 "timeline_period": chapter.get("timeline_period", "Hiện tại"),
-                "pov_character": chapter.get("pov_character", "Unknown"),
+                "pov_character": pov_characters,
                 "main_event": chapter.get("main_event", ""),
                 "primary_function": chapter.get("primary_function", ""),
                 "emotional_beat": chapter.get("emotional_beat", ""),
@@ -396,7 +399,7 @@ async def generate_beats(chapter_id: str):
     try:
         # Lấy thông tin chapter (bao gồm 4 trường mới) và project liên quan
         chap_res = supabase.table("chapters").select(
-            "id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, current_memory)"
+            "id, project_id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, current_memory)"
         ).eq("id", chapter_id).execute()
         
         if not chap_res.data: 
@@ -404,6 +407,23 @@ async def generate_beats(chapter_id: str):
             
         chapter = chap_res.data[0]
         project = chapter["projects"]
+
+        # Lấy thông tin chapter trước
+        previous_chapter_ending = "Đây là chương đầu tiên, chưa có đoạn kết chương trước."
+        previous_chapter_res = (
+            supabase.table("chapters")
+            .select("final_content")
+            .eq("project_id", chapter["project_id"])
+            .lt("chapter_number", chapter["chapter_number"])
+            .order("chapter_number", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if previous_chapter_res.data:
+            previous_chapter_ending = (
+                previous_chapter_res.data[0].get("final_content")[-1500:]
+                or "Chương trước chưa có đoạn kết hoàn chỉnh."
+            )
         
         # Đóng gói thông tin Chapter để mớm cho AI
         chapter_info = {
@@ -425,7 +445,8 @@ async def generate_beats(chapter_id: str):
             "beat_user.md",
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             chapter_info=json.dumps(chapter_info, ensure_ascii=False),
-            current_memory=json.dumps(project.get("current_memory", {}), ensure_ascii=False) if project.get("current_memory") else "Đây là chương đầu tiên."
+            current_memory=json.dumps(project.get("current_memory", {}), ensure_ascii=False) if project.get("current_memory") else "Đây là chương đầu tiên.",
+            previous_chapter_ending=previous_chapter_ending,
         )
         
         # Gọi LLM sinh JSON Beats

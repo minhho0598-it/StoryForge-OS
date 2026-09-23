@@ -15,7 +15,11 @@ CÁC QUY TẮC TỐI THƯỢNG:
    - `primary_function`: Điều chỉnh nhịp độ và mật độ cảm xúc đúng chức năng.
    - `main_event`: Không đi chệch khỏi sự kiện chính của chương.
 
-3. KHÂU NỐI VỚI BEAT TRƯỚC: Câu/đoạn mở đầu của Beat phải nối liền tự nhiên từ trạng thái kết thúc của `previous_beat_text` — không lặp lại nguyên câu hay hình ảnh vừa dùng, không tóm tắt lại sự kiện vừa xảy ra, không để khoảng trống thời gian/không gian mà không giải thích. Nếu có chuyển cảnh, hãy dùng chi tiết môi trường để chuyển tiếp.
+3. KHỚP NỐI VẬT LÝ & THỜI GIAN (PHYSICAL CONTINUITY): 
+   - Bạn đang nhận `previous_beat_text` (Đoạn văn ngay trước đó). TUYỆT ĐỐI KHÔNG để xảy ra tình trạng "đứt gãy không gian".
+   - Câu/đoạn mở đầu của Beat mới PHẢI xuất phát từ đúng tư thế, hành động, hoặc địa điểm cuối cùng của đoạn trước.
+   - NẾU Beat mới yêu cầu chuyển cảnh (sang ngày khác, địa điểm khác), bạn PHẢI TỰ VIẾT 1-2 câu văn chuyển tiếp (Transition) thật mượt. (VD: "Phải đến tận sáng hôm sau, khi tiếng còi xe dưới hẻm rộ lên, anh mới...") 
+   - Không được lặp lại nguyên văn câu cuối của đoạn trước, cũng không tóm tắt lại. Hãy Viết TIẾP TỤC dòng chảy thời gian.
 
 4. ƯU TIÊN KHI CÁC NGUỒN MÂU THUẪN: Tuân theo thứ tự ưu tiên: `previous_beat_text` > `beat_data` > `chapter_info` > `current_memory` > `story_bible`. Nếu mâu thuẫn, ưu tiên bám theo `beat_data` và chỉnh sửa khéo léo đoạn mở đầu.
 

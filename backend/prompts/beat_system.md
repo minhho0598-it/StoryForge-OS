@@ -34,9 +34,10 @@ Bạn đang nhận một Chương (Chapter) đã được lên khung sẵn (Tên
 6. NHẤT QUÁN GÓC NHÌN (POV):
 - Toàn bộ Beats trong chương PHẢI nhất quán với `pov` đã định trong Chapter_Info; không được mô tả suy nghĩ/cảm xúc nội tâm của nhân vật khác ngoài người kể chuyện, trừ khi được suy ra qua hành động/lời nói mà người kể chuyện quan sát được.
 
-7. BẢO TOÀN TRÍ NHỚ (Continuity):
-- Kiểm tra kỹ `current_memory`, hoàn cảnh, vị trí, trạng thái vật lý của nhân vật ở đầu chương này (Beat đầu tiên) phải tiếp nối trực tiếp từ sự kiện cuối cùng của `current_memory`.
-- Nếu `timeline_period` là một mốc quá khứ cụ thể hoặc flashback, không bắt buộc tiếp nối trực tiếp từ cuối chương trước — thay vào đó phải nhất quán với bối cảnh của chính mốc thời gian đó (nhân vật, quan hệ, thông tin đã biết tại thời điểm đó), và không được để lộ thông tin mà nhân vật chưa thể biết ở mốc thời gian này.
+7. BẢO TOÀN TRÍ NHỚ & ĐIỂM NEO VẬT LÝ (TỐI QUAN TRỌNG):
+- Kiểm tra kỹ `current_memory` và ĐẶC BIỆT chú ý đến trạng thái vật lý cuối cùng (nhân vật đang ở đâu, tư thế nào, đang cầm cái gì, có ai ở cùng).
+- **Beat đầu tiên của chương BẮT BUỘC phải bắt đầu từ CHÍNH XÁC vị trí/thời gian mà chương trước kết thúc.** Nếu buộc phải có khoảng nhảy thời gian (time-skip) hoặc chuyển cảnh sang ngày hôm sau, BẠN PHẢI NÊU RÕ trong `location_and_atmosphere` của Beat 1 (Ví dụ: "Sáng hôm sau tại văn phòng..."). Tuyệt đối không được dịch chuyển nhân vật đột ngột mà không có giải thích.
+- Nếu `timeline_period` là một mốc quá khứ cụ thể hoặc flashback, không bắt buộc tiếp nối trực tiếp từ cuối chương trước — nhưng phải xác định rõ bối cảnh không gian thời gian ngay lập tức để người đọc không bị rối.
 
 # YÊU CẦU ĐẦU RA (JSON FORMAT):
 Chỉ trả về JSON hợp lệ duy nhất, KHÔNG bọc trong markdown. Đảm bảo JSON hợp lệ về mặt cú pháp: không dùng dấu ngoặc kép lồng trong giá trị chuỗi (nếu cần trích thoại nhân vật, dùng dấu nháy đơn hoặc diễn đạt gián tiếp thay vì trích nguyên văn trong ngoặc kép), escape đúng chuẩn các ký tự đặc biệt (dấu xuống dòng, dấu backslash) trước khi trả về.
@@ -45,7 +46,8 @@ Cấu trúc như sau:
 
 {
   "_thinking_process": {
-    "memory_alignment": "Kiểm tra current_memory: Nhân vật đang ở đâu, trạng thái ra sao trước khi chương này bắt đầu?",
+    "memory_alignment": "Kiểm tra current_memory: Chương trước kết thúc khi nhân vật đang làm gì, ở đâu? Beat 1 của chương này sẽ nối tiếp NGAY LẬP TỨC hay có Time-skip?",
+    "continuity_anchor": "Đọc 'ĐOẠN VĂN CUỐI CỦA CHƯƠNG TRƯỚC'. Nhân vật đang ở tư thế/địa điểm nào? Beat 1 của chương này sẽ diễn ra ngay khoảnh khắc đó, hay sẽ có bước nhảy thời gian (time-skip)? Bắt buộc phải có sự logic về vật lý.",
     "beat_pacing_strategy": "Sẽ chia chương này thành bao nhiêu Beats (tính dựa trên word_count_target nếu có, mặc định 4-7)?...? Beat nào là cao trào của chương này? Nhịp độ này có phù hợp với `primary_function` và `timeline_period` của chương không?"
   },
   "beats": [
