@@ -84,6 +84,7 @@ async def create_project(request: ProjectCreateRequest):
             "title": request.title,
             "vibe": request.vibe,
             "logline": request.logline,
+            "thematic_question": request.thematic_question,
             "vietnamese_context": request.vietnamese_context,
             "story_premise": request.story_premise,
             "situational_irony": request.situational_irony,

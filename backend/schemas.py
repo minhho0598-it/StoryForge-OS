@@ -12,6 +12,7 @@ class ProjectCreateRequest(BaseModel):
     vibe: str
     logline: str
     vietnamese_context: str
+    thematic_question: str
     situational_irony: str
     micro_conflict: str
     story_premise: str

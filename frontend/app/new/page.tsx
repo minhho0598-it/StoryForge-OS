@@ -10,7 +10,7 @@ import { Loader2, Sparkles, BrainCircuit, PenTool } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client";
 
-interface Idea { id: number; title: string; vietnamese_context: string; situational_irony: string; logline: string; micro_conflict: string; vibe: string; }
+interface Idea { id: number; title: string; vietnamese_context: string; situational_irony: string; logline: string; micro_conflict: string; thematic_question: string; vibe: string; }
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -50,6 +50,7 @@ export default function NewProjectPage() {
           title: idea.title, 
           vibe: idea.vibe, 
           logline: idea.logline,
+          thematic_question: idea.thematic_question,
           vietnamese_context: idea.vietnamese_context, 
           situational_irony: idea.situational_irony,
           micro_conflict: idea.micro_conflict, 
@@ -130,10 +131,15 @@ export default function NewProjectPage() {
                     
                     <CardContent className="space-y-3 text-sm text-slate-600">
                       <div><span className="font-semibold text-slate-900">Bối cảnh: </span>{originalIdea.vietnamese_context}</div>
+                      <div><span className="font-semibold text-slate-900">Câu hỏi chủ đề: </span>{originalIdea.thematic_question}</div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                         <div className="bg-white p-3 rounded-md border border-amber-100/50 shadow-sm">
                           <span className="font-semibold text-slate-900 block mb-1">Mâu thuẫn mồi: </span> 
                           {originalIdea.micro_conflict}
+                        </div>
+                        <div className="bg-white p-3 rounded-md border border-amber-100/50 shadow-sm">
+                          <span className="font-semibold text-slate-900 block mb-1">Câu hỏi chủ đề: </span> 
+                          {originalIdea.thematic_question}
                         </div>
                         <div className="bg-white p-3 rounded-md border border-amber-100/50 shadow-sm">
                           <span className="font-semibold text-slate-900 block mb-1">Sự trớ trêu: </span> 
@@ -182,6 +188,10 @@ export default function NewProjectPage() {
                     <div>
                       <span className="font-semibold text-slate-900">Mâu thuẫn mồi: </span> 
                       {idea.micro_conflict}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-900">Câu hỏi chủ đề: </span>
+                      {idea.thematic_question}
                     </div>
                     <div className="bg-slate-50 p-3 rounded-md border border-slate-100 italic">
                       <span className="font-semibold text-slate-900 not-italic">Trớ trêu: </span> 

@@ -649,10 +649,9 @@ export default function ArchitecturePage() {
                                 onChange={(v: any) => updateBible(["characters", index, "name"], v)}
                               />
                             </div>
-                            <div className="w-24">
+                            <div className="w-56">
                               <TextField
                                 label="Tuổi"
-                                type="number"
                                 value={char.age}
                                 onChange={(v: any) => updateBible(["characters", index, "age"], v)}
                               />
