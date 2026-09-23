@@ -122,6 +122,18 @@ Một người có thể:
 **Sự không hoàn hảo phải mang tính đời thường, không được biến thành "dark secret" để câu drama.**
 
 ---
+# 2A. QUY TẮC ĐA DẠNG HÓA VÀ CHỐNG RẬP KHUÔN (ANTI-GENERIC RULES)
+
+AI thường có xu hướng tạo ra các nhân vật quá an toàn và giống nhau. Bạn BẮT BUỘC phải phá vỡ lối mòn này bằng các tiêu chí sau:
+
+- **Tên nhân vật:** TRÁNH XA các tên mặc định của truyện ngôn tình/văn phòng (Nam, Linh, Phong, Thư, Huy). Hãy kết hợp tên lót lạ, tên đơn âm, hoặc biệt danh đời thường để tạo cảm giác con người thật.
+- **Độ tuổi & Nghề nghiệp:** Mở rộng biên độ tuổi (không chỉ giới hạn 24-28). Nghề nghiệp phải cụ thể và có tính đặc thù cao (thay vì "nhân viên văn phòng" chung chung, hãy nghĩ đến các nghề mang tính dịch vụ, lao động, nghệ thuật tự do, buôn bán nhỏ...).
+- **Khuyết điểm (Flaw) THỰC SỰ:** Khuyết điểm phải là một tính xấu gây khó chịu cho người xung quanh, xuất phát từ sự ích kỷ, bất an hoặc lười biếng của con người. TUYỆT ĐỐI KHÔNG dùng "khuyết điểm giả" (như: cầu toàn, làm việc quá sức, hiền lành, hay giữ trong lòng). Khuyết điểm không được vĩ cuồng, mà phải nhỏ nhen một cách đời thường.
+- **Thói quen (Habits) ĐẶC THÙ:** Áp dụng "Công thức tạo thói quen": [Một hành động vật lý vi mô] + [kích hoạt bởi một trạng thái cảm xúc cụ thể] + [đôi khi mang tính hơi kỳ quặc/kém hoàn hảo]. Không dùng thói quen phổ thông (uống cà phê, nghe nhạc, ngắm mưa).
+
+*(LƯU Ý TỐI THƯỢNG: Trí thông minh của bạn nằm ở việc tự suy luận ra các chi tiết thỏa mãn các quy tắc trên. BẠN PHẢI SÁNG TẠO, TUYỆT ĐỐI KHÔNG rập khuôn theo bất kỳ khuôn mẫu mặc định nào).*
+
+---
 
 # 3. CHARACTER MOTIVATION
 
@@ -539,7 +551,10 @@ Cấu trúc:
         "role_in_story": "Vai trò",
         "is_protagonist": "true nếu đây là nhân vật dẫn dắt cốt truyện chính (thường 1-2 nhân vật trong toàn truyện), false nếu là nhân vật phụ",
         "appearance": "Ngoại hình, phong cách ăn mặc — chỉ những chi tiết có thể dùng để show, don't tell.",
-        "habits": ["Thói quen nhỏ đặc trưng 1", "Thói quen nhỏ đặc trưng 2"],
+        "habits": [
+          "Thói quen 1 (Mô tả theo công thức: Hành động vật lý nhỏ + Cảm xúc kích hoạt. Tránh các thói quen phổ thông)", 
+          "Thói quen 2"
+        ],
         "timeline_evolution": "Sự thay đổi của nhân vật này qua thời gian (NẾU CÓ time-jump). Nếu không thì ghi 'Không có'.",
         "living_situation": "Hoàn cảnh sống",
         "career_and_financial_status": "Nghề nghiệp và tình trạng tài chính tương đối (không kịch hóa).",
@@ -550,9 +565,10 @@ Cấu trúc:
         "internal_conflict": "Xung đột nội tâm riêng của nhân vật này (xem mục 4).",
         "external_pressure": "Áp lực bên ngoài riêng tác động lên nhân vật này.",
         "personality": {
-            "flaw": "Khuyết điểm",
+            "flaw": "Ghi rõ 1 tính xấu thực sự. (TUYỆT ĐỐI KHÔNG dùng từ: cầu toàn, giữ trong lòng, hy sinh)",
+            "flaw_justification": "Giải thích ngắn gọn 1 câu: Vì sao tính xấu này khiến người xung quanh mệt mỏi nhưng lại phản ánh đúng nỗi sợ/bất an của nhân vật?",
             "strength": "Điểm mạnh",
-            "core_traits": ["Tính cách cốt lõi 1", "Tính cách cốt lõi 2"]
+            "core_traits": ["Tính cách 1", "Tính cách 2"]
         },
         "character_arc": {
             "starting_belief": "The Lie They Believe — niềm tin sai lệch nhưng hợp lý lúc đầu.",
