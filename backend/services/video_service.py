@@ -165,21 +165,42 @@ async def process_full_project_video(project_id: str, final_audio_path: str, aud
         # ============================================================
         if render_mode == "simple":
             print(f"[Render Engine] Mode Simple: Đốt Phụ đề.")
+            background_audio_path = config.get("background_audio_path", "").strip()
+            use_background_audio = bool(config.get("use_background_audio", False))
+            if use_background_audio and not background_audio_path:
+                raise ValueError("Đã bật chèn nhạc nền nhưng chưa cấu hình file background audio")
+            if use_background_audio and not os.path.isfile(background_audio_path):
+                raise ValueError(f"Không tìm thấy file background audio: '{background_audio_path}'")
 
             ffmpeg_cmd.extend([
                 "-f", "concat", "-safe", "0", "-t", str(audio_duration), "-i", bg_list_file,
                 "-i", final_audio_path,
             ])
+            if use_background_audio:
+                ffmpeg_cmd.extend(["-stream_loop", "-1", "-i", background_audio_path])
 
             safe_ass = ass_sub_path.replace("\\", "/").replace(":", "\\:") if ass_sub_path else ""
+            filter_parts = []
+            video_label = "0:v"
             if safe_ass:
-                ffmpeg_cmd.extend(["-filter_complex", f"[0:v]subtitles='{safe_ass}'[v_sub]"])
-                ffmpeg_cmd.extend(["-map", "[v_sub]"])
-            else:
-                ffmpeg_cmd.extend(["-map", "0:v"])
+                filter_parts.append(f"[0:v]subtitles='{safe_ass}'[v_sub]")
+                video_label = "[v_sub]"
+
+            audio_label = "1:a"
+            if use_background_audio:
+                filter_parts.append(
+                    "[1:a]aresample=44100[narration];"
+                    "[2:a]aresample=44100,volume=0.45[background];"
+                    "[narration][background]amix=inputs=2:duration=first:dropout_transition=2[mixed_audio]"
+                )
+                audio_label = "[mixed_audio]"
+
+            if filter_parts:
+                ffmpeg_cmd.extend(["-filter_complex", ";".join(filter_parts)])
+            ffmpeg_cmd.extend(["-map", video_label])
 
             ffmpeg_cmd.extend([
-                "-map", "1:a",
+                "-map", audio_label,
                 "-c:v", "libx264", "-preset", "fast", "-crf", "23",
                 "-c:a", "aac", "-b:a", "192k",
                 "-shortest"
