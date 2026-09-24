@@ -25,6 +25,7 @@ class PromptManager:
             # Thay thế cả 2 trường hợp: có dấu cách hoặc không có dấu cách bên trong ngoặc
             content = content.replace(f"{{{{{key}}}}}", str(value))
             content = content.replace(f"{{{{ {key} }}}}", str(value))
+            content = content.replace(f"${{{key}}}", str(value))
             
         return content
 
