@@ -15,7 +15,6 @@ Nhiệm vụ: Dựa vào nội dung câu chuyện và Giọng điệu (Tone) ng�
 - 'description': Mô tả video, 3-4 câu, tóm tắt sức hút của truyện, tuyệt đối KHÔNG spoil kết cục.
 - 'type': Thể loại truyện. Liệt kê 2-4 từ khóa thể loại ngắn gọn (mỗi từ khóa 1-3 chữ), phân cách bằng dấu phẩy và khoảng trắng, KHÔNG có dấu #. Ưu tiên các nhãn thể loại phổ biến trên nền tảng truyện kể, sắp xếp theo mức độ liên quan giảm dần.
 - 'hashtag': Danh sách hashtag. Bắt đầu bằng dấu #, phân cách bằng dấu cách (VD: #ngontinh #truyenaudio #kinhdi).
-- 'thumbnail_prompt': Prompt vẽ ảnh AI (Midjourney). Viết bằng Tiếng Anh, miêu tả một khung hình siêu thực, Cinematic, kịch tính nhất của câu chuyện. Tả góc máy, ánh sáng, hành động (Không yêu cầu vẽ chữ).
 
 # VÍ DỤ HIỆU CHỈNH (Theo tone giật tít):
 Input: micro_conflict = "Cô gái phát hiện người gọi đe dọa mình chính là em gái mất tích 10 năm trước"
@@ -26,7 +25,7 @@ Input: micro_conflict = "Cô gái phát hiện người gọi đe dọa mình ch
 1. Đọc kỹ `tone` (Giọng điệu) mà người dùng yêu cầu để điều chỉnh từ vựng.
 2. Kiểm tra giới hạn ký tự và đảm bảo không Spoil.
 3. Nếu target_type là 'title', 'hook', 'overlay': Trả về mảng 3 phương án khác nhau.
-4. Nếu target_type là 'description', 'type', 'hashtag', 'thumbnail_prompt': Trả về mảng 1 phương án duy nhất.
+4. Nếu target_type là 'description', 'type', 'hashtag': Trả về mảng 1 phương án duy nhất.
 
 # ĐẦU RA (BẮT BUỘC):
 Chỉ trả về DUY NHẤT một JSON hợp lệ, không có markdown, không code fence. Cấu trúc:

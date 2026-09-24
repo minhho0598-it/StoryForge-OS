@@ -969,26 +969,63 @@ async def update_render_config(project_id: str, request: UpdateRenderConfigReque
 @app.post("/api/projects/{project_id}/generate-metadata")
 async def generate_video_metadata(project_id: str, request: MetadataGenerateRequest):
     try:
-        res = supabase.table("projects").select("id, title, vibe, logline, story_bible, video_metadata").eq("id", project_id).execute()
+        res = supabase.table("projects").select("id, title, vibe, logline, situational_irony, micro_conflict, story_bible, video_metadata").eq("id", project_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy dự án")
         project = res.data[0]
         
-        system_prompt = prompt_manager.load_prompt("metadata_system.md")
-        user_prompt = prompt_manager.load_prompt(
-            "metadata_user.md",
-            title=project.get("title", ""),
-            vibe=project.get("vibe", ""),
-            logline=project.get("logline", ""),
-            micro_conflict=project.get("story_bible", {}).get("story_identity", {}).get("core_premise", ""),
-            target_type=request.target_type,
-            tone=request.tone # Nhận tone từ UI
-        )
+        story_bible = project.get("story_bible") or {}
+        story_identity = story_bible.get("story_identity") or {}
+        world_building = story_bible.get("world_building") or {}
+        story_context = {
+            "title": project.get("title", ""),
+            "vibe": project.get("vibe", ""),
+            "logline": project.get("logline", ""),
+            "micro_conflict": project.get("micro_conflict") or story_identity.get("core_premise", ""),
+        }
+
+        if request.target_type == "thumbnail_prompt":
+            art_director_system_prompt = prompt_manager.load_prompt("art_director_system.md")
+            art_director_user_prompt = prompt_manager.load_prompt(
+                "art_director_user.md",
+                title=story_context["title"],
+                genre=story_context["vibe"],
+                story_summary=story_identity.get("core_premise") or story_context["logline"],
+                characters=json.dumps(story_bible.get("characters", []), ensure_ascii=False),
+                setting=json.dumps(world_building, ensure_ascii=False),
+                mood=story_identity.get("emotional_promise") or story_context["vibe"],
+                additional_info=json.dumps({
+                    "micro_conflict": story_context["micro_conflict"],
+                    "situational_irony": project.get("situational_irony", ""),
+                    "central_theme": story_identity.get("central_theme", ""),
+                    "thematic_question": story_identity.get("thematic_question", ""),
+                }, ensure_ascii=False),
+            )
+            art_direction = await generate_json(
+                art_director_system_prompt,
+                art_director_user_prompt,
+            )
+            visual_brief = art_direction.get("image_generation_prompt", "")
+            negative_space = art_direction.get("composition", {}).get(
+                "negative_space",
+                "left third of the frame",
+            )
+            generated_list = [prompt_manager.load_prompt(
+                "thumbnail_prompt.md",
+                visualBrief=visual_brief,
+                negativeSpace=negative_space,
+            )]
+        else:
+            system_prompt = prompt_manager.load_prompt("metadata_system.md")
+            user_prompt = prompt_manager.load_prompt(
+                "metadata_user.md",
+                **story_context,
+                target_type=request.target_type,
+                tone=request.tone,
+            )
         
-        result_json = await generate_json(system_prompt, user_prompt)
-        
-        # Hứng mảng results thay vì result đơn lẻ
-        generated_list = result_json.get("results", [])
+            result_json = await generate_json(system_prompt, user_prompt)
+            generated_list = result_json.get("results", [])
         
         # Không tự động lưu vào DB nữa, trả thẳng list về cho UI để UI cho user chọn
         return {"success": True, "data": generated_list}

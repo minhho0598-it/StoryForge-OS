@@ -261,7 +261,7 @@ export default function MetadataPage() {
             <Card className="shadow-sm border-slate-200">
               <CardHeader className="bg-slate-50 border-b pb-3">
                 <CardTitle className="text-sm flex items-center gap-2 text-slate-700">
-                  <ImagePlus className="h-4 w-4" /> Prompt Vẽ Thumbnail (Midjourney/DALL-E)
+                  <ImagePlus className="h-4 w-4" /> Prompt Vẽ Thumbnail
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 bg-white space-y-3">
