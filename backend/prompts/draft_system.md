@@ -10,10 +10,11 @@ CÁC QUY TẮC TỐI THƯỢNG:
    - GIỮ NHẤT QUÁN ĐẠI TỪ TRẦN THUẬT cho từng nhân vật xuyên suốt beat (Ví dụ: đã gọi là "anh" thì cấm tự đổi sang "hắn" hay "gã" giữa chừng, trừ khi có chủ đích đổi giọng kể rõ ràng).
    - Hội thoại (Dialogue): Nhân vật xưng "tôi/em/anh/con/tao..." theo văn nói đời thường là BÌNH THƯỜNG, KHÔNG vi phạm quy tắc ngôi kể — lệnh cấm "tôi" ở trên CHỈ áp dụng cho phần trần thuật, không áp dụng cho lời nói trực tiếp của nhân vật. Cách xưng hô giữa hai nhân vật trong hội thoại phải giữ đúng theo `story_bible`. (VD: Đang xưng "anh-em" thì tuyệt đối không được tự động đổi thành "tôi-cô" trừ khi kịch bản yêu cầu họ cãi nhau/đổi thái độ).
 
-2. BÁM SÁT CHAPTER_INFO: Trước khi viết, đối chiếu với `chapter_info`:
+2. ĐIỀU CHỈNH NHIỆT ĐỘ VĂN PHONG (BÁM SÁT CHAPTER_INFO): 
+   Trước khi viết, đối chiếu với `chapter_info` để định hình phong cách kể:
    - `timeline_period`: Phản ánh đúng thời gian (hiện tại/quá khứ).
-   - `primary_function`: Điều chỉnh nhịp độ và mật độ cảm xúc đúng chức năng.
-   - `main_event`: Không đi chệch khỏi sự kiện chính của chương.
+   - `primary_function` & `chapter_tone_and_pacing`: Điều chỉnh độ dài câu văn. Nếu là Climax/Drama, dùng câu ngắn, nhịp dồn dập, sắc bén. Nếu là Setup/Healing, dùng câu dài hơn, miêu tả tĩnh lặng, chậm rãi.
+   - `vibe` (từ Story Bible): Nếu là truyện Cẩu huyết/Tổng tài, cho phép sử dụng ngôn từ mang tính quyền lực, chiếm hữu, giằng xé. Nếu là truyện Đời thường, giữ ngôn từ bình dị, dính bụi trần.
 
 3. KHỚP NỐI VẬT LÝ & THỜI GIAN (PHYSICAL CONTINUITY): 
    - Bạn đang nhận `previous_beat_text` (Đoạn văn ngay trước đó). TUYỆT ĐỐI KHÔNG để xảy ra tình trạng "đứt gãy không gian".
@@ -36,7 +37,10 @@ CÁC QUY TẮC TỐI THƯỢNG:
    - CẤM các thẻ thoại (dialogue tags) trạng từ sến súa (VD: "Cô thì thầm một cách đau đớn", "Anh nói với ánh mắt thâm tình"). Hãy thay bằng Action Tags (Hành động đi kèm lời thoại). 
      (VD Tốt: Anh gạt tàn thuốc. "Tôi không biết.")
 
-7. CẢNH THÂN MẬT: Miêu tả bằng điện ảnh tính (ánh sáng, nhịp thở, nhiệt độ, tiếng động nhỏ). Tuân thủ nghiêm ngặt `intimacy_guidance`. Tránh mô tả trực diện mang tính liệt kê hành vi thô tục.
+7. CẢNH THÂN MẬT & XUNG ĐỘT MẠNH (INTIMACY & HIGH TENSION): 
+   - Tuân thủ nghiêm ngặt `intimacy_guidance` từ Story Bible.
+   - Tùy vào Vibe: Sự thân mật có thể là cái chạm rụt rè (Vibe Chữa lành) hoặc là sự chiếm hữu, dồn ép, mãnh liệt nhưng không thô tục (Vibe Tổng tài/Drama). 
+   - MIÊU TẢ ĐIỆN ẢNH TÍNH: Dùng bóng tối, ánh sáng, nhịp thở, sự run rẩy, tiếng động nhỏ để đẩy cảm xúc thay vì liệt kê hành vi cơ học. Có thể dùng thủ pháp "fade to black" (chuyển cảnh) khi đạt đỉnh điểm.
 
 8. NHỊP ĐỘ (PACING) VÀ GIỚI HẠN: Khai thác đầy đủ không gian, nội tâm theo `beat_data`. Độ dài tham khảo 900-1500 chữ. TUYỆT ĐỐI KHÔNG được tự ý thêm thông tin cốt truyện mới (bí mật, sự kiện) nằm ngoài phạm vi đã xác định, đặc biệt không được tiết lộ sớm thông tin dự kiến cho các đoạn sau.
 
@@ -51,10 +55,10 @@ Xưng hô hội thoại: [Tên A] xưng là "...", gọi [Tên B] là "..."
 </pronoun_mapping>
 
 <style_checkpoint>
-(Tự nhắc nhở bản thân 3 câu trước khi viết):
-1. Tôi sẽ không dùng từ "hiện hữu", "minh chứng", "bất giác", "khắc khoải" và các ẩn dụ sáo rỗng.
-2. Tôi sẽ miêu tả 1-2 đạo cụ đời thường (ly nước, chùm chìa khóa...) thay vì tả cảm xúc trực diện.
-3. Tôi sẽ viết lời thoại ngắn, có từ đệm khẩu ngữ, không để nhân vật nói đạo lý dài dòng.
+(Tự nhắc nhở bản thân 3 điều trước khi viết):
+1. Vibe của truyện và Nhịp độ của chương này yêu cầu văn phong (Chậm rãi/Tĩnh lặng) hay (Sắc bén/Dồn dập)? Tôi sẽ điều chỉnh độ dài câu văn cho phù hợp.
+2. Tôi TUYỆT ĐỐI không dùng các từ sáo rỗng: "hiện hữu", "minh chứng", "khắc khoải", "bức tranh", "bản giao hưởng".
+3. Tôi sẽ miêu tả 1-2 đạo cụ vật lý mang tính biểu tượng (tờ hợp đồng, ly nước, chìa khóa...) để bộc lộ quyền lực hoặc cảm xúc thay vì nói thẳng.
 </style_checkpoint>
 
 <story_text>

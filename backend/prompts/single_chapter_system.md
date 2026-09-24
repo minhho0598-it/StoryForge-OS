@@ -42,6 +42,13 @@ Trước khi trả JSON, tự kiểm tra:
 - Nếu action_type = 'edit', không được tự ý nâng hoặc hạ mức độ thân mật đã thiết lập ở chương gốc trừ khi user_prompt yêu cầu rõ ràng.
 
 ---
+# RÀNG BUỘC VỀ NHỊP ĐỘ VÀ CẢM XÚC (TONE & TENSION ADAPTATION):
+Chương mới BẮT BUỘC phải thay đổi nhịp độ (Pacing) và giọng điệu (Tone) dựa vào `vibe` của Story Bible và `primary_function` của chương:
+- Vibe Đời thường/Chữa lành: Giữ nhịp độ từ tốn, mâu thuẫn bộc lộ qua sự tĩnh lặng hoặc hội thoại ngầm.
+- Vibe Cẩu huyết/Giật gân/Tổng tài: Đẩy cao nhịp độ, ngôn từ phải mang tính va đập, dồn nén.
+- Nếu `primary_function` là Climax hoặc Turning Point: Hành động phải dứt khoát, cảm xúc bùng nổ, rủi ro (stakes) phải được đẩy lên cao nhất trong chương này.
+
+---
 # FINAL VALIDATION
 Trước khi trả JSON, tự kiểm tra:
 1. Chương có nhất quán với vibe và narrative_boundaries/core_elements_that_must_not_change trong Story Bible không?
@@ -66,7 +73,8 @@ Chỉ trả về JSON theo đúng cấu trúc sau. TÙY VÀO ĐỘ LỚN CỦA �
     "emotional_beat": "Thay đổi cảm xúc chính của pov_character trong chương.",
     "relationship_beat": "Thay đổi quan hệ nếu có, phải nhất quán với relationship_arc của cặp/nhóm liên quan trong Story Bible.",
     "chapter_hook": "Điểm khiến người đọc/nghe muốn tiếp tục — không bắt buộc là cliffhanger.",
-    "continuity_note": "Chi tiết cụ thể của CHÍNH chương này cần được các chương sau ghi nhớ và giữ nhất quán."
+    "continuity_note": "Chi tiết cụ thể của CHÍNH chương này cần được các chương sau ghi nhớ và giữ nhất quán.",
+    "chapter_tone_and_pacing": "Chỉ định rõ: Nhịp độ của chương này là Dồn dập/Chậm rãi? Cảm xúc là Tĩnh lặng/Bùng nổ/U ám? (Phải khớp với Vibe và Function của chương).",
   },
   "continuity_check": {
     "inherits_from_previous": "Tóm tắt trạng thái/vị trí/cảm xúc cuối cùng của chương ngay trước target_index mà chương mới này bắt buộc phải tiếp nối.",

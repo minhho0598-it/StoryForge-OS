@@ -132,37 +132,13 @@ thay vì:
 
 ---
 
-# 3. CONFLICT ESCALATION KHÔNG ĐỒNG NGHĨA VỚI DRAMA
+# 3. CONFLICT ESCALATION (LEO THANG XUNG ĐỘT THEO THỂ LOẠI)
+Sự leo thang phải ĐỒNG NHẤT VỚI VIBE CỦA STORY BIBLE.
 
-Xung đột phải tăng dần về **ý nghĩa**, không nhất thiết tăng về mức độ nguy hiểm.
-
-Ví dụ:
-
-Chuyện nhỏ:
-- quên trả tiền một bữa ăn.
-
-→ Lộ ra:
-- một người luôn ngại nhận sự giúp đỡ.
-
-→ Dẫn đến:
-- họ bắt đầu khó chịu vì cách người kia quan tâm.
-
-→ Dẫn đến:
-- cả hai phải nói về ranh giới trong mối quan hệ.
-
-Không được tự động nâng cấp thành:
-
-- tai nạn;
-- bệnh tật;
-- phản bội;
-- tình địch;
-- mất tài sản;
-- âm mưu;
-- bí mật thân thế.
-
-**Drama tốt = stakes cảm xúc tăng lên.**
-
-Không nhất thiết phải là stakes vật chất.
+- Vibe Slice of Life/Grounded: Xung đột tăng về mặt ý nghĩa cảm xúc (VD: Lỡ lời -> Lộ ra sự tự ái -> Dẫn đến cãi vã về ranh giới cá nhân). KHÔNG dùng tai nạn, bệnh tật, phản bội.
+- Vibe Drama/Tổng tài/Thương mại: CẦN PHẢI TĂNG về độ nguy hiểm vật lý, quyền lực hoặc danh dự (VD: Phát hiện bí mật -> Bị ép ký hợp đồng -> Bị kẻ thứ 3 tung tin đồn -> Đứng trước nguy cơ mất trắng sự nghiệp/gia đình).
+- Vibe High Stakes/Thriller: Mức độ đe dọa phải tăng đến mức sinh tử hoặc sụp đổ hoàn toàn.
+**Drama tốt = Stakes (cái giá phải trả) ngày càng lớn sau mỗi lựa chọn.**
 
 ---
 
@@ -331,6 +307,14 @@ Character arc phải được xây dựng qua:
 
 ---
 
+# 10B. QUẢN TRỊ BÍ MẬT & PLOT TWIST (INFORMATION WITHHOLDING)
+Nếu Story Bible có chứa Bí mật lớn (VD: Nhận nhầm ân nhân, có thai giấu kín, hợp đồng ngầm, danh tính thật):
+- BẮT BUỘC phải rải "Bánh mì vụn" (Foreshadowing) ở Phase 1 và 2.
+- Tuyệt đối KHÔNG cho nhân vật chính biết toàn bộ sự thật trước Midpoint (Điểm giữa).
+- Việc Bí mật bị lộ (The Reveal) thường phải được đặt làm bước ngoặt đẩy vào Climax.
+
+---
+
 # 11. RELATIONSHIP ARC
 
 Nếu câu chuyện có romance hoặc một mối quan hệ trung tâm, phải xác định trạng thái quan hệ qua từng Phase.
@@ -458,28 +442,14 @@ Chỉ những chi tiết có giá trị narrative mới cần.
 
 ---
 
-# 16. EVERYDAY PROPS
+# 16. SỬ DỤNG ĐẠO CỤ VÀ BIỂU TƯỢNG (PROPS & NARRATIVE SYMBOLS)
+Đạo cụ phải mang "ngôn ngữ cảm xúc" VÀ phản ánh đúng Đẳng cấp/Vibe của cốt truyện:
 
-Đạo cụ đời thường có thể trở thành "ngôn ngữ cảm xúc".
+- Vibe Đời thường/Chữa lành (Slice of Life): Sử dụng đạo cụ sinh hoạt vi mô (hộp cơm, áo mưa, chìa khóa phòng trọ, hóa đơn, chai dầu gió).
+- Vibe Thương mại/Tổng tài/Drama: Đạo cụ phải mang tính định đoạt hoặc quyền lực (bản hợp đồng nhàu nát, chiếc nhẫn đính hôn bị ném đi, thẻ đen, chìa khóa xe sang, tài liệu mật, đoạn băng ghi âm).
+- Vibe Tâm lý/Kịch tính (Dark Twist/High Stakes): Đạo cụ mang tính bằng chứng hoặc đe dọa (một bức ảnh cũ, một món đồ của người đã khuất, một vết sẹo).
 
-Ví dụ:
-
-- hộp cơm;
-- áo mưa;
-- chìa khóa;
-- ly cà phê;
-- hóa đơn;
-- điện thoại;
-- xe máy;
-- túi đồ;
-- vé xe;
-- chiếc mũ bảo hiểm;
-- hộp thuốc;
-- túi đồ ăn.
-
-Không biến đạo cụ thành biểu tượng quá nặng nề.
-
-Một vật nhỏ chỉ cần có ý nghĩa vì nó gắn với **hành động giữa hai người**.
+**Quy tắc chung:** Một vật vô tri chỉ có ý nghĩa khi nó gắn liền với sự thay đổi quyền lực hoặc mốc chuyển biến cảm xúc giữa hai nhân vật. Hãy cài cắm đạo cụ vào những cảnh cao trào.
 
 ---
 
@@ -501,82 +471,36 @@ Không cần twist lớn.
 
 ---
 
-# 18. ENDING VARIETY
+# 18. SỰ ĐA DẠNG CỦA CÁI KẾT (ENDING VARIETY)
+Tự lựa chọn ending phù hợp nhất với Story Bible và sự phát triển của Character Arc:
 
-Tự lựa chọn ending phù hợp nhất với Story Bible.
+### 1. The Grand Happy Ending (Dành cho Romance/Tổng tài/Thương mại)
+Sự thỏa mãn tuyệt đối. Bí mật được giải quyết, kẻ cản trở bị trừng phạt, hai nhân vật chính chính thức gỡ bỏ mọi rào cản giai cấp/hợp đồng để danh chính ngôn thuận bên nhau.
+### 2. Grounded Happy Ending (Dành cho Đời thường/Chữa lành)
+Hai người lựa chọn ở bên nhau nhưng cuộc sống vẫn tiếp diễn với những lo toan bình thường. Không có phép màu thay đổi hoàn cảnh, chỉ có sự thay đổi trong tâm thức.
+### 3. Bittersweet / The Noble Sacrifice (Kết thúc buồn/Bi kịch)
+Tình yêu là có thật, nhưng hoàn cảnh/đạo đức không cho phép họ ở bên nhau. Một người phải hy sinh, hoặc cả hai phải buông tay để giữ lại điều tốt đẹp nhất cho người kia.
+### 4. Karmic Retribution / The Dark Triumph (Dành cho Thriller/Tâm lý)
+Cái kết ám ảnh. Mục tiêu (trả thù/sống sót) đã đạt được nhưng nhân vật đánh mất một phần nhân tính. Hoặc kẻ phản diện phải trả một cái giá đắt nhưng nhân vật chính cũng không hoàn toàn hạnh phúc.
+### 5. Open/Growth Ending (Kết mở tập trung vào trưởng thành)
+Câu chuyện dừng lại khi tương lai quan hệ chưa rõ ràng (có thể tái hợp hoặc không). Trọng tâm kết thúc nằm ở việc nhân vật đã chữa lành tổn thương và tự đứng vững trên đôi chân mình.
 
-Có thể:
-
-### Grounded Happy Ending
-Hai người ở bên nhau nhưng cuộc sống vẫn còn những vấn đề bình thường.
-
-### Quiet Happy Ending
-Không có tuyên bố lớn; chỉ có một dấu hiệu nhỏ cho thấy họ đã chọn nhau.
-
-### Open Ending
-Câu chuyện dừng lại khi tương lai chưa hoàn toàn rõ ràng.
-
-### Bittersweet / Acceptance
-Hai người buông nhau trong bình yên vì hiểu rằng tình yêu không phải lúc nào cũng đồng nghĩa với ở bên nhau.
-
-### Personal Growth Ending
-Trọng tâm kết thúc nằm ở sự thay đổi của nhân vật hơn là trạng thái quan hệ.
-
-Không chọn ending chỉ vì nó "happy" hoặc "buồn".
-
-Ending phải là **hệ quả tự nhiên của toàn bộ character arc**.
+**Tuyệt đối không chọn ending khiên cưỡng chỉ vì muốn "chiều lòng" người đọc nếu nó đi ngược lại với Logic của toàn bộ câu chuyện.**
 
 ---
 
-# 19. CLIMAX
-
-Climax không nhất thiết phải là:
-
-- cãi nhau lớn;
-- chia tay;
-- confession;
-- tai nạn;
-- khóc lóc.
-
-Climax có thể là:
-
-- một quyết định;
-- một cuộc trò chuyện;
-- một lần thành thật;
-- một người cuối cùng nói "không";
-- một người chọn ở lại;
-- một người chấp nhận rời đi;
-- hoặc một hành động nhỏ nhưng chứng minh nhân vật đã thay đổi.
-
-Hãy chọn climax phù hợp với quy mô câu chuyện.
+# 19. CLIMAX BÙNG NỔ HOẶC LẮNG ĐỌNG
+Bản chất của Climax phụ thuộc vào Core Conflict của truyện:
+- Nếu là truyện Chữa lành/Đời thường: Climax có thể chỉ là một cuộc trò chuyện thành thật, một lần phá vỡ vỏ bọc, một sự chấp nhận buông tay trong tĩnh lặng.
+- Nếu là truyện Drama/Tổng tài/Hợp đồng: Climax PHẢI là một sự bùng nổ (Sự thật bị phơi bày trước đám đông, một tai nạn/biến cố ép buộc nhân vật nhận ra họ không thể sống thiếu nhau, một cuộc đối đầu trực diện hất cẳng kẻ ngáng đường). 
+Climax phải là nơi **Áp lực ngoại cảnh (External) và Mâu thuẫn nội tâm (Internal) va chạm mạnh nhất**.
 
 ---
 
-# 20. ANTI-MELODRAMA
-
-TUYỆT ĐỐI KHÔNG tự ý thêm:
-
-- tổng tài;
-- trả thù;
-- âm mưu;
-- tranh gia sản;
-- thân phận bí mật;
-- nhận nhầm con;
-- bắt cóc;
-- bệnh hiểm nghèo chỉ để lấy nước mắt;
-- tai nạn phi lý;
-- phản diện một chiều;
-- tình địch xuất hiện chỉ để phá tình yêu;
-- ngoại tình nếu Story Bible không yêu cầu;
-- hiểu lầm kéo dài chỉ vì không chịu nói chuyện;
-- nhân vật đột nhiên giàu lên;
-- nhân vật đột nhiên nghèo đi để tạo drama.
-
-Nếu cần tăng stakes:
-
-**Tăng áp lực đời sống hoặc emotional stakes.**
-
-Không tăng mức độ phi lý.
+# 20. LOGIC CỦA DRAMA (THE LOGIC OF ESCALATION)
+Mức độ kịch tính phải ĐỒNG NHẤT với Vibe của Story Bible.
+- NẾU Vibe là Slice of Life/Grounded: TUYỆT ĐỐI KHÔNG dùng tai nạn, bệnh hiểm nghèo, tổng tài, ngoại tình. Xung đột phải là đời thường (cơm áo gạo tiền, khác biệt quan điểm).
+- NẾU Vibe là Thương mại/Melodrama/Thriller (Tổng tài, Trả thù, Giật gân): ĐƯỢC PHÉP sử dụng các yếu tố drama cao trào (Tai nạn, hợp đồng ép buộc, kẻ phá bĩnh). TUY NHIÊN, mọi drama phải có nguyên nhân logic, dẫn đến một "Lựa chọn khó khăn" của nhân vật, chứ không phải từ trên trời rơi xuống chỉ để câu nước mắt.
 
 ---
 
@@ -612,6 +536,8 @@ LƯU Ý: mọi giá trị string bên dưới mô tả Ý NGHĨA / NỘI DUNG c�
 {
   "_thinking_process": {
     "bible_alignment_check": "Phân tích Story Bible: Động cơ chính, Áp lực thực tế và Chủ đề cốt lõi của câu chuyện này là gì?",
+    "genre_escalation_strategy": "Kiểm tra Vibe: Truyện này là Đời thường hay Drama/Kịch tính? Mức độ rủi ro (Stakes) sẽ leo thang bằng tâm lý hay bằng các biến cố lớn ngoại cảnh?",
+    "secret_management_plan": "Nếu truyện có 'Bí mật cốt lõi' (Ví dụ: Thân phận, hợp đồng ngầm), bí mật đó sẽ được hé lộ ở Phase nào để tạo sức sát thương cao nhất?",
     "causality_strategy": "Chiến lược nhân quả: Làm sao để các Phase nối tiếp nhau bằng Hậu quả của Lựa chọn (Choice -> Consequence) thay vì ngẫu nhiên?",
     "escalation_plan": "Kế hoạch leo thang: Mâu thuẫn sẽ tăng dần về mặt 'ý nghĩa cảm xúc' như thế nào mà không cần dùng đến Melodrama?",
     "romance_or_relationship_logic": "Nếu có Romance: đối chiếu `physical_intimacy_arc` và `intimacy_guidance.natural_intimacy_beats` của Story Bible (chỉ của cặp có `is_primary_romantic_pair: true`) — các beat đó rơi vào nấc nào trên Intimacy Ladder, và Phase nào có mốc tin tưởng phù hợp để đặt từng beat (kể cả beat ở mức cao, nếu Bible đã chuẩn bị sẵn)? Nếu không có Romance, mối quan hệ trung tâm nào sẽ thay đổi?",
@@ -680,13 +606,13 @@ LƯU Ý: mọi giá trị string bên dưới mô tả Ý NGHĨA / NỘI DUNG c�
       },
 
       "romance_subplot": {
-        "is_active": "true nếu Phase này có tiến triển romance rõ rệt (xem mục 12), false nếu không — quyết định dựa trên nội dung thực tế của Phase, không mặc định true.",
-        "intimacy_level": "Mức độ thân mật trên Intimacy Ladder (mục 13).",
-        "bible_beat_reference": "Beat cụ thể trong physical_intimacy_arc hoặc intimacy_guidance.natural_intimacy_beats của Story Bible mà Phase này đang thực hiện. Để 'Không áp dụng' nếu Phase này không tiến triển thân mật.",
+        "is_active": "true nếu Phase này có tiến triển romance rõ rệt, false nếu không.",
+        "intimacy_level": "Mức độ thân mật trên Intimacy Ladder.",
+        "bible_beat_reference": "Beat thân mật từ Story Bible.",
         "romance_function": "Vai trò trong Phase.",
         "specific_romance_beat": "Một cảnh cụ thể thể hiện sự thay đổi.",
         "emotional_shift": "Cảm xúc trước và sau cảnh.",
-        "everyday_prop": "Đạo cụ đời thường nếu thực sự cần."
+        "key_prop_or_symbol": "Đạo cụ/Biểu tượng mang tính định đoạt xuất hiện trong cảnh này (VD: Chiếc ô, Bản hợp đồng, hoặc Chiếc nhẫn). Để rỗng nếu không cần thiết."
       },
 
       "micro_conflicts": [
