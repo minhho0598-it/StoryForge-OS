@@ -45,10 +45,11 @@ export default function RenderStudioPage() {
     voice_id: "Nguyệt Nga",
     render_mode: "full",
     auto_split_parts: false,
+    use_background_audio: false,
     intro_video_path: "./data/sample_assets/intro.mp4",
     main_video_path: "./data/sample_assets/main.mp4",
     background_folder_path: "./data/sample_assets/backgrounds",
-    silence_audio_path: "./data/sample_assets/empty.wav",
+    background_audio_path: "",
     overlay_x: 1110, overlay_y: 10, overlay_w: 601, overlay_h: 1060
   });
 
@@ -85,9 +86,11 @@ export default function RenderStudioPage() {
             const dbConfig = projData.data.render_config;
             setConfig({
                 ...dbConfig, // Lấy các cấu hình cũ từ DB
+                background_audio_path: dbConfig.background_audio_path || "",
                 // ÉP KIỂU AN TOÀN CHO 2 BIẾN MỚI THÊM:
                 render_mode: dbConfig.render_mode || "full",
                 auto_split_parts: dbConfig.auto_split_parts ?? false, // Dùng ?? để ép về false nếu dbConfig.auto_split_parts là undefined hoặc null
+                use_background_audio: dbConfig.use_background_audio ?? false,
             });
         }
       }
@@ -398,6 +401,22 @@ export default function RenderStudioPage() {
                     <Label>Thư mục Background Video (Bắt buộc cho cả 2 mode)</Label>
                     <Input className="bg-white font-mono text-sm" value={config.background_folder_path} onChange={e => setConfig({...config, background_folder_path: e.target.value})} />
                   </div>
+                  {config.render_mode === "simple" && (
+                    <div className="space-y-3 md:col-span-2">
+                      <div className="flex items-center justify-between rounded-md border bg-slate-50 p-3">
+                        <Label htmlFor="use-background-audio" className="font-semibold text-indigo-900">
+                          Chèn nhạc nền
+                        </Label>
+                        <Switch
+                          id="use-background-audio"
+                          checked={!!config.use_background_audio}
+                          onCheckedChange={value => setConfig({...config, use_background_audio: value})}
+                        />
+                      </div>
+                      <Input className="bg-white font-mono text-sm" value={config.background_audio_path} onChange={e => setConfig({...config, background_audio_path: e.target.value})} placeholder="Để trống nếu chỉ dùng giọng đọc" />
+                      <p className="text-xs text-slate-500">Bật công tắc để lặp và trộn file này phía sau giọng đọc ở mode Đơn giản.</p>
+                    </div>
+                  )}
                   
                   {/* Chỉ hiện Intro và Main nếu là Mode Full */}
                   {config.render_mode === "full" && (

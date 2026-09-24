@@ -31,7 +31,8 @@ class RenderRequest(BaseModel):
     intro_video_path: str 
     main_video_path: str
     background_folder_path: str # Thư mục chứa các video nền
-    silence_audio_path: str     # Đường dẫn tới file audio trống (ngắt nghỉ)
+    background_audio_path: str  # Đường dẫn audio nền cho mode simple
+    use_background_audio: bool = False
     
     # Tọa độ lồng ghép (Overlay)
     overlay_x: int = 165

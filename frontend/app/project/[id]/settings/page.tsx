@@ -19,10 +19,11 @@ type RenderConfig = {
   voice_id: string;
   render_mode: string;
   auto_split_parts: boolean;
+  use_background_audio: boolean;
   intro_video_path: string;
   main_video_path: string;
   background_folder_path: string;
-  silence_audio_path: string;
+  background_audio_path: string;
   overlay_x: number;
   overlay_y: number;
   overlay_w: number;
@@ -33,10 +34,11 @@ const defaultRenderConfig: RenderConfig = {
   voice_id: "Nguyệt Nga",
   render_mode: "full",
   auto_split_parts: false,
+  use_background_audio: false,
   intro_video_path: "./data/sample_assets/intro.mp4",
   main_video_path: "./data/sample_assets/main.mp4",
   background_folder_path: "./data/sample_assets/backgrounds",
-  silence_audio_path: "./data/sample_assets/empty.wav",
+  background_audio_path: "",
   overlay_x: 1110,
   overlay_y: 10,
   overlay_w: 601,
@@ -279,13 +281,24 @@ export default function SettingsPage() {
                   className="font-mono text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>File audio im lặng</Label>
+              <div className="space-y-2 md:col-span-2">
+                <div className="flex items-center justify-between rounded-md border bg-slate-50 p-3">
+                  <Label htmlFor="use-background-audio" className="font-semibold text-indigo-900">
+                    Chèn nhạc nền ở mode đơn giản
+                  </Label>
+                  <Switch
+                    id="use-background-audio"
+                    checked={renderConfig.use_background_audio}
+                    onCheckedChange={(value) => updateRenderConfig("use_background_audio", value)}
+                  />
+                </div>
                 <Input
-                  value={renderConfig.silence_audio_path}
-                  onChange={(event) => updateRenderConfig("silence_audio_path", event.target.value)}
+                  value={renderConfig.background_audio_path}
+                  onChange={(event) => updateRenderConfig("background_audio_path", event.target.value)}
                   className="font-mono text-sm"
+                  placeholder="Nhập đường dẫn file nhạc nền"
                 />
+                <p className="text-xs text-slate-500">Chỉ khi bật Switch, file này mới được lặp và trộn phía sau giọng đọc.</p>
               </div>
               {renderConfig.render_mode === "full" && (
                 <>
