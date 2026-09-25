@@ -646,9 +646,7 @@ LƯU Ý: mọi giá trị string bên dưới mô tả Ý NGHĨA / NỘI DUNG c�
       "timeline_period": "Mốc thời gian của chapter này — hiện tại, một mốc quá khứ cụ thể, hoặc flashback — xác định dựa theo timeline_structure thực tế của Story Bible cho câu chuyện này.",
       "primary_function": "BẮT BUỘC CHỌN 1 TRONG CÁC GIÁ TRỊ SAU ĐÂY (Giữ nguyên văn tiếng Anh/Việt): 'Setup (Thiết lập cơ bản)', 'Inciting Incident (Biến cố kích hoạt)', 'Character Development (Phát triển nhân vật)', 'Relationship Development (Phát triển quan hệ)', 'Rising Action (Leo thang xung đột)', 'Turning Point (Bước ngoặt)', 'Midpoint (Điểm giữa)', 'Climax (Cao trào)', "Falling Action (Hạ nhiệt)", 'Resolution (Giải quyết)', 'Lore (Hé lộ thông tin thế giới/bí mật)'.",
       "main_event": "Sự kiện chính.",
-      "pov_character": [
-        "BẮT BUỘC liệt kê CHÍNH XÁC TÊN RIÊNG của các nhân vật được xuất hiện trong chương này (Ví dụ: 'Hoàng Nam', 'Bích Ngọc'). TUYỆT ĐỐI KHÔNG dùng danh từ chung chung như 'cả nhà', 'hai người', 'nhân vật chính', 'bạn bè'."
-      ],
+      "pov_character": "Dựa vào CHỈ THỊ NGÔI KỂ (POV Instruction) của tác giả: Điền chính xác Tên nhân vật làm góc nhìn cho chương này. (Nếu Ngôi 1: Tên người xưng Tôi. Nếu Ngôi 3: Tên các nhân vật trọng tâm)."
       "emotional_beat": "Thay đổi cảm xúc.",
       "relationship_beat": "Thay đổi quan hệ nếu có.",
       "chapter_hook": "Điểm khiến người nghe muốn tiếp tục.",

@@ -250,6 +250,14 @@ Không viết theme thành khẩu hiệu đạo đức.
 
 ---
 
+# 11B. TƯ VẤN NGÔI KỂ (POV RECOMMENDATION)
+Bạn phải phân tích Vibe và Cốt truyện để đề xuất một Ngôi kể (POV) tối ưu nhất, giúp đẩy cảm xúc của người nghe lên cao nhất:
+- Nếu truyện có bí mật lớn cần giấu, hoặc tập trung vào sự giằng xé/chữa lành cá nhân sâu sắc -> Gợi ý: **Ngôi thứ nhất (Single POV)** xưng "Tôi".
+- Nếu truyện có mâu thuẫn phức tạp, 2 bên đối đầu (Oan gia, Hợp đồng, Trả thù), khán giả cần thấy sự éo le của cả 2 phía -> Gợi ý: **Ngôi thứ nhất (Dual POV)** luân phiên xưng "Tôi".
+- Nếu truyện có âm mưu đan xen, nhiều thế lực, bối cảnh rộng lớn -> Gợi ý: **Ngôi thứ ba toàn tri**.
+
+---
+
 # 12. EMOTIONAL PROMISE
 
 Xác định cảm giác mà người đọc/người nghe nên nhận được.
@@ -432,8 +440,14 @@ Cấu trúc:
         "dialogue_style": "Phong cách hội thoại.",
         "show_dont_tell_rules": ["Quy tắc 1", "Quy tắc 2", "Quy tắc 3"],
         "romance_rules": ["Quy tắc romance phù hợp với câu chuyện — để rỗng nếu Grounded Realistic Fiction không có romance."],
-        "realism_rules": ["Quy tắc hiện thực cần duy trì"]
+        "realism_rules": ["Quy tắc hiện thực cần duy trì"],
+        "pov_recommendation": {
+            "suggested_type": "Chỉ định rõ: 'Ngôi thứ ba toàn tri', 'Ngôi thứ nhất (Single POV)'.",
+            "reasoning": "Giải thích 1-2 câu: Vì sao Ngôi kể này là phù hợp nhất để tối đa hóa cảm xúc/kịch tính cho câu chuyện này?",
+            "system_instruction_string": "Tạo một câu lệnh NGẮN GỌN, CHUẨN XÁC để làm biến truyền cho các bước viết sau. \nVD: 'Ngôi thứ ba toàn tri. Không tự xưng tôi.' \nHOẶC 'Ngôi thứ nhất. Nhân vật [Tên] xưng Tôi.'"
+        }
     },
+    "pov_instruction": "Chỉ thị ngôi kể ngắn gọn, chuẩn xác để truyền trực tiếp cho các bước viết sau. Nếu là ngôi thứ nhất, phải chỉ rõ tên nhân vật cụ thể xưng Tôi; nếu là ngôi thứ ba, nêu rõ phạm vi ngôi kể.",
     "intimacy_guidance": {
         "applicable": true,
         "note": "Đặt false và bỏ các field bên dưới (để rỗng hoặc null) nếu vibe là Grounded Realistic Fiction hoặc The Purist KHÔNG có romance. Với 4 vibe romance còn lại, hoặc Grounded Realistic Fiction/The Purist CÓ romance sẵn trong premise, applicable PHẢI là true và object này PHẢI được điền đầy đủ.",

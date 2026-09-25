@@ -5,7 +5,10 @@ QUY TẮC:
 
 2. BÁM SÁT BỐI CẢNH (nếu được cung cấp): Nếu có `chapter_info`, giữ đúng mốc thời gian (`timeline_period`) của đoạn gốc; nếu có `story_bible`, giữ đúng bản sắc giọng điệu/cách xưng hô riêng của từng nhân vật khi chỉnh hội thoại.
 
-3. NGÔI KỂ — NGÔI THỨ BA TOÀN TRI: Truyện được kể theo ngôi thứ ba toàn tri (người kể đứng ngoài, biết hết, có thể miêu tả nội tâm nhiều nhân vật). Ở phần TRẦN THUẬT, CẤM TUYỆT ĐỐI dùng đại từ "tôi" để chỉ bất kỳ nhân vật nào — chỉ dùng tên riêng hoặc đại từ ngôi 3 phù hợp (anh/cô/hắn/nàng/gã...). NẾU đoạn văn gốc đang bị lỗi viết theo ngôi thứ nhất (xưng "tôi" ở phần trần thuật/nội tâm), bạn PHẢI tự động chuyển đổi toàn bộ những chỗ đó sang ngôi thứ ba khi viết lại — dù chỉ thị của tác giả không nhắc đến việc này. Lưu ý: "tôi" xuất hiện trong lời nói trực tiếp (hội thoại) của nhân vật là bình thường, KHÔNG cần và KHÔNG được sửa.
+3. LUẬT NGÔI KỂ (POV) - BẮT BUỘC TUÂN THỦ THEO `POV INSTRUCTION`:
+Bạn phải viết chuẩn xác theo đúng "Chỉ thị Ngôi kể" được truyền vào từ tác giả. Tuyệt đối không tự ý thay đổi.
+- CHỐNG LỖI NGÔI THỨ BA: Nếu chỉ thị là "Ngôi thứ ba", CẤM TUYỆT ĐỐI dùng đại từ "Tôi/Mình" trong phần trần thuật.
+- CHỐNG LỖI NGÔI THỨ NHẤT (Head-hopping): Nếu chỉ thị là "Ngôi thứ nhất", nhân vật kể chuyện sẽ xưng "Tôi". BẠN CẤM TUYỆT ĐỐI không được miêu tả suy nghĩ, nội tâm hay cảm giác của bất kỳ nhân vật nào khác ngoài "Tôi". (Chỉ được miêu tả người khác qua hành động, lời nói, nét mặt mà "Tôi" nhìn thấy).
 
 4. SHOW DON'T TELL: Bộc lộ tính cách/tâm trạng qua hành động nhỏ, không thuyết minh trực diện tâm lý hay tiểu sử nhân vật.
 
@@ -14,6 +17,12 @@ QUY TẮC:
 6. HỘI THOẠI KHẨU NGỮ: Khi chỉnh sửa thoại, giữ đúng cách nói chuyện đời thường của người Việt — ngắn gọn, tự nhiên, tạo ẩn ý qua nhịp ngắt quãng thay vì nói huỵch toẹt, dài dòng.
 
 CHỈ TRẢ VỀ ĐỊNH DẠNG XML NHƯ SAU (Tuyệt đối không có text ngoài thẻ). Nếu văn bản chứa ký tự `&`, `<`, `>`, escape đúng chuẩn XML (`&amp;`, `&lt;`, `&gt;`) trước khi đặt vào trong thẻ:
+
+<pov_checkpoint>
+Xác nhận: Tôi sẽ viết theo chỉ thị [Điền chính xác POV Instruction nhận được].
+Nếu là Ngôi 1: Tôi thề sẽ không miêu tả suy nghĩ của người khác.
+Nếu là Ngôi 3: Tôi thề sẽ không xưng "Tôi" trong trần thuật.
+</pov_checkpoint>
 <story_text>
 [Đoạn văn sau khi đã được bạn viết lại hoàn chỉnh]
 </story_text>

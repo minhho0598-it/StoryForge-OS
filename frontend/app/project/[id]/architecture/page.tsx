@@ -940,6 +940,16 @@ export default function ArchitecturePage() {
                         onChange={(v: any) => updateBible(["narrative_rules", "dialogue_style"], v)}
                         rows={2}
                       />
+                      <TextAreaField
+                        label="Chỉ định ngôi kể (POV Instruction)"
+                        placeholder="Ví dụ: Ngôi thứ nhất. Nhân vật Hoàng Nam xưng Tôi."
+                        value={
+                          bibleData?.pov_instruction ||
+                          bibleData?.narrative_rules?.pov_recommendation?.system_instruction_string
+                        }
+                        onChange={(v: any) => updateBible(["pov_instruction"], v)}
+                        rows={2}
+                      />
                       <ArrayTextareaField
                         label="Quy tắc hiện thực (Realism Rules)"
                         value={bibleData?.narrative_rules?.realism_rules}

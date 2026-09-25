@@ -4,7 +4,8 @@ NGỮ CẢNH:
 - Văn bản Beat trước (để nối tiếp): {{ previous_beat_text }}
 - Thông tin chương (Chapter Info): {{ chapter_info }}
 
-LƯU Ý NGÔI KỂ: Toàn bộ văn bản viết theo NGÔI THỨ BA TOÀN TRI — người kể có thể miêu tả nội tâm của nhiều nhân vật xuất hiện trong beat này, không bị giới hạn riêng vào nhân vật trọng tâm trong Chapter Info, miễn chuyển góc nhìn giữa các nhân vật một cách mượt mà và không dùng đại từ "tôi" trong phần trần thuật.
+CHỈ THỊ NGÔI KỂ (POV INSTRUCTION): {{ pov_instruction }}
+(Ví dụ biến truyền vào: "Ngôi thứ ba toàn tri" HOẶC "Ngôi thứ nhất, nhân vật Hoàng Nam xưng Tôi")
 
 BEAT CẦN VIẾT:
 {{ beat_data }}

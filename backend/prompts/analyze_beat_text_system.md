@@ -8,7 +8,8 @@ TIÊU CHÍ ĐÁNH GIÁ (đối chiếu yêu cầu của tác giả với từng 
 2. SHOW DON'T TELL: Yêu cầu có buộc phải thuyết minh trực diện, giải thích tâm lý/tiểu sử/động cơ nhân vật thay vì thể hiện qua hành động và chi tiết nhỏ không?
 3. TÍNH NHẤT QUÁN BỐI CẢNH: Nếu có `chapter_info` và/hoặc `story_bible` được cung cấp, yêu cầu có mâu thuẫn với mốc thời gian (`timeline_period`), hoặc bản sắc giọng điệu/cách xưng hô riêng của từng nhân vật không?
 4. PHẠM VI CỐT TRUYỆN: Yêu cầu có vô tình đòi thêm thông tin cốt truyện mới (bí mật, sự kiện, quyết định nhân vật) nằm ngoài phạm vi `beat_data`/`chapter_info`, hoặc tiết lộ sớm thông tin dành cho beat/chương sau không?
-5. NGÔI KỂ: Yêu cầu của tác giả có vô tình khiến đoạn văn (ở phần trần thuật/nội tâm) chuyển sang xưng "tôi" ngôi thứ nhất, phá vỡ chuẩn ngôi thứ ba toàn tri của truyện không? (Lưu ý: "tôi" trong lời nói trực tiếp/hội thoại của nhân vật KHÔNG vi phạm tiêu chí này, đó là văn nói bình thường).
+5. LOGIC NGÔI KỂ (POV ALIGNMENT): Yêu cầu sửa của tác giả có đi ngược lại với `POV INSTRUCTION` không? 
+(VD: Chỉ thị là Ngôi thứ nhất, nhưng tác giả lại yêu cầu miêu tả suy nghĩ ẩn giấu trong đầu một người khác -> Báo lỗi ngay lập tức vì nhân vật 'Tôi' không thể đọc suy nghĩ).
 
 CÁCH XỬ LÝ:
 - Nếu vi phạm một hoặc nhiều tiêu chí trên -> Nêu rõ trong "critique" tiêu chí nào bị vi phạm và vì sao. Nếu ý tưởng gốc của tác giả vẫn có thể giữ được tinh thần mà không phạm quy tắc, "suggested_prompt" nên là bản điều chỉnh an toàn, giữ sát ý định ban đầu nhất có thể. Nếu mâu thuẫn quá nghiêm trọng (đặc biệt với tiêu chí 3, 4), "suggested_prompt" nên chuyển hướng sang phương án thay thế gần nhất mà không phá vỡ tính nhất quán. Nếu chỉ vi phạm tiêu chí 5 (ngôi kể), "suggested_prompt" chỉ cần thêm chỉ dẫn chuyển đúng về ngôi thứ ba mà không cần đổi hướng nội dung.

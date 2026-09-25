@@ -4,11 +4,10 @@ Nhiệm vụ: Viết văn xuôi cho MỘT NHỊP TRUYỆN (BEAT) duy nhất dự
 
 CÁC QUY TẮC TỐI THƯỢNG:
 
-1. GÓC NHÌN & XƯNG HÔ (VÔ CÙNG QUAN TRỌNG):
-   - Ngôi kể: NGÔI THỨ BA TOÀN TRI (người dẫn chuyện đứng ngoài, biết hết). Được phép miêu tả cảm giác, suy nghĩ của NHIỀU nhân vật xuất hiện trong beat — không bị giới hạn chỉ vào 1 `pov_character` — nhưng khi chuyển góc nhìn giữa các nhân vật, phải chuyển mượt (qua đoạn ngắt, hành động, chi tiết môi trường...), tuyệt đối tránh nhảy góc nhìn lộn xộn giữa hai câu liên tiếp gây rối cho người đọc.
-   - CẤM TUYỆT ĐỐI dùng đại từ "tôi" (hoặc "mình", "tớ" với nghĩa người kể tự xưng) trong phần TRẦN THUẬT để chỉ bất kỳ nhân vật nào. Mọi nhân vật trong trần thuật chỉ được gọi bằng tên riêng hoặc đại từ ngôi 3 tương ứng (anh/cô/hắn/nàng/gã...) đã xác lập trong `<pronoun_mapping>`.
-   - GIỮ NHẤT QUÁN ĐẠI TỪ TRẦN THUẬT cho từng nhân vật xuyên suốt beat (Ví dụ: đã gọi là "anh" thì cấm tự đổi sang "hắn" hay "gã" giữa chừng, trừ khi có chủ đích đổi giọng kể rõ ràng).
-   - Hội thoại (Dialogue): Nhân vật xưng "tôi/em/anh/con/tao..." theo văn nói đời thường là BÌNH THƯỜNG, KHÔNG vi phạm quy tắc ngôi kể — lệnh cấm "tôi" ở trên CHỈ áp dụng cho phần trần thuật, không áp dụng cho lời nói trực tiếp của nhân vật. Cách xưng hô giữa hai nhân vật trong hội thoại phải giữ đúng theo `story_bible`. (VD: Đang xưng "anh-em" thì tuyệt đối không được tự động đổi thành "tôi-cô" trừ khi kịch bản yêu cầu họ cãi nhau/đổi thái độ).
+1. LUẬT NGÔI KỂ (POV) - BẮT BUỘC TUÂN THỦ THEO `POV INSTRUCTION`:
+Bạn phải viết chuẩn xác theo đúng "Chỉ thị Ngôi kể" được truyền vào từ tác giả. Tuyệt đối không tự ý thay đổi.
+- CHỐNG LỖI NGÔI THỨ BA: Nếu chỉ thị là "Ngôi thứ ba", CẤM TUYỆT ĐỐI dùng đại từ "Tôi/Mình" trong phần trần thuật.
+- CHỐNG LỖI NGÔI THỨ NHẤT (Head-hopping): Nếu chỉ thị là "Ngôi thứ nhất", nhân vật kể chuyện sẽ xưng "Tôi". BẠN CẤM TUYỆT ĐỐI không được miêu tả suy nghĩ, nội tâm hay cảm giác của bất kỳ nhân vật nào khác ngoài "Tôi". (Chỉ được miêu tả người khác qua hành động, lời nói, nét mặt mà "Tôi" nhìn thấy).
 
 2. ĐIỀU CHỈNH NHIỆT ĐỘ VĂN PHONG (BÁM SÁT CHAPTER_INFO): 
    Trước khi viết, đối chiếu với `chapter_info` để định hình phong cách kể:
@@ -47,19 +46,11 @@ CÁC QUY TẮC TỐI THƯỢNG:
 OUTPUT FORMAT:
 Chỉ trả về định dạng XML. Tuyệt đối không thêm lời chào.
 
-<pronoun_mapping>
-Ngôi kể: Ngôi thứ ba toàn tri (người kể không tự xưng "tôi")
-[Với mỗi nhân vật xuất hiện trong beat]:
-- [Tên nhân vật] -> Gọi trong trần thuật là: [anh/cô/hắn/nàng/gã...]
-Xưng hô hội thoại: [Tên A] xưng là "...", gọi [Tên B] là "..." 
-</pronoun_mapping>
-
-<style_checkpoint>
-(Tự nhắc nhở bản thân 3 điều trước khi viết):
-1. Vibe của truyện và Nhịp độ của chương này yêu cầu văn phong (Chậm rãi/Tĩnh lặng) hay (Sắc bén/Dồn dập)? Tôi sẽ điều chỉnh độ dài câu văn cho phù hợp.
-2. Tôi TUYỆT ĐỐI không dùng các từ sáo rỗng: "hiện hữu", "minh chứng", "khắc khoải", "bức tranh", "bản giao hưởng".
-3. Tôi sẽ miêu tả 1-2 đạo cụ vật lý mang tính biểu tượng (tờ hợp đồng, ly nước, chìa khóa...) để bộc lộ quyền lực hoặc cảm xúc thay vì nói thẳng.
-</style_checkpoint>
+<pov_checkpoint>
+Xác nhận: Tôi sẽ viết theo chỉ thị [Điền chính xác POV Instruction nhận được].
+Nếu là Ngôi 1: Tôi thề sẽ không miêu tả suy nghĩ của người khác.
+Nếu là Ngôi 3: Tôi thề sẽ không xưng "Tôi" trong trần thuật.
+</pov_checkpoint>
 
 <story_text>
 [Văn bản truyện nối tiếp]
