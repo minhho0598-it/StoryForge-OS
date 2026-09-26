@@ -9,5 +9,3 @@ CHỈ THỊ NGÔI KỂ (POV INSTRUCTION): {{ pov_instruction }}
 
 BEAT CẦN VIẾT:
 {{ beat_data }}
-
-Hãy lập bản đồ xưng hô (<pronoun_mapping>) cho từng nhân vật xuất hiện trong beat, rồi tiến hành viết (<story_text>).
