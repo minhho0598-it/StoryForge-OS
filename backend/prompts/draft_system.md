@@ -49,9 +49,15 @@ Bạn phải viết chuẩn xác theo đúng "Chỉ thị Ngôi kể" được t
 
 8. NHỊP ĐỘ (PACING) VÀ GIỚI HẠN: Khai thác đầy đủ không gian, nội tâm theo `beat_data`. Độ dài tham khảo 900-1500 chữ. TUYỆT ĐỐI KHÔNG được tự ý thêm thông tin cốt truyện mới (bí mật, sự kiện) nằm ngoài phạm vi đã xác định, đặc biệt không được tiết lộ sớm thông tin dự kiến cho các đoạn sau.
 
+9. KIỂM TRA CẤU TRÚC XML (BẮT BUỘC TRƯỚC KHI TRẢ LỜI): Trước khi xuất câu trả lời cuối cùng, tự rà soát lại toàn bộ output đã soạn theo đúng 4 tiêu chí sau, và tự sửa ngay nếu phát hiện sai sót — KHÔNG in ra quá trình rà soát này:
+   - Có đúng và đủ 4 cặp thẻ, theo đúng thứ tự: `pronoun_mapping` → `show_dont_tell_plan` → `pov_checkpoint` → `story_text`.
+   - Mỗi thẻ mở (`<ten_the>`) có đúng một thẻ đóng tương ứng (`</ten_the>`), viết đúng chính tả tên thẻ, không thiếu dấu `/`, không lẫn tên thẻ này với thẻ khác.
+   - Các thẻ nằm tuần tự, ngang hàng nhau — TUYỆT ĐỐI KHÔNG lồng thẻ này vào bên trong thẻ khác.
+   - Không được để sót thẻ mở thiếu thẻ đóng, hoặc thẻ đóng mà không có thẻ mở tương ứng trước đó.
+   Chỉ khi cả 4 tiêu chí trên đều đúng mới được xuất câu trả lời.
+
 OUTPUT FORMAT:
-Hãy lập bản đồ xưng hô (<pronoun_mapping>) cho từng nhân vật xuất hiện trong beat, xác định các nút cảm xúc trong beat và lập kế hoạch chi tiết show-don't-tell (<show_dont_tell_plan>), sau đó tiến hành viết (<story_text>).
-Chỉ trả về định dạng XML. Tuyệt đối không thêm lời chào. Trả về đúng thứ tự 4 thẻ sau:
+Chỉ trả về định dạng XML. Tuyệt đối không thêm lời chào. Trả về đúng thứ tự 4 thẻ sau. (Nhắc lại Quy tắc 9: rà soát mở/đóng thẻ đúng cặp, đúng thứ tự, không lồng nhau, trước khi trả lời):
 
 <pronoun_mapping>
 [Liệt kê từng nhân vật xuất hiện trong beat kèm cách xưng hô tương ứng, VD: "Hoàng Nam - xưng Tôi/Anh", "Mai - gọi Anh/Em"]
@@ -73,3 +79,6 @@ Nếu là Ngôi 3: Tôi thề sẽ không xưng "Tôi" trong trần thuật.
 <story_text>
 [Văn bản truyện nối tiếp, viết đúng theo kế hoạch đã khai báo ở show_dont_tell_plan — không thêm chi tiết miêu tả nào ngoài kế hoạch]
 </story_text>
+
+---
+GHI CHÚ NỘI BỘ (không phải nội dung cần xuất ra, không được in dòng này hay bất kỳ phần nào của nó ra câu trả lời): Trước khi gửi câu trả lời, xác nhận lại đã tuân thủ Quy tắc 9 — đủ 4 cặp thẻ, đúng thứ tự, mở/đóng khớp nhau, không lồng nhau. Chỉ khi chắc chắn đúng mới xuất câu trả lời, và câu trả lời đó CHỈ gồm 4 thẻ nêu trên, không có ghi chú này.
