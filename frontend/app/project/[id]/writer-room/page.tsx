@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, PenTool, LayoutList, CheckCircle2, Wand2, Save, X, Sparkles, Activity, Camera, MessageSquare, HeartPulse, List, Copy, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 
 export default function WriterRoomPage() {
@@ -356,51 +357,44 @@ export default function WriterRoomPage() {
     }
   };
 
-  return (
-    <div className="flex h-screen bg-white">
-      {/* SIDEBAR TRÁI: DANH SÁCH CHƯƠNG */}
-      <div className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen"> {/* Thêm h-screen vào đây */}
-        
-        <div className="p-4 border-b border-slate-700 shrink-0"> {/* Thêm shrink-0 để Header không bị bóp */}
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <PenTool className="h-5 w-5" /> Lò Luyện Chữ
-          </h2>
-        </div>
-        
-        {/* XÓA THẺ <ScrollArea> VÀ THAY BẰNG THẺ DIV NÀY */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 pb-20"> 
-            {chapters.map((chap) => (
-              <button
-                key={chap.id}
-                onClick={() => setSelectedChapter(chap)}
-                className={`w-full text-left px-4 py-3 rounded-md transition-colors ${
-                  selectedChapter?.id === chap.id 
-                    ? "bg-indigo-600 text-white font-medium" 
-                    : "hover:bg-slate-800"
-                }`}
-              >
-                <div className="text-sm">Chương {chap.chapter_number}</div>
-                <div className="text-xs truncate opacity-70">{chap.title}</div>
-                {DONE_WRITING_STATUSES.includes(chap.status) && (
-                  <CheckCircle2 className="h-4 w-4 text-green-400 mt-1" />
-                )}
-              </button>
-            ))}
-        </div>
-      </div>
+  const chapterSelector = (
+    <Select
+      value={selectedChapter?.id ?? null}
+      onValueChange={(value) => {
+        const chapter = chapters.find((item) => item.id === value);
+        if (chapter) setSelectedChapter(chapter);
+      }}
+    >
+      <SelectTrigger className="mb-3 w-full max-w-md" aria-label="Chọn chương">
+        <SelectValue placeholder="Chọn chương..." />
+      </SelectTrigger>
+      <SelectContent align="start">
+        {chapters.map((chapter) => (
+          <SelectItem key={chapter.id} value={chapter.id} label={chapter.title}>
+            <span className="truncate">Chương {chapter.chapter_number}: {chapter.title}</span>
+            {DONE_WRITING_STATUSES.includes(chapter.status) && (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" aria-label="Đã hoàn tất" />
+            )}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
-      {/* MAIN VIEW PHẢI: XỬ LÝ CHƯƠNG */}
-      <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
+  return (
+    <div className="flex h-screen flex-col bg-white">
+      <div className="flex flex-1 flex-col bg-slate-50 overflow-hidden">
         {selectedChapter ? (
           <>
             {/* Header Chương */}
-            <div className="p-6 bg-white border-b shadow-sm flex items-start justify-between">
+            <div className="p-4 sm:p-6 bg-white border-b shadow-sm flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
               {/* Header Chương & Cấu trúc nâng cao */}
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-slate-800">{selectedChapter.title}</h1>
+              <div className="min-w-0 flex-1">
+                {chapterSelector}
+                <h1 className="text-2xl font-bold text-slate-800">Chương {selectedChapter.chapter_number} - {selectedChapter.title}</h1>
                 <p className="text-slate-600 mt-1 font-medium"><span className="font-bold text-slate-800">Sự kiện chính:</span> {selectedChapter.main_event}</p>
                 
-                <div className="flex gap-4 mt-2">
+                <div className="flex flex-wrap gap-2 sm:gap-4 mt-2">
                   <p className="text-sm font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">{selectedChapter.primary_function}</p>
                   <p className="text-sm font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">Góc nhìn: {selectedChapter.pov_character}</p>
                   <p className="text-sm font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{selectedChapter.timeline_period || "Hiện tại"}</p>
@@ -431,7 +425,7 @@ export default function WriterRoomPage() {
                 )}
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-2 xl:shrink-0">
                 {loadingBeats ? (
                   <div className="h-10 px-4 flex items-center text-sm text-slate-400">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang kiểm tra dữ liệu...
@@ -710,8 +704,9 @@ export default function WriterRoomPage() {
             )}
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-400">
-            Hãy chọn một Chương ở cột bên trái để bắt đầu.
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400 px-4">
+            {chapterSelector}
+            <p>Chọn một chương để bắt đầu viết.</p>
           </div>
         )}
       </div>
