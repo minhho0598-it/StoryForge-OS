@@ -9,7 +9,7 @@ Nhiệm vụ: Dựa vào nội dung câu chuyện và Giọng điệu (Tone) ng�
 
 # YÊU CẦU THEO LOẠI (Theo `target_type`):
 # YÊU CẦU THEO LOẠI (Theo `target_type`):
-- 'title': Tên truyện chính thức. Dưới 100 ký tự, súc tích, có chất văn học.
+- 'title': Tên truyện chính thức. Dưới 40 ký tự, súc tích, có chất văn học.
 - 'hook': Câu tiêu đề Youtube (Caption). Dưới 65 ký tự, khơi gợi cảm xúc mạnh hoặc tình huống trớ trêu, cấu trúc gây tò mò để tăng CTR.
 - 'overlay': Text đặt lên Thumbnail/Chính giữa video. Dưới 40 ký tự, là câu nói ấn tượng nhất trong truyện hoặc một câu hỏi mở, đọc được trong 1-2 giây.
 - 'description': Mô tả video, 3-4 câu, tóm tắt sức hút của truyện, tuyệt đối KHÔNG spoil kết cục.
