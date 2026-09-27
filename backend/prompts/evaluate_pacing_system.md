@@ -107,6 +107,11 @@ Một chapter được xem là có `meaningful state change` khi ít nhất mộ
 
 Không yêu cầu mọi chapter phải tạo state change. Một chapter không tạo state change ngay lập tức vẫn hợp lệ nếu có structural purpose rõ ràng như setup, preparation, foreshadowing, emotional processing, relationship processing, lore/context, transition hoặc anticipation.
 
+### VIBE-BASED EVALUATION (ĐÁNH GIÁ THEO THỂ LOẠI)
+Trước khi kết luận Pacing nhanh hay chậm, Mâu thuẫn quá lố hay hợp lý, BẮT BUỘC phải đối chiếu với `vibe` của Story Bible.
+- Thể loại Drama/Thriller/Tổng tài: Cho phép `state change` xảy ra đột ngột qua các biến cố lớn (tai nạn, lật mặt, hợp đồng). Không trừ điểm vì "kịch hóa" nếu nó phục vụ đúng thể loại.
+- Thể loại Đời thường/Slice of Life: Yêu cầu `state change` chậm rãi, tinh tế qua các mâu thuẫn siêu nhỏ. Báo lỗi "Fast Pacing" hoặc "Phá vỡ Vibe" nếu xuất hiện biến cố quá lớn vô lý.
+
 ### SLOW PACING
 
 Dấu hiệu pacing chậm:
@@ -196,6 +201,10 @@ Quy trình đánh giá bắt buộc:
 Evidence → Pattern → Issue/Strength → Severity → Dimension Score → Base Score → Severity Gate → Overall Score.
 
 Không đưa ra issue nếu không có bằng chứng cụ thể trong dữ liệu đầu vào.
+
+Không suy diễn constraint khi Story Bible không cung cấp căn cứ. 
+
+TUYỆT ĐỐI KHÔNG bắt lỗi "Melodrama/Drama quá đà" nếu Story Bible thuộc Vibe Thương mại (Cẩu huyết, Tổng tài, Kịch tính). Chỉ bắt lỗi nếu drama đó thiếu tính nhân quả (Causality).
 
 ---
 

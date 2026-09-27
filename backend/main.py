@@ -585,7 +585,8 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
                 story_bible=json.dumps(optimized_bible, ensure_ascii=False),
                 current_memory=json.dumps(current_memory_data, ensure_ascii=False),
                 previous_beat_text=previous_text[-1500:],
-                beat_data=json.dumps(beat, ensure_ascii=False)
+                beat_data=json.dumps(beat, ensure_ascii=False),
+                pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter_res.data[0].get("pov_character", ""))
             )
             
             draft_text = await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
@@ -652,7 +653,8 @@ async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, pre
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             current_memory=json.dumps(current_memory_data, ensure_ascii=False),
             previous_beat_text=previous_text[-1500:],
-            beat_data=json.dumps(beat, ensure_ascii=False)
+            beat_data=json.dumps(beat, ensure_ascii=False),
+            pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter.get("pov_character", ""))
         )
         
         draft_text = await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
@@ -769,7 +771,8 @@ async def edit_beat_text(beat_id: str, request: EditBeatTextRequest):
             current_text=request.current_text,
             user_prompt=request.user_prompt,
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
-            chapter_info=json.dumps(chapter_info, ensure_ascii=False)
+            chapter_info=json.dumps(chapter_info, ensure_ascii=False),
+            pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter.get("pov_character", ""))
         )
         
         # Gọi hàm trả về Text (XML tag) giống hệt lúc Draft
@@ -1339,6 +1342,26 @@ async def background_update_memory(project_id: str, old_memory: dict, new_text: 
 
 
 import copy
+
+
+def get_pov_instruction(story_bible: dict, pov_character: str = "") -> str:
+    """Return the explicit POV instruction, including compatibility for older bibles."""
+    if not story_bible:
+        return ""
+
+    explicit_instruction = story_bible.get("pov_instruction")
+    if explicit_instruction:
+        return explicit_instruction
+
+    recommendation = story_bible.get("narrative_rules", {}).get("pov_recommendation", {})
+    fallback_instruction = recommendation.get("system_instruction_string", "")
+    if fallback_instruction and "[Tên]" not in fallback_instruction:
+        return fallback_instruction
+
+    if fallback_instruction and pov_character:
+        return fallback_instruction.replace("[Tên]", pov_character)
+
+    return fallback_instruction
 
 
 def get_optimized_bible(full_bible: dict, task: str, present_characters: list = None, pov_character: str = "") -> dict:
