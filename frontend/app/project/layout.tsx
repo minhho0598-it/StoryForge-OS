@@ -20,7 +20,7 @@ export default function ProjectLayout({
   return (
     <div className="flex h-screen bg-slate-50">
       <div className="relative flex h-screen">
-        <div className={`${isCollapsed ? "w-20" : "w-64"} bg-slate-900 text-slate-300 flex flex-col shadow-xl z-20 transition-all duration-300 ease-out`}>
+        <div className={`${isCollapsed ? "w-16 sm:w-20" : "w-16 sm:w-64"} bg-slate-900 text-slate-300 flex flex-col shadow-xl z-20 transition-all duration-300 ease-out`}>
           <div className="p-3 border-b border-slate-800 transition-opacity duration-200">
             {!isCollapsed && (
               <Link href="/" className="flex items-center text-slate-400 hover:text-white transition-colors duration-200 text-sm font-medium">
@@ -36,7 +36,7 @@ export default function ProjectLayout({
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/overview') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <Home className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="truncate">Tổng Quan Dự Án</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Tổng Quan Dự Án</span>}
             </Link>
 
             <Link
@@ -45,7 +45,7 @@ export default function ProjectLayout({
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/architecture') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <BookOpen className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="truncate">Cấu Trúc & DNA</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Cấu Trúc & DNA</span>}
             </Link>
 
             <Link
@@ -54,7 +54,7 @@ export default function ProjectLayout({
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/writer-room') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <PenTool className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="truncate">Lò Luyện Chữ</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Lò Luyện Chữ</span>}
             </Link>
 
             <Link
@@ -63,7 +63,7 @@ export default function ProjectLayout({
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/studio') ? 'bg-amber-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <Clapperboard className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="truncate">Xưởng Sản Xuất</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Xưởng Sản Xuất</span>}
             </Link>
 
             <Link
@@ -72,7 +72,7 @@ export default function ProjectLayout({
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/metadata') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <Newspaper className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="truncate">Xuất Bản & SEO</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Xuất Bản & SEO</span>}
             </Link>
           </div>
 
@@ -83,7 +83,7 @@ export default function ProjectLayout({
               className={`flex items-center rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center w-full h-8" : "gap-3 px-3 py-3 w-full"} ${isActive('/settings') ? 'bg-slate-700 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <Settings className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="truncate">Cài Đặt</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Cài Đặt</span>}
             </Link>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function ProjectLayout({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto relative h-screen transition-all duration-300 ease-out">
+      <div className="min-w-0 flex-1 overflow-y-auto relative h-screen transition-all duration-300 ease-out">
         {children}
       </div>
     </div>

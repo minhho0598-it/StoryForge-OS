@@ -34,3 +34,4 @@ PROJECT_DOCS.md
 **/__pycache__/
 *.py[cod]
 PROJECT_SPEC.md
+frontend/package-lock.json
