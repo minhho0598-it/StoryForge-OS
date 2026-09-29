@@ -26,6 +26,7 @@ Dự án áp dụng triết lý **Human-in-the-loop** (Người và máy đồng
 
 ### 1. Chuẩn bị Cơ sở dữ liệu (Supabase)
 Tạo Project trên [Supabase](https://supabase.com), vào SQL Editor và chạy các lệnh tạo bảng `projects`, `chapters`, `beats` (Tham khảo cấu trúc trong code).
+Sau đó chạy `backend/migrations/001_app_settings.sql` để tạo cấu hình render mặc định dùng chung cho các project mới.
 
 ### 2. Cấu hình Backend (Python)
 ```bash

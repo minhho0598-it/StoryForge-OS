@@ -5,6 +5,7 @@ import tempfile
 
 from core.database import supabase  # Import DB
 from core.prompt_manager import prompt_manager
+from core.render_config import get_global_render_config, save_global_render_config
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
@@ -21,6 +22,7 @@ from schemas import (
     IdeationRequest,
     MetadataGenerateRequest,
     ProjectCreateRequest,
+    UpdateGlobalRenderConfigRequest,
     UpdateBibleRequest,
     UpdateRenderConfigRequest,
     UpdateVideoMetadataRequest,
@@ -89,6 +91,7 @@ async def create_project(request: ProjectCreateRequest):
             "story_premise": request.story_premise,
             "situational_irony": request.situational_irony,
             "micro_conflict": request.micro_conflict,
+            "render_config": get_global_render_config(supabase),
             "status": "Idea Selected"
         }
         
@@ -947,6 +950,23 @@ async def get_project_status_only(project_id: str):
 
 
 # API Endpoint kích hoạt Batch Render
+@app.get("/api/settings/render-config")
+async def get_default_render_config():
+    try:
+        return {"success": True, "render_config": get_global_render_config(supabase)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/settings/render-config")
+async def update_default_render_config(request: UpdateGlobalRenderConfigRequest):
+    try:
+        config = save_global_render_config(supabase, request.render_config.model_dump())
+        return {"success": True, "render_config": config}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/projects/{project_id}/batch-render")
 async def start_batch_render(project_id: str, request: dict, background_tasks: BackgroundTasks):
     # Lấy danh sách ID mà user tick chọn

@@ -15,6 +15,7 @@ import { Loader2, PlayCircle, Settings2, CheckCircle2, Clock, FileWarning, Wand2
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api-client";
+import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
 
 type RenderStatusResponse = {
   success: boolean;
@@ -41,17 +42,7 @@ export default function RenderStudioPage() {
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
 
   // === TÍNH NĂNG MỚI: CẤU HÌNH PROFILE ===
-  const [config, setConfig] = useState({
-    voice_id: "Nguyệt Nga",
-    render_mode: "full",
-    auto_split_parts: false,
-    use_background_audio: false,
-    intro_video_path: "./data/sample_assets/intro.mp4",
-    main_video_path: "./data/sample_assets/main.mp4",
-    background_folder_path: "./data/sample_assets/backgrounds",
-    background_audio_path: "",
-    overlay_x: 1110, overlay_y: 10, overlay_w: 601, overlay_h: 1060
-  });
+  const [config, setConfig] = useState<RenderConfig>(DEFAULT_RENDER_CONFIG);
 
   const forceRenderRef = useRef(false);
   const hasInitializedSelection = useRef(false);
@@ -84,14 +75,7 @@ export default function RenderStudioPage() {
         // Đọc Profile đã lưu
         if (projData.data.render_config) {
             const dbConfig = projData.data.render_config;
-            setConfig({
-                ...dbConfig, // Lấy các cấu hình cũ từ DB
-                background_audio_path: dbConfig.background_audio_path || "",
-                // ÉP KIỂU AN TOÀN CHO 2 BIẾN MỚI THÊM:
-                render_mode: dbConfig.render_mode || "full",
-                auto_split_parts: dbConfig.auto_split_parts ?? false, // Dùng ?? để ép về false nếu dbConfig.auto_split_parts là undefined hoặc null
-                use_background_audio: dbConfig.use_background_audio ?? false,
-            });
+            setConfig(normalizeRenderConfig(dbConfig));
         }
       }
     } catch (err) { console.error(err); }

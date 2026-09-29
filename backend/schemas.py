@@ -1,4 +1,5 @@
 from typing import Any, List, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -67,6 +68,25 @@ class LyricsExtractRequest(BaseModel):
 
 class UpdateRenderConfigRequest(BaseModel):
     render_config: dict
+
+
+class RenderConfigPayload(BaseModel):
+    voice_id: str
+    render_mode: Literal["full", "simple"]
+    auto_split_parts: bool
+    use_background_audio: bool
+    intro_video_path: str
+    main_video_path: str
+    background_folder_path: str
+    background_audio_path: str
+    overlay_x: int
+    overlay_y: int
+    overlay_w: int
+    overlay_h: int
+
+
+class UpdateGlobalRenderConfigRequest(BaseModel):
+    render_config: RenderConfigPayload
 
 class GenerateCharacterRequest(BaseModel):
     user_prompt: str

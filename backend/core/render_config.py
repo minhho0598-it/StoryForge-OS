@@ -1,0 +1,43 @@
+from typing import Any, Mapping
+
+
+GLOBAL_RENDER_CONFIG_KEY = "default_render_config"
+
+DEFAULT_RENDER_CONFIG: dict[str, Any] = {
+    "voice_id": "Nguyệt Nga",
+    "render_mode": "full",
+    "auto_split_parts": False,
+    "use_background_audio": False,
+    "intro_video_path": "./data/sample_assets/intro.mp4",
+    "main_video_path": "./data/sample_assets/main.mp4",
+    "background_folder_path": "./data/sample_assets/backgrounds",
+    "background_audio_path": "",
+    "overlay_x": 1110,
+    "overlay_y": 10,
+    "overlay_w": 601,
+    "overlay_h": 1060,
+}
+
+
+def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
+    return {**DEFAULT_RENDER_CONFIG, **(config or {})}
+
+
+def get_global_render_config(client: Any) -> dict[str, Any]:
+    response = (
+        client.table("app_settings")
+        .select("value")
+        .eq("key", GLOBAL_RENDER_CONFIG_KEY)
+        .execute()
+    )
+    rows = response.data or []
+    saved_config = rows[0].get("value") if rows else None
+    return normalize_render_config(saved_config)
+
+
+def save_global_render_config(client: Any, config: Mapping[str, Any]) -> dict[str, Any]:
+    normalized = normalize_render_config(config)
+    client.table("app_settings").upsert(
+        {"key": GLOBAL_RENDER_CONFIG_KEY, "value": normalized}, on_conflict="key"
+    ).execute()
+    return normalized
