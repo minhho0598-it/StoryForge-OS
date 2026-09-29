@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
+import StoryBibleVisual from "@/components/story-bible-visual";
 
 
 /* ------------------------------------------------------------------ */
@@ -129,6 +130,7 @@ export default function ArchitecturePage() {
   const [bibleLoading, setBibleLoading] = useState(false);
   const [bibleData, setBibleData] = useState<any>(null);
   const [bibleStatus, setBibleStatus] = useState<"pending" | "done">("pending");
+  const [bibleView, setBibleView] = useState<"visual" | "edit">("visual");
   
   const [pacingLoading, setPacingLoading] = useState(false);
   const [chapters, setChapters] = useState<any[]>([]);
@@ -556,14 +558,47 @@ export default function ArchitecturePage() {
             <Card className="border-slate-200 shadow-sm">
               <CardHeader className="bg-white border-b pb-4 flex flex-row items-center justify-between">
                 <CardTitle>Hồ Sơ Thế Giới & Nhân Vật</CardTitle>
-                {bibleStatus === "pending" && (
-                  <Button onClick={generateBible} disabled={bibleLoading}>
-                    {bibleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "AI Sinh Story Bible"}
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {bibleStatus === "pending" && (
+                    <Button onClick={generateBible} disabled={bibleLoading}>
+                      {bibleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "AI Sinh Story Bible"}
+                    </Button>
+                  )}
+                  <div className="flex rounded-md border border-slate-200 bg-slate-100 p-1" aria-label="Chế độ hiển thị Story Bible">
+                    <Button size="sm" variant={bibleView === "visual" ? "default" : "ghost"} onClick={() => setBibleView("visual")}>
+                      Graph
+                    </Button>
+                    <Button size="sm" variant={bibleView === "edit" ? "default" : "ghost"} onClick={() => setBibleView("edit")}>
+                      Chỉnh sửa
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               
               <CardContent className="p-0">
+                {bibleView === "visual" ? (
+                  <StoryBibleVisual
+                    bibleData={bibleData || {}}
+                    onChange={updateBible}
+                    onCreateRelationship={(sourceIndex, targetIndex) => {
+                      const relationships = bibleData?.relationship_dynamics || [];
+                      const nextRelationships = [
+                        ...relationships,
+                        {
+                          ...emptyRelationship,
+                          between: [bibleData?.characters?.[sourceIndex]?.name || "", bibleData?.characters?.[targetIndex]?.name || ""],
+                        },
+                      ];
+                      updateBible(["relationship_dynamics"], nextRelationships);
+                      return nextRelationships.length - 1;
+                    }}
+                    onDeleteRelationship={(index) => {
+                      const nextRelationships = [...(bibleData?.relationship_dynamics || [])];
+                      nextRelationships.splice(index, 1);
+                      updateBible(["relationship_dynamics"], nextRelationships);
+                    }}
+                  />
+                ) : (
                 <Accordion multiple={true} className="w-full">
                   {/* 1. NHẬN DIỆN & CỐT LÕI */}
                   <AccordionItem value="item-1" className="px-6">
@@ -1219,6 +1254,7 @@ export default function ArchitecturePage() {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
