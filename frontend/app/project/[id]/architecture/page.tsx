@@ -193,10 +193,10 @@ export default function ArchitecturePage() {
   };
 
   // 1. HÀM LƯU RIÊNG CHO STORY BIBLE
-  const handleSaveBible = async () => {
+  const handleSaveBible = async (dataToSave = bibleData) => {
     setIsSavingBibleChanges(true);
     try {
-      await apiClient.put(`/api/projects/${projectId}/update-bible`, { story_bible: bibleData });
+      await apiClient.put(`/api/projects/${projectId}/update-bible`, { story_bible: dataToSave });
       setIsBibleDirty(false); // Tắt cờ
     } catch (e) {
       alert("Lỗi khi lưu Story Bible.");
@@ -327,7 +327,7 @@ export default function ArchitecturePage() {
       characters: [...(bibleData?.characters || []), { ...emptyCharacter }],
     };
     setBibleData(newData);
-    handleSaveBible();
+    handleSaveBible(newData);
   };
 
   // XÓA NHÂN VẬT
@@ -336,7 +336,7 @@ export default function ArchitecturePage() {
     newChars.splice(index, 1);
     const newData = { ...bibleData, characters: newChars };
     setBibleData(newData);
-    handleSaveBible();
+    handleSaveBible(newData);
   };
 
   // THÊM QUAN HỆ
@@ -346,7 +346,7 @@ export default function ArchitecturePage() {
       relationship_dynamics: [...(bibleData?.relationship_dynamics || []), { ...emptyRelationship }],
     };
     setBibleData(newData);
-    handleSaveBible();
+    handleSaveBible(newData);
   };
 
   // XÓA QUAN HỆ
@@ -355,7 +355,7 @@ export default function ArchitecturePage() {
     newRels.splice(index, 1);
     const newData = { ...bibleData, relationship_dynamics: newRels };
     setBibleData(newData);
-    handleSaveBible();
+    handleSaveBible(newData);
   };
 
   // 5. HÀM GỌI API TẠO NHÂN VẬT & QUAN HỆ BẰNG AI
@@ -1024,7 +1024,7 @@ export default function ArchitecturePage() {
                               e.target.checked
                             );
                             setBibleData(newData);
-                            handleSaveBible();
+                            handleSaveBible(newData);
                           }}
                           className="h-4 w-4 rounded border-slate-300"
                         />
