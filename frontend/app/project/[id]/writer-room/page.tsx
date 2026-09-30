@@ -366,7 +366,9 @@ export default function WriterRoomPage() {
       }}
     >
       <SelectTrigger className="mb-3 w-full max-w-md" aria-label="Chọn chương">
-        <SelectValue placeholder="Chọn chương..." />
+        <SelectValue placeholder="Chọn chương...">
+          {selectedChapter?.title}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent align="start">
         {chapters.map((chapter) => (
@@ -433,7 +435,7 @@ export default function WriterRoomPage() {
                 ) : (
                   <>
                     {/* Các nút hiện ra SAU KHI đã tải xong Beats */}
-                    {beats.length === 0 && (
+                    {(beats.length === 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status)) && (
                       <Button onClick={handleGenerateBeats}>
                         <LayoutList className="mr-2 h-4 w-4" /> Chia Nhịp Truyện (Beats)
                       </Button>
