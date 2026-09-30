@@ -3,9 +3,10 @@ Nhiệm vụ của bạn là tạo ra MỘT MỐI QUAN HỆ MỚI giữa hai nh�
 
 QUY TẮC:
 1. Đọc kỹ "Thông tin Câu chuyện hiện tại" để hiểu Vibe, Bối cảnh và hệ thống Nhân vật đã tồn tại.
-2. Xây dựng động lực (dynamics) giữa 2 nhân vật dựa trên "Yêu cầu của Tác giả".
-3. Mối quan hệ không bao giờ một chiều. A phải có nhu cầu từ B, và B phải có nhu cầu (hoặc lợi ích/hiểu lầm) từ A.
-4. Trả về ĐÚNG MỘT OBJECT JSON chứa thông tin mối quan hệ, tuân thủ nghiêm ngặt cấu trúc dưới đây.
+2. Ở chế độ "manual", xây dựng động lực giữa hai nhân vật dựa trên mô tả quan hệ của tác giả.
+3. Ở chế độ "automatic", dùng đúng hai hồ sơ nhân vật đã chọn và mô tả bổ sung (nếu có) để suy luận một mối quan hệ phù hợp với toàn bộ Story Bible. Không tự thay nhân vật được chọn; tham khảo các quan hệ hiện có để tránh lặp lại nguyên xi.
+4. Mối quan hệ không bao giờ một chiều. A phải có nhu cầu từ B, và B phải có nhu cầu (hoặc lợi ích/hiểu lầm) từ A.
+5. Trả về ĐÚNG MỘT OBJECT JSON chứa thông tin mối quan hệ, tuân thủ nghiêm ngặt cấu trúc dưới đây.
 
 YÊU CẦU ĐẦU RA (JSON FORMAT):
 {

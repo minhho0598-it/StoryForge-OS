@@ -17,6 +17,7 @@ from schemas import (
     ChapterUpdateRequest,
     EditBeatTextRequest,
     GenerateCharacterRequest,
+    GeneratePovRecommendationRequest,
     GenerateRelationshipRequest,
     GenerateSingleChapterRequest,
     IdeationRequest,
@@ -197,14 +198,77 @@ async def generate_character(project_id: str, request: GenerateCharacterRequest)
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/projects/{project_id}/regenerate-pov-recommendation")
+async def regenerate_pov_recommendation(
+    project_id: str, request: GeneratePovRecommendationRequest
+):
+    suggested_type = request.suggested_type.strip()
+    if not suggested_type:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập loại ngôi kể.")
+
+    try:
+        system_prompt = prompt_manager.load_prompt("regenerate_pov_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "regenerate_pov_user.md",
+            current_bible=json.dumps(request.current_bible, ensure_ascii=False),
+            suggested_type=suggested_type,
+        )
+        result = await generate_json(system_prompt, user_prompt)
+
+        reasoning = result.get("reasoning")
+        system_instruction_string = result.get("system_instruction_string")
+        if not isinstance(reasoning, str) or not reasoning.strip():
+            raise ValueError("AI không trả về giải thích POV hợp lệ.")
+        if not isinstance(system_instruction_string, str) or not system_instruction_string.strip():
+            raise ValueError("AI không trả về chỉ thị ngôi kể hợp lệ.")
+
+        return {
+            "success": True,
+            "data": {
+                "reasoning": reasoning.strip(),
+                "system_instruction_string": system_instruction_string.strip(),
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/projects/{project_id}/generate-relationship")
 async def generate_relationship(project_id: str, request: GenerateRelationshipRequest):
+    current_bible = request.current_bible
+    selected_characters = []
+
+    if request.mode == "manual":
+        if not request.user_prompt.strip():
+            raise HTTPException(status_code=400, detail="Vui lòng nhập mô tả mối quan hệ.")
+        generation_request = request.user_prompt.strip()
+    else:
+        character_a_index = request.character_a_index
+        character_b_index = request.character_b_index
+        characters = current_bible.get("characters", [])
+        if (
+            character_a_index is None
+            or character_b_index is None
+            or character_a_index == character_b_index
+            or not isinstance(characters, list)
+            or min(character_a_index, character_b_index) < 0
+            or max(character_a_index, character_b_index) >= len(characters)
+        ):
+            raise HTTPException(status_code=400, detail="Vui lòng chọn hai nhân vật khác nhau trong Story Bible.")
+
+        selected_characters = [characters[character_a_index], characters[character_b_index]]
+        generation_request = ""
+
     try:
         system_prompt = prompt_manager.load_prompt("add_relationship_system.md")
         user_prompt = prompt_manager.load_prompt(
             "add_relationship_user.md",
-            current_bible=json.dumps(request.current_bible, ensure_ascii=False),
-            user_prompt=request.user_prompt
+            current_bible=json.dumps(current_bible, ensure_ascii=False),
+            generation_mode=request.mode,
+            user_prompt=generation_request,
+            selected_characters=json.dumps(selected_characters, ensure_ascii=False),
+            character_a_description=request.character_a_description.strip(),
+            character_b_description=request.character_b_description.strip(),
         )
         
         result = await generate_json(system_prompt, user_prompt)

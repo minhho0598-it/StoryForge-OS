@@ -77,7 +77,8 @@ const EMPTY_RELATIONSHIPS: StoryRelationship[] = [];
 type StoryBibleVisualProps = {
   bibleData: StoryBible;
   onChange: (path: (string | number)[], value: unknown) => void;
-  onCreateRelationship: (sourceIndex: number, targetIndex: number) => number;
+  selectedRelationshipIndex: number | null;
+  onCreateRelationship: (sourceIndex: number, targetIndex: number) => void;
   onDeleteRelationship: (index: number) => void;
 };
 
@@ -389,6 +390,7 @@ function StoryBibleInspector({
 export default function StoryBibleVisual({
   bibleData,
   onChange,
+  selectedRelationshipIndex,
   onCreateRelationship,
   onDeleteRelationship,
 }: StoryBibleVisualProps) {
@@ -397,6 +399,12 @@ export default function StoryBibleVisual({
   const [selection, setSelection] = useState<Selection>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<StoryNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<StoryEdgeData>>([]);
+
+  useEffect(() => {
+    if (selectedRelationshipIndex !== null) {
+      setSelection({ kind: "relationship", index: selectedRelationshipIndex });
+    }
+  }, [selectedRelationshipIndex]);
 
   const resolution = useMemo(() => {
     const indexesByName = new Map<string, number[]>();
@@ -472,8 +480,8 @@ export default function StoryBibleVisual({
     const sourceIndex = Number(connection.source.replace("character-", ""));
     const targetIndex = Number(connection.target.replace("character-", ""));
     if (!Number.isInteger(sourceIndex) || !Number.isInteger(targetIndex)) return;
-    const relationshipIndex = onCreateRelationship(sourceIndex, targetIndex);
-    setSelection({ kind: "relationship", index: relationshipIndex });
+    setSelection(null);
+    onCreateRelationship(sourceIndex, targetIndex);
   };
 
   const selectRelationship = (edge: Edge<StoryEdgeData>) => {
@@ -497,7 +505,7 @@ export default function StoryBibleVisual({
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <Network className="h-4 w-4 text-emerald-700" />
-            Kéo nối hai nút để thêm quan hệ
+            Kéo nối hai nút để mở AI tạo quan hệ
           </div>
         </div>
 
