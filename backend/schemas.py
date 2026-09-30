@@ -92,9 +92,18 @@ class GenerateCharacterRequest(BaseModel):
     user_prompt: str
     current_bible: dict
 
-class GenerateRelationshipRequest(BaseModel):
-    user_prompt: str
+class GeneratePovRecommendationRequest(BaseModel):
     current_bible: dict
+    suggested_type: str
+
+class GenerateRelationshipRequest(BaseModel):
+    mode: Literal["manual", "automatic"] = "manual"
+    user_prompt: str = ""
+    current_bible: dict
+    character_a_index: Optional[int] = None
+    character_b_index: Optional[int] = None
+    character_a_description: str = ""
+    character_b_description: str = ""
 
 class ChapterItem(BaseModel):
     id: str | None = None # ID có thể null nếu là chapter mới tạo trên UI

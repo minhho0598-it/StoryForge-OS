@@ -33,11 +33,11 @@ function setDeep(obj: any, path: (string | number)[], value: any): any {
   return clone;
 }
 
-function TextField({ label, value, onChange, type = "text", placeholder }: any) {
+function TextField({ label, value, onChange, type = "text", placeholder, disabled }: any) {
   return (
     <div className="space-y-1">
       <Label>{label}</Label>
-      <Input type={type} value={value ?? ""} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <Input type={type} value={value ?? ""} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -143,8 +143,14 @@ export default function ArchitecturePage() {
 
   // === THÊM STATE CHO RELATIONSHIP ===
   const [isAiRelModalOpen, setIsAiRelModalOpen] = useState(false);
+  const [aiRelMode, setAiRelMode] = useState<"manual" | "automatic">("manual");
   const [aiRelPrompt, setAiRelPrompt] = useState("");
+  const [aiRelCharacterAIndex, setAiRelCharacterAIndex] = useState("");
+  const [aiRelCharacterBIndex, setAiRelCharacterBIndex] = useState("");
+  const [aiRelCharacterADescription, setAiRelCharacterADescription] = useState("");
+  const [aiRelCharacterBDescription, setAiRelCharacterBDescription] = useState("");
   const [isGeneratingRel, setIsGeneratingRel] = useState(false);
+  const [visualSelectedRelationshipIndex, setVisualSelectedRelationshipIndex] = useState<number | null>(null);
 
   // STATE THEO DÕI THAY ĐỔI CHƯA LƯU (IS DIRTY)
   const [isBibleDirty, setIsBibleDirty] = useState(false);
@@ -164,6 +170,7 @@ export default function ArchitecturePage() {
 
   const [isSavingBibleChanges, setIsSavingBibleChanges] = useState(false);
   const [isSavingPacingChanges, setIsSavingPacingChanges] = useState(false);
+  const [isRegeneratingPovRecommendation, setIsRegeneratingPovRecommendation] = useState(false);
 
   // Thêm state cho modal đánh giá
   const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
@@ -201,7 +208,7 @@ export default function ArchitecturePage() {
       await apiClient.put(`/api/projects/${projectId}/update-bible`, { story_bible: dataToSave });
       setIsBibleDirty(false); // Tắt cờ
     } catch (e) {
-      alert("Lỗi khi lưu Story Bible.");
+      alert("Lỗi khi lưu Story Bible");
     } finally {
       setIsSavingBibleChanges(false);
     }
@@ -314,6 +321,56 @@ export default function ArchitecturePage() {
     setIsBibleDirty(true); // Chỉ bật cờ Bible
   };
 
+  const updatePovInstruction = (value: string) => {
+    setBibleData((prev: any) => {
+      const withRecommendation = setDeep(
+        prev ?? {},
+        ["narrative_rules", "pov_recommendation", "system_instruction_string"],
+        value
+      );
+      return setDeep(withRecommendation, ["pov_instruction"], value);
+    });
+    setIsBibleDirty(true);
+  };
+
+  const regeneratePovRecommendation = async () => {
+    const suggestedType = bibleData?.narrative_rules?.pov_recommendation?.suggested_type?.trim();
+    if (!suggestedType) return alert("Vui lòng nhập loại ngôi kể trước.");
+
+    setIsRegeneratingPovRecommendation(true);
+    try {
+      const result = await apiClient.post<any>(
+        `/api/projects/${projectId}/regenerate-pov-recommendation`,
+        { current_bible: bibleData, suggested_type: suggestedType }
+      );
+      const { reasoning, system_instruction_string: systemInstruction } = result.data || {};
+      if (
+        typeof reasoning !== "string" || !reasoning.trim() ||
+        typeof systemInstruction !== "string" || !systemInstruction.trim()
+      ) {
+        throw new Error("AI không trả về đủ thông tin ngôi kể.");
+      }
+
+      setBibleData((prev: any) => ({
+        ...prev,
+        narrative_rules: {
+          ...(prev?.narrative_rules || {}),
+          pov_recommendation: {
+            ...(prev?.narrative_rules?.pov_recommendation || {}),
+            reasoning: reasoning.trim(),
+            system_instruction_string: systemInstruction.trim(),
+          },
+        },
+        pov_instruction: systemInstruction.trim(),
+      }));
+      setIsBibleDirty(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Lỗi tạo lại đề xuất ngôi kể.");
+    } finally {
+      setIsRegeneratingPovRecommendation(false);
+    }
+  };
+
   // Cập nhật mục tiêu chương (goal)
   const updateChapterGoal = (index: number, newGoal: string) => {
     const newChaps = [...chapters];
@@ -329,7 +386,7 @@ export default function ArchitecturePage() {
       characters: [...(bibleData?.characters || []), { ...emptyCharacter }],
     };
     setBibleData(newData);
-    handleSaveBible(newData);
+    setIsBibleDirty(true);
   };
 
   // XÓA NHÂN VẬT
@@ -338,7 +395,7 @@ export default function ArchitecturePage() {
     newChars.splice(index, 1);
     const newData = { ...bibleData, characters: newChars };
     setBibleData(newData);
-    handleSaveBible(newData);
+    setIsBibleDirty(true);
   };
 
   // THÊM QUAN HỆ
@@ -348,7 +405,7 @@ export default function ArchitecturePage() {
       relationship_dynamics: [...(bibleData?.relationship_dynamics || []), { ...emptyRelationship }],
     };
     setBibleData(newData);
-    handleSaveBible(newData);
+    setIsBibleDirty(true);
   };
 
   // XÓA QUAN HỆ
@@ -357,7 +414,7 @@ export default function ArchitecturePage() {
     newRels.splice(index, 1);
     const newData = { ...bibleData, relationship_dynamics: newRels };
     setBibleData(newData);
-    handleSaveBible(newData);
+    setIsBibleDirty(true);
   };
 
   // 5. HÀM GỌI API TẠO NHÂN VẬT & QUAN HỆ BẰNG AI
@@ -395,27 +452,68 @@ export default function ArchitecturePage() {
 
   // 6. HÀM GỌI API TẠO QUAN HỆ BẰNG AI
   const generateAiRelationship = async () => {
-    if (!aiRelPrompt.trim()) return alert("Vui lòng nhập mô tả mối quan hệ!");
+    if (aiRelMode === "manual" && !aiRelPrompt.trim()) {
+      return alert("Vui lòng nhập mô tả mối quan hệ!");
+    }
+
+    const characterAIndex = Number(aiRelCharacterAIndex);
+    const characterBIndex = Number(aiRelCharacterBIndex);
+    if (
+      aiRelMode === "automatic" &&
+      (!aiRelCharacterAIndex || !aiRelCharacterBIndex || characterAIndex === characterBIndex)
+    ) {
+      return alert("Vui lòng chọn hai nhân vật khác nhau!");
+    }
     
     setIsGeneratingRel(true);
     try {
+      const requestData = aiRelMode === "manual"
+        ? {
+            mode: "manual",
+            user_prompt: aiRelPrompt.trim(),
+            current_bible: bibleData,
+          }
+        : {
+            mode: "automatic",
+            user_prompt: "",
+            current_bible: bibleData,
+            character_a_index: characterAIndex,
+            character_b_index: characterBIndex,
+            character_a_description: aiRelCharacterADescription.trim(),
+            character_b_description: aiRelCharacterBDescription.trim(),
+          };
       const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-relationship`, {
-          user_prompt: aiRelPrompt,
-          current_bible: bibleData // Truyền cả Bible lên
-        });
+        ...requestData,
+      });
       
       if (result.success) {
         // Chèn vào list và bật cờ Dirty
+        const generatedRelationship = aiRelMode === "automatic"
+          ? {
+              ...result.data,
+              between: [
+                bibleData?.characters?.[characterAIndex]?.name || result.data.between?.[0] || "",
+                bibleData?.characters?.[characterBIndex]?.name || result.data.between?.[1] || "",
+              ],
+            }
+          : result.data;
+        const nextRelationships = [...(bibleData?.relationship_dynamics || []), generatedRelationship];
         const newData = {
           ...bibleData,
-          relationship_dynamics: [...(bibleData?.relationship_dynamics || []), result.data],
+          relationship_dynamics: nextRelationships,
         };
         setBibleData(newData);
         setIsBibleDirty(true);
+        setVisualSelectedRelationshipIndex(nextRelationships.length - 1);
         
         // Đóng modal và reset
         setIsAiRelModalOpen(false);
+        setAiRelMode("manual");
         setAiRelPrompt("");
+        setAiRelCharacterAIndex("");
+        setAiRelCharacterBIndex("");
+        setAiRelCharacterADescription("");
+        setAiRelCharacterBDescription("");
       } else {
         alert("Lỗi tạo quan hệ: " + result.detail);
       }
@@ -424,6 +522,18 @@ export default function ArchitecturePage() {
     } finally {
       setIsGeneratingRel(false);
     }
+  };
+
+  const openAiRelationshipModal = (characterAIndex?: number, characterBIndex?: number) => {
+    const hasCharacterPair = characterAIndex !== undefined && characterBIndex !== undefined;
+    setAiRelMode(hasCharacterPair ? "automatic" : "manual");
+    setAiRelPrompt("");
+    setAiRelCharacterAIndex(hasCharacterPair ? String(characterAIndex) : "");
+    setAiRelCharacterBIndex(hasCharacterPair ? String(characterBIndex) : "");
+    setAiRelCharacterADescription("");
+    setAiRelCharacterBDescription("");
+    setVisualSelectedRelationshipIndex(null);
+    setIsAiRelModalOpen(true);
   };
 
   // 7. HÀM MỞ MODAL AI CHAPTER (DÙNG CHO CẢ INSERT VÀ EDIT)
@@ -580,17 +690,9 @@ export default function ArchitecturePage() {
                   <StoryBibleVisual
                     bibleData={bibleData || {}}
                     onChange={updateBible}
+                    selectedRelationshipIndex={visualSelectedRelationshipIndex}
                     onCreateRelationship={(sourceIndex, targetIndex) => {
-                      const relationships = bibleData?.relationship_dynamics || [];
-                      const nextRelationships = [
-                        ...relationships,
-                        {
-                          ...emptyRelationship,
-                          between: [bibleData?.characters?.[sourceIndex]?.name || "", bibleData?.characters?.[targetIndex]?.name || ""],
-                        },
-                      ];
-                      updateBible(["relationship_dynamics"], nextRelationships);
-                      return nextRelationships.length - 1;
+                      openAiRelationshipModal(sourceIndex, targetIndex);
                     }}
                     onDeleteRelationship={(index) => {
                       const nextRelationships = [...(bibleData?.relationship_dynamics || [])];
@@ -975,16 +1077,49 @@ export default function ArchitecturePage() {
                         onChange={(v: any) => updateBible(["narrative_rules", "dialogue_style"], v)}
                         rows={2}
                       />
-                      <TextAreaField
-                        label="Chỉ định ngôi kể (POV Instruction)"
-                        placeholder="Ví dụ: Ngôi thứ nhất. Nhân vật Hoàng Nam xưng Tôi."
-                        value={
-                          bibleData?.pov_instruction ||
-                          bibleData?.narrative_rules?.pov_recommendation?.system_instruction_string
-                        }
-                        onChange={(v: any) => updateBible(["pov_instruction"], v)}
-                        rows={2}
-                      />
+                      <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                          <div className="flex-1">
+                            <TextField
+                              label="Ngôi kể đề xuất (Suggested Type)"
+                              value={bibleData?.narrative_rules?.pov_recommendation?.suggested_type}
+                              onChange={(v: string) => updateBible(["narrative_rules", "pov_recommendation", "suggested_type"], v)}
+                              placeholder="Ví dụ: Ngôi thứ nhất (Single POV)"
+                              disabled={isRegeneratingPovRecommendation}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={regeneratePovRecommendation}
+                            disabled={
+                              isRegeneratingPovRecommendation ||
+                              !bibleData?.narrative_rules?.pov_recommendation?.suggested_type?.trim()
+                            }
+                          >
+                            {isRegeneratingPovRecommendation
+                              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              : <Wand2 className="mr-2 h-4 w-4" />}
+                            Làm mới bằng AI
+                          </Button>
+                        </div>
+                        <TextAreaField
+                          label="Lý do đề xuất (Reasoning)"
+                          value={bibleData?.narrative_rules?.pov_recommendation?.reasoning}
+                          onChange={(v: string) => updateBible(["narrative_rules", "pov_recommendation", "reasoning"], v)}
+                          rows={3}
+                        />
+                        <TextAreaField
+                          label="Chỉ thị ngôi kể (System Instruction)"
+                          placeholder="Ví dụ: Ngôi thứ nhất. Nhân vật Hoàng Nam xưng Tôi."
+                          value={
+                            bibleData?.narrative_rules?.pov_recommendation?.system_instruction_string ??
+                            bibleData?.pov_instruction
+                          }
+                          onChange={updatePovInstruction}
+                          rows={2}
+                        />
+                      </div>
                       <ArrayTextareaField
                         label="Quy tắc hiện thực (Realism Rules)"
                         value={bibleData?.narrative_rules?.realism_rules}
@@ -1209,7 +1344,7 @@ export default function ArchitecturePage() {
                         </Button>
                         <Button 
                           className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200" 
-                          onClick={() => setIsAiRelModalOpen(true)}
+                          onClick={() => openAiRelationshipModal()}
                         >
                           <Wand2 className="h-4 w-4 mr-2" /> AI Sinh Quan Hệ
                         </Button>
@@ -1513,7 +1648,7 @@ export default function ArchitecturePage() {
 
               {/* Nút lưu Bible */}
               {isBibleDirty && (
-                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white" onClick={handleSaveBible} disabled={isSavingBibleChanges}>
+                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white" onClick={() => handleSaveBible()} disabled={isSavingBibleChanges}>
                   {isSavingBibleChanges ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
                   Lưu Bible
                 </Button>
@@ -1564,22 +1699,118 @@ export default function ArchitecturePage() {
           <DialogHeader>
             <DialogTitle>AI Sinh Mối Quan Hệ</DialogTitle>
             <DialogDescription>
-              Nhập tên 2 nhân vật và một vài từ khóa về sự tương tác của họ (VD: Cạnh tranh ngầm, Yêu thầm, Quan hệ sếp - nhân viên...).
+              Chọn cách tạo: mô tả quan hệ mong muốn hoặc để AI suy luận từ hồ sơ hai nhân vật và Story Bible.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <Textarea 
-              placeholder="VD: Quan hệ giữa Minh và ông chủ quán. Minh coi ông như người cha, nhưng ông chủ lại giấu một bí mật liên quan đến gia đình Minh..."
-              value={aiRelPrompt}
-              onChange={(e) => setAiRelPrompt(e.target.value)}
-              className="resize-none h-32"
-            />
+            <div className="grid grid-cols-2 rounded-md border bg-slate-100 p-1" aria-label="Chế độ tạo mối quan hệ">
+              <Button
+                type="button"
+                size="sm"
+                variant={aiRelMode === "manual" ? "default" : "ghost"}
+                onClick={() => setAiRelMode("manual")}
+              >
+                Mô tả quan hệ
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={aiRelMode === "automatic" ? "default" : "ghost"}
+                onClick={() => setAiRelMode("automatic")}
+              >
+                Tự động
+              </Button>
+            </div>
+
+            {aiRelMode === "manual" ? (
+              <Textarea
+                placeholder="VD: Quan hệ giữa Minh và ông chủ quán. Minh coi ông như người cha, nhưng ông chủ lại giấu một bí mật liên quan đến gia đình Minh..."
+                value={aiRelPrompt}
+                onChange={(e) => setAiRelPrompt(e.target.value)}
+                className="resize-none h-32"
+              />
+            ) : (
+              <div className="grid gap-4">
+                {(bibleData?.characters || []).length < 2 ? (
+                  <p className="text-sm text-amber-700">
+                    Cần có ít nhất hai nhân vật trong Story Bible để tạo quan hệ tự động.
+                  </p>
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="relationship-character-a">Nhân vật A</Label>
+                    <Select value={aiRelCharacterAIndex} onValueChange={(value) => setAiRelCharacterAIndex(value ?? "")}>
+                      <SelectTrigger id="relationship-character-a" className="w-full">
+                        <SelectValue placeholder="Chọn nhân vật">
+                          {aiRelCharacterAIndex === ""
+                            ? undefined
+                            : bibleData?.characters?.[Number(aiRelCharacterAIndex)]?.name?.trim() || `Nhân vật ${Number(aiRelCharacterAIndex) + 1}`}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(bibleData?.characters || []).map((character: { name?: string }, index: number) => (
+                          <SelectItem key={index} value={String(index)} disabled={String(index) === aiRelCharacterBIndex}>
+                            {character.name?.trim() || `Nhân vật ${index + 1}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="relationship-character-b">Nhân vật B</Label>
+                    <Select value={aiRelCharacterBIndex} onValueChange={(value) => setAiRelCharacterBIndex(value ?? "")}>
+                      <SelectTrigger id="relationship-character-b" className="w-full">
+                        <SelectValue placeholder="Chọn nhân vật">
+                          {aiRelCharacterBIndex === ""
+                            ? undefined
+                            : bibleData?.characters?.[Number(aiRelCharacterBIndex)]?.name?.trim() || `Nhân vật ${Number(aiRelCharacterBIndex) + 1}`}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(bibleData?.characters || []).map((character: { name?: string }, index: number) => (
+                          <SelectItem key={index} value={String(index)} disabled={String(index) === aiRelCharacterAIndex}>
+                            {character.name?.trim() || `Nhân vật ${index + 1}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <TextAreaField
+                  label="Mô tả bổ sung cho nhân vật A (không bắt buộc)"
+                  value={aiRelCharacterADescription}
+                  onChange={setAiRelCharacterADescription}
+                  rows={2}
+                  placeholder="Góc nhìn hoặc thông tin chưa có trong hồ sơ..."
+                />
+                <TextAreaField
+                  label="Mô tả bổ sung cho nhân vật B (không bắt buộc)"
+                  value={aiRelCharacterBDescription}
+                  onChange={setAiRelCharacterBDescription}
+                  rows={2}
+                  placeholder="Góc nhìn hoặc thông tin chưa có trong hồ sơ..."
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAiRelModalOpen(false)}>Hủy</Button>
-            <Button onClick={generateAiRelationship} disabled={isGeneratingRel || !aiRelPrompt} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button
+              onClick={generateAiRelationship}
+              disabled={
+                isGeneratingRel ||
+                (aiRelMode === "manual" && !aiRelPrompt.trim()) ||
+                (aiRelMode === "automatic" && (
+                  !aiRelCharacterAIndex ||
+                  !aiRelCharacterBIndex ||
+                  aiRelCharacterAIndex === aiRelCharacterBIndex ||
+                  (bibleData?.characters || []).length < 2
+                ))
+              }
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
               {isGeneratingRel ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
-              Tạo Quan Hệ
+              {aiRelMode === "manual" ? "Tạo từ mô tả" : "Sinh tự động"}
             </Button>
           </DialogFooter>
         </DialogContent>
