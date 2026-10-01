@@ -3,6 +3,8 @@ import os
 import subprocess
 import tempfile
 
+import httpx
+
 from core.database import supabase  # Import DB
 from core.prompt_manager import prompt_manager
 from core.render_config import get_global_render_config, normalize_render_config, save_global_render_config
@@ -29,7 +31,7 @@ from schemas import (
     UpdateVideoMetadataRequest,
 )
 from services.llm_service import generate_json, generate_text_xml
-from services.tts_service import generate_audio_file
+from services.tts_service import fetch_tts_voices, generate_audio_file
 from services.video_service import process_full_project_video
 
 app = FastAPI(title="Story Maker API")
@@ -1013,7 +1015,23 @@ async def get_project_status_only(project_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# API Endpoint kích hoạt Batch Render
+# Proxy TTS voice options
+@app.get("/api/voices")
+async def get_tts_voices():
+    try:
+        voices = await fetch_tts_voices()
+        return {"success": True, "data": voices}
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"TTS server trả lỗi khi tải danh sách giọng (HTTP {e.response.status_code}).",
+        ) from e
+    except (httpx.RequestError, ValueError) as e:
+        raise HTTPException(status_code=502, detail=f"Không tải được danh sách giọng TTS: {e}") from e
+
+# Default render settings
 @app.get("/api/settings/render-config")
 async def get_default_render_config():
     try:

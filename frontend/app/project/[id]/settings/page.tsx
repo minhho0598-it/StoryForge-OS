@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Check, Loader2, Save, Settings2, SlidersHorizontal } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
+import { VoiceSelect } from "@/components/voice-select";
 
 export default function SettingsPage() {
   const [defaultConfig, setDefaultConfig] = useState<RenderConfig>(DEFAULT_RENDER_CONFIG);
@@ -104,19 +105,10 @@ export default function SettingsPage() {
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Giọng đọc AI</Label>
-                <Select
+                <VoiceSelect
                   value={renderConfig.voice_id}
                   onValueChange={(value) => updateRenderConfig("voice_id", value || DEFAULT_RENDER_CONFIG.voice_id)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Nguyệt Nga">Nguyệt Nga (Nữ - Truyện cảm)</SelectItem>
-                    <SelectItem value="Bảo Hoàng">Bảo Hoàng (Nam - Trầm ấm)</SelectItem>
-                    <SelectItem value="Ngọc Huyền">Ngọc Huyền (Nữ - Tươi sáng)</SelectItem>
-                  </SelectContent>
-                </Select>
+                />
               </div>
               <div className="space-y-2">
                 <Label>Chế độ render</Label>

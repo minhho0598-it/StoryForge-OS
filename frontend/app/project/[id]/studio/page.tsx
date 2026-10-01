@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api-client";
 import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
+import { VoiceSelect } from "@/components/voice-select";
 
 type RenderStatusResponse = {
   success: boolean;
@@ -344,16 +345,11 @@ export default function RenderStudioPage() {
               <CardContent className="space-y-6 p-6 bg-slate-50">      
                 <div className="space-y-2">
                   <Label>Giọng đọc AI (TTS Voice)</Label>
-                  <Select value={config.voice_id} onValueChange={(val) => setConfig({...config, voice_id: val || ""})}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Chọn giọng đọc" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Nguyệt Nga">Nguyệt Nga (Nữ - Truyện cảm)</SelectItem>
-                      <SelectItem value="Bảo Hoàng">Bảo Hoàng (Nam - Trầm ấm)</SelectItem>
-                      <SelectItem value="Ngọc Huyền">Ngọc Huyền (Nữ - Tươi sáng)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <VoiceSelect
+                    value={config.voice_id}
+                    onValueChange={(voiceId) => setConfig({ ...config, voice_id: voiceId })}
+                    className="bg-white"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Chế độ Render (Render Mode)</Label>
