@@ -13,6 +13,7 @@ Nhiệm vụ: Dựa vào nội dung câu chuyện và Giọng điệu (Tone) ng�
 - 'hook': Câu tiêu đề Youtube (Caption). Dưới 65 ký tự, khơi gợi cảm xúc mạnh hoặc tình huống trớ trêu, cấu trúc gây tò mò để tăng CTR.
 - 'overlay': Text đặt lên Thumbnail/Chính giữa video. Dưới 40 ký tự, là câu nói ấn tượng nhất trong truyện hoặc một câu hỏi mở, đọc được trong 1-2 giây.
 - 'description': Mô tả video, 3-4 câu, tóm tắt sức hút của truyện, tuyệt đối KHÔNG spoil kết cục.
+- 'story_intro': Một đoạn giới thiệu để đọc thành lời trước hoặc sau câu chuyện. Viết tự nhiên, dễ nghe bằng tiếng Việt, 2-4 câu; gợi mở bối cảnh hoặc mâu thuẫn nhưng không tiết lộ kết cục và không bịa chi tiết.
 - 'type': Thể loại truyện. Liệt kê 2-4 từ khóa thể loại ngắn gọn (mỗi từ khóa 1-3 chữ), phân cách bằng dấu phẩy và khoảng trắng, KHÔNG có dấu #. Ưu tiên các nhãn thể loại phổ biến trên nền tảng truyện kể, sắp xếp theo mức độ liên quan giảm dần.
 - 'hashtag': Danh sách hashtag. Bắt đầu bằng dấu #, phân cách bằng dấu cách (VD: #ngontinh #truyenaudio #kinhdi).
 

@@ -134,6 +134,49 @@ export default function SettingsPage() {
                 </Select>
               </div>
             </div>
+            <div className="space-y-4 rounded-md border bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="default-story-intro-enabled">Chèn lời giới thiệu câu chuyện</Label>
+                  <p className="mt-1 text-xs text-slate-500">Mặc định cho project mới; có thể chỉnh riêng trong Studio.</p>
+                </div>
+                <Switch
+                  id="default-story-intro-enabled"
+                  checked={renderConfig.story_intro_enabled}
+                  onCheckedChange={(value) => updateRenderConfig("story_intro_enabled", value)}
+                />
+              </div>
+              {renderConfig.story_intro_enabled && (
+                <div className="grid gap-4 border-t pt-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Vị trí lời giới thiệu</Label>
+                    <Select
+                      value={renderConfig.story_intro_position}
+                      onValueChange={(value) => value && updateRenderConfig("story_intro_position", value as "start" | "end")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="start">Trước câu chuyện</SelectItem>
+                        <SelectItem value="end">Sau câu chuyện</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="default-story-intro-pause">Khoảng nghỉ với nội dung truyện (ms)</Label>
+                    <Input
+                      id="default-story-intro-pause"
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={renderConfig.story_intro_pause_ms}
+                      onChange={(event) => updateRenderConfig("story_intro_pause_ms", Math.max(0, Math.trunc(Number(event.target.value) || 0)))}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             {renderConfig.render_mode === "simple" && (
               <div className="flex items-center justify-between rounded-md border bg-slate-50 p-4">
                 <div>

@@ -8,6 +8,9 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
     "render_mode": "full",
     "auto_split_parts": False,
     "use_background_audio": False,
+    "story_intro_enabled": False,
+    "story_intro_position": "start",
+    "story_intro_pause_ms": 1000,
     "intro_video_path": "./data/sample_assets/intro.mp4",
     "main_video_path": "./data/sample_assets/main.mp4",
     "background_folder_path": "./data/sample_assets/backgrounds",
@@ -20,7 +23,18 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
 
 
 def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
-    return {**DEFAULT_RENDER_CONFIG, **(config or {})}
+    normalized = {**DEFAULT_RENDER_CONFIG, **(config or {})}
+    normalized["story_intro_enabled"] = bool(normalized["story_intro_enabled"])
+    normalized["story_intro_position"] = (
+        normalized["story_intro_position"]
+        if normalized["story_intro_position"] in {"start", "end"}
+        else DEFAULT_RENDER_CONFIG["story_intro_position"]
+    )
+    try:
+        normalized["story_intro_pause_ms"] = max(0, int(normalized["story_intro_pause_ms"]))
+    except (TypeError, ValueError):
+        normalized["story_intro_pause_ms"] = DEFAULT_RENDER_CONFIG["story_intro_pause_ms"]
+    return normalized
 
 
 def get_global_render_config(client: Any) -> dict[str, Any]:
