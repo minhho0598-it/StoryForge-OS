@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
-import { BookOpen, PenTool, Clapperboard, ChevronLeft, Home, Newspaper, Settings, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { usePathname, useParams, useRouter } from "next/navigation";
+import { BookOpen, PenTool, Clapperboard, ChevronLeft, LayoutDashboard, Newspaper, Settings, ChevronRight, FolderOpen } from "lucide-react";
+import { useEffect, useState } from "react";
+import { apiClient, ApiError } from "@/lib/api-client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type ProjectOption = {
+  id: string;
+  title: string;
+};
+
+const projectSections = ["architecture", "overview", "metadata", "studio", "writer-room"] as const;
 
 export default function ProjectLayout({
   children,
@@ -12,10 +21,43 @@ export default function ProjectLayout({
 }) {
   const pathname = usePathname();
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiClient
+      .get<ProjectOption[]>("/api/projects")
+      .then((response) => {
+        if (response.success) setProjects(response.data);
+      })
+      .catch((error) => {
+        setProjectsError(error instanceof ApiError ? error.message : "Không tải được danh sách project.");
+      })
+      .finally(() => setProjectsLoading(false));
+  }, []);
 
   const isActive = (path: string) => pathname.includes(path);
+  const currentProject = projects.find((project) => project.id === projectId);
+  const currentSection = pathname.split("/")[3];
+  const destinationSection = projectSections.includes(currentSection as (typeof projectSections)[number])
+    ? currentSection
+    : "overview";
+
+  useEffect(() => {
+    if (!projectId) return;
+    localStorage.setItem("story-maker-last-project-id", projectId);
+  }, [projectId]);
+
+  const switchProject = (nextProjectId: string | null) => {
+    if (nextProjectId && nextProjectId !== projectId) {
+      localStorage.setItem("story-maker-last-project-id", nextProjectId);
+      router.push(`/project/${encodeURIComponent(nextProjectId)}/${destinationSection}`);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -30,13 +72,49 @@ export default function ProjectLayout({
           </div>
 
           <div className="flex-1 p-3 space-y-2 mt-2 transition-all duration-300 ease-out">
+            <Select
+              value={projectId}
+              onValueChange={switchProject}
+              disabled={projectsLoading || projects.length === 0}
+            >
+              <SelectTrigger
+                aria-label="Chuyển project"
+                title={currentProject?.title || projectsError || "Chuyển project"}
+                className={`h-10 w-full min-w-0 border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700 [&>svg:last-child]:hidden sm:[&>svg:last-child]:block ${isCollapsed ? "justify-center px-2" : "justify-between"}`}
+              >
+                <SelectValue placeholder={projectsLoading ? "Đang tải..." : "Chọn project"}>
+                  {isCollapsed ? (
+                    <FolderOpen className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <>
+                      <span className="hidden truncate sm:inline">{currentProject?.title || "Project"}</span>
+                      <FolderOpen className="h-4 w-4 shrink-0 sm:hidden" />
+                    </>
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent align="start">
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {projectsError && !isCollapsed && (
+              <p className="px-1 text-xs text-red-300" title={projectsError}>Không tải được project</p>
+            )}
+            {!projectsLoading && !projectsError && projects.length === 0 && !isCollapsed && (
+              <p className="px-1 text-xs text-slate-400">Chưa có project</p>
+            )}
+
             <Link
               href={`/project/${projectId}/overview`}
-              title="Tổng Quan Dự Án"
+              title="Overview"
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/overview') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
-              <Home className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="hidden truncate sm:inline">Tổng Quan Dự Án</span>}
+              <LayoutDashboard className="h-5 w-5 shrink-0" />
+              {!isCollapsed && <span className="hidden truncate sm:inline">Overview</span>}
             </Link>
 
             <Link
@@ -78,7 +156,7 @@ export default function ProjectLayout({
 
           <div className="border-t border-slate-800 p-3 transition-all duration-300 ease-out">
             <Link
-              href={`/project/${projectId}/settings`}
+              href="/settings"
               title="Cài Đặt"
               className={`flex items-center rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center w-full h-8" : "gap-3 px-3 py-3 w-full"} ${isActive('/settings') ? 'bg-slate-700 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >

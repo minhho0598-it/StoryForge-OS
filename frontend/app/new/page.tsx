@@ -46,7 +46,7 @@ export default function NewProjectPage() {
   const handleCreateProject = async (idea: Idea) => {
     setCreatingProject(true);
     try {
-      const result = await apiClient.post("/api/projects", {
+      const result = await apiClient.post<{ project_id?: string }>("/api/projects", {
           title: idea.title, 
           vibe: idea.vibe, 
           logline: idea.logline,
@@ -56,8 +56,9 @@ export default function NewProjectPage() {
           micro_conflict: idea.micro_conflict, 
           story_premise: premise, // Lưu lại bản gốc
         });
-      if (result.success) {
-        router.push(`/project/${result.project_id}/overview`);
+      if (result.success && result.data?.project_id) {
+        localStorage.setItem("story-maker-last-project-id", result.data.project_id);
+        router.push(`/project/${result.data.project_id}/overview`);
       }
     } catch (e) { alert("Lỗi tạo dự án"); } 
     finally { setCreatingProject(false); }
