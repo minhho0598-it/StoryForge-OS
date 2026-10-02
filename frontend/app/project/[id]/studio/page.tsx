@@ -443,6 +443,23 @@ export default function RenderStudioPage() {
                         />
                       </div>
                       <Input className="bg-white font-mono text-sm" value={config.background_audio_path} onChange={e => setConfig({...config, background_audio_path: e.target.value})} placeholder="Để trống nếu chỉ dùng giọng đọc" />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="background-audio-volume">Âm lượng nhạc nền</Label>
+                          <span className="text-sm tabular-nums text-slate-600">{Math.round(config.background_audio_volume * 100)}%</span>
+                        </div>
+                        <input
+                          id="background-audio-volume"
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={Math.round(config.background_audio_volume * 100)}
+                          onChange={e => setConfig({...config, background_audio_volume: Number(e.target.value) / 100})}
+                          className="h-2 w-full cursor-pointer accent-indigo-600"
+                          aria-label="Âm lượng nhạc nền"
+                        />
+                      </div>
                       <p className="text-xs text-slate-500">Bật công tắc để lặp và trộn file này phía sau giọng đọc ở mode Đơn giản.</p>
                     </div>
                   )}

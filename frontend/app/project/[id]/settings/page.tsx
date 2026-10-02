@@ -209,6 +209,23 @@ export default function SettingsPage() {
                   className="font-mono text-sm"
                   placeholder="Nhập đường dẫn file nhạc nền"
                 />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="background-audio-volume">Âm lượng nhạc nền</Label>
+                    <span className="text-sm tabular-nums text-slate-600">{Math.round(renderConfig.background_audio_volume * 100)}%</span>
+                  </div>
+                  <input
+                    id="background-audio-volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={Math.round(renderConfig.background_audio_volume * 100)}
+                    onChange={(event) => updateRenderConfig("background_audio_volume", Number(event.target.value) / 100)}
+                    className="h-2 w-full cursor-pointer accent-indigo-600"
+                    aria-label="Âm lượng nhạc nền"
+                  />
+                </div>
                 <p className="text-xs text-slate-500">Chỉ khi bật Switch, file này mới được lặp và trộn phía sau giọng đọc.</p>
               </div>
               {renderConfig.render_mode === "full" && (

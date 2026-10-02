@@ -1,3 +1,4 @@
+from math import isfinite
 from typing import Any, Mapping
 
 
@@ -8,6 +9,7 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
     "render_mode": "full",
     "auto_split_parts": False,
     "use_background_audio": False,
+    "background_audio_volume": 0.45,
     "story_intro_enabled": False,
     "story_intro_position": "start",
     "story_intro_pause_ms": 1000,
@@ -25,6 +27,15 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
 def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
     normalized = {**DEFAULT_RENDER_CONFIG, **(config or {})}
     normalized["story_intro_enabled"] = bool(normalized["story_intro_enabled"])
+    try:
+        background_audio_volume = float(normalized["background_audio_volume"])
+        normalized["background_audio_volume"] = (
+            min(1.0, max(0.0, background_audio_volume))
+            if isfinite(background_audio_volume)
+            else DEFAULT_RENDER_CONFIG["background_audio_volume"]
+        )
+    except (TypeError, ValueError):
+        normalized["background_audio_volume"] = DEFAULT_RENDER_CONFIG["background_audio_volume"]
     normalized["story_intro_position"] = (
         normalized["story_intro_position"]
         if normalized["story_intro_position"] in {"start", "end"}
