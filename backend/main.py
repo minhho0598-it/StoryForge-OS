@@ -3,9 +3,11 @@ import os
 import subprocess
 import tempfile
 
+import httpx
+
 from core.database import supabase  # Import DB
 from core.prompt_manager import prompt_manager
-from core.render_config import get_global_render_config, save_global_render_config
+from core.render_config import get_global_render_config, normalize_render_config, save_global_render_config
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
@@ -29,7 +31,7 @@ from schemas import (
     UpdateVideoMetadataRequest,
 )
 from services.llm_service import generate_json, generate_text_xml
-from services.tts_service import generate_audio_file
+from services.tts_service import fetch_tts_voices, generate_audio_file
 from services.video_service import process_full_project_video
 
 app = FastAPI(title="Story Maker API")
@@ -1013,7 +1015,23 @@ async def get_project_status_only(project_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# API Endpoint kích hoạt Batch Render
+# Proxy TTS voice options
+@app.get("/api/voices")
+async def get_tts_voices():
+    try:
+        voices = await fetch_tts_voices()
+        return {"success": True, "data": voices}
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"TTS server trả lỗi khi tải danh sách giọng (HTTP {e.response.status_code}).",
+        ) from e
+    except (httpx.RequestError, ValueError) as e:
+        raise HTTPException(status_code=502, detail=f"Không tải được danh sách giọng TTS: {e}") from e
+
+# Default render settings
 @app.get("/api/settings/render-config")
 async def get_default_render_config():
     try:
@@ -1134,6 +1152,7 @@ async def update_video_metadata(project_id: str, request: UpdateVideoMetadataReq
 
 async def background_batch_render(project_id: str, config: dict, target_chapter_ids: list):
     print(f"[Batch Render] Bắt đầu xử lý cho Project: {project_id}")
+    config = normalize_render_config(config)
     
     # 1. Khởi tạo trạng thái chi tiết ban đầu
     supabase.table("projects").update({
@@ -1150,7 +1169,17 @@ async def background_batch_render(project_id: str, config: dict, target_chapter_
              
         chap_res = supabase.table("chapters").select("*").in_("id", target_chapter_ids).order("chapter_number").execute()
         valid_chapters = chap_res.data
+        if not valid_chapters:
+            raise Exception("Không tìm thấy chương hợp lệ để render.")
         total_chaps = len(valid_chapters)
+
+        project_res = supabase.table("projects").select("video_metadata").eq("id", project_id).execute()
+        project_metadata = (project_res.data or [{}])[0].get("video_metadata") or {}
+        story_intro_text = str(project_metadata.get("story_intro") or "").strip()
+        use_story_intro = config["story_intro_enabled"] and bool(story_intro_text)
+        story_intro_position = config["story_intro_position"]
+        story_intro_pause_ms = config["story_intro_pause_ms"] if use_story_intro else 0
+        story_intro_pause_seconds = story_intro_pause_ms / 1000.0
         
         audio_files_to_concat = [] 
         
@@ -1172,6 +1201,69 @@ async def background_batch_render(project_id: str, config: dict, target_chapter_
             "-c:a", "pcm_s16le",
             standard_silence_path
         ], check=True)
+
+        from services.tts_service import split_text_for_subtitle
+
+        def append_subtitle_events(events: list, time_offset: float) -> None:
+            for event in events:
+                start_time = event["start"] + time_offset
+                end_time = event["end"] + time_offset
+                duration = end_time - start_time
+                full_text = event["text"].strip()
+                sub_chunks = split_text_for_subtitle(full_text, max_words_per_line=6)
+
+                if len(sub_chunks) <= 1:
+                    all_ass_events.append({"start": start_time, "end": end_time, "text": full_text})
+                    continue
+
+                time_per_chunk = duration / len(sub_chunks)
+                for index, subtitle_text in enumerate(sub_chunks):
+                    sub_start = start_time + index * time_per_chunk
+                    all_ass_events.append({
+                        "start": sub_start,
+                        "end": sub_start + time_per_chunk,
+                        "text": subtitle_text,
+                    })
+
+        story_intro_duration = 0.0
+        story_intro_ass_events = []
+        story_intro_audio_path = ""
+        story_intro_pause_path = ""
+        if use_story_intro:
+            supabase.table("projects").update({
+                "render_task_msg": "Đang tạo giọng đọc lời giới thiệu..."
+            }).eq("id", project_id).execute()
+            story_intro_result = await generate_audio_file(
+                story_intro_text,
+                config["voice_id"],
+                tts_temp_dir,
+                "story_intro",
+            )
+            story_intro_duration = story_intro_result["duration"]
+            story_intro_ass_events = story_intro_result["ass_events"]
+            story_intro_audio_path = os.path.join(tts_temp_dir, "norm_story_intro.wav")
+            subprocess.run([
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                "-i", story_intro_result["audio_path"],
+                "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le",
+                story_intro_audio_path,
+            ], check=True, capture_output=True, text=True)
+
+            if story_intro_pause_ms > 0:
+                story_intro_pause_path = os.path.join(tts_temp_dir, f"story_intro_pause_{story_intro_pause_ms}ms.wav")
+                subprocess.run([
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                    "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+                    "-t", f"{story_intro_pause_seconds:.3f}",
+                    "-c:a", "pcm_s16le", story_intro_pause_path,
+                ], check=True, capture_output=True, text=True)
+
+            if story_intro_position == "start":
+                audio_files_to_concat.append(story_intro_audio_path)
+                if story_intro_pause_path:
+                    audio_files_to_concat.append(story_intro_pause_path)
+                append_subtitle_events(story_intro_ass_events, global_time_cursor)
+                global_time_cursor += story_intro_duration + story_intro_pause_seconds
 
         # ====================================================
         # BƯỚC 1: XỬ LÝ TEXT VÀ TTS
@@ -1210,39 +1302,7 @@ async def background_batch_render(project_id: str, config: dict, target_chapter_
                 chap_events = tts_result["ass_events"]
                         
                 # BƯỚC 1.3: ĐỒNG BỘ THỜI GIAN PHỤ ĐỀ & LƯU MỐC CẮT VIDEO
-                from services.tts_service import split_text_for_subtitle # Nhớ import hàm vừa tạo
-
-                for event in chap_events:
-                    start_time = event["start"] + global_time_cursor
-                    end_time = event["end"] + global_time_cursor
-                    duration = end_time - start_time
-                    full_text = event["text"].strip()
-                    
-                    # Cắt câu dài thành các dòng phụ đề ngắn (Max 6 chữ/dòng)
-                    sub_chunks = split_text_for_subtitle(full_text, max_words_per_line=6)
-                    num_chunks = len(sub_chunks)
-                    
-                    # Nếu câu ngắn (chỉ có 1 chunk), giữ nguyên thời gian
-                    if num_chunks <= 1:
-                        all_ass_events.append({
-                            "start": start_time,
-                            "end": end_time,
-                            "text": full_text
-                        })
-                    else:
-                        # Nếu câu dài, chia đều thời lượng hiển thị cho từng chunk
-                        # (Cách này tính toán tuyến tính, không chuẩn xác 100% bằng Whisper word-timestamp 
-                        # nhưng đủ tốt và dễ đọc cho video)
-                        time_per_chunk = duration / num_chunks
-                        current_sub_start = start_time
-                        
-                        for sub in sub_chunks:
-                            all_ass_events.append({
-                                "start": current_sub_start,
-                                "end": current_sub_start + time_per_chunk,
-                                "text": sub
-                            })
-                            current_sub_start += time_per_chunk
+                append_subtitle_events(chap_events, global_time_cursor)
                 
                 # Mốc cắt video: Thời lượng Audio của chương này + (1s im lặng nếu chưa phải chương cuối)
                 segment_dur = chap_duration + (1.0 if index < len(valid_chapters) - 1 else 0.0)
@@ -1276,6 +1336,21 @@ async def background_batch_render(project_id: str, config: dict, target_chapter_
                 print(f"[Lỗi Audio Chương {chap_num}] {e}")
                 supabase.table("chapters").update({"status": "Error"}).eq("id", chapter_id).execute()
                 raise e
+
+        if use_story_intro and story_intro_position == "end":
+            if story_intro_pause_path:
+                audio_files_to_concat.append(story_intro_pause_path)
+            audio_files_to_concat.append(story_intro_audio_path)
+            append_subtitle_events(
+                story_intro_ass_events,
+                global_time_cursor + story_intro_pause_seconds,
+            )
+
+        if chapter_segments and use_story_intro:
+            if story_intro_position == "start":
+                chapter_segments[0] += story_intro_duration + story_intro_pause_seconds
+            else:
+                chapter_segments[-1] += story_intro_pause_seconds + story_intro_duration
 
         print("[Batch Render] Tạm nghỉ 1s để đồng bộ UI...")
         import asyncio

@@ -18,7 +18,7 @@ export default function MetadataPage() {
   const projectId = params.id as string;
 
   const [metadata, setMetadata] = useState({
-    title: "", hook: "", overlay: "", description: "", type: "", hashtag: "", thumbnail_prompt: ""
+    title: "", hook: "", overlay: "", description: "", type: "", hashtag: "", thumbnail_prompt: "", story_intro: ""
   });
   const [selectedTone, setSelectedTone] = useState("Kịch tính / Giật tít");
   const [aiOptions, setAiOptions] = useState<Record<string, string[]>>({});
@@ -255,6 +255,28 @@ export default function MetadataPage() {
                   </div>
                   <Textarea value={metadata.description} onChange={e => setMetadata({...metadata, description: e.target.value})} className="h-28 resize-none pr-10" placeholder="Tóm tắt nội dung không spoil..." />
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-slate-200">
+              <CardHeader className="bg-slate-50 border-b pb-3">
+                <CardTitle className="text-sm flex items-center gap-2 text-slate-700">
+                  <Wand2 className="h-4 w-4" /> Lời giới thiệu câu chuyện
+                </CardTitle>
+                <CardDescription>Đoạn này sẽ được đọc bằng giọng TTS khi bật trong Studio.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 bg-white space-y-3">
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => generateMetadataItem('story_intro')} disabled={loadingMeta.story_intro} className="text-xs text-indigo-600">
+                    {loadingMeta.story_intro ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lời giới thiệu
+                  </Button>
+                </div>
+                <Textarea
+                  value={metadata.story_intro || ""}
+                  onChange={e => setMetadata({...metadata, story_intro: e.target.value})}
+                  className="min-h-28 resize-y"
+                  placeholder="Viết hoặc tạo một đoạn giới thiệu ngắn cho câu chuyện..."
+                />
               </CardContent>
             </Card>
 

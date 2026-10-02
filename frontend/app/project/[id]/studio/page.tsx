@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api-client";
 import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
+import { VoiceSelect } from "@/components/voice-select";
 
 type RenderStatusResponse = {
   success: boolean;
@@ -40,6 +41,7 @@ export default function RenderStudioPage() {
   
   // === TÍNH NĂNG MỚI: CHỌN CHAPTER MUỐN RENDER ===
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
+  const [hasSavedStoryIntro, setHasSavedStoryIntro] = useState(false);
 
   // === TÍNH NĂNG MỚI: CẤU HÌNH PROFILE ===
   const [config, setConfig] = useState<RenderConfig>(DEFAULT_RENDER_CONFIG);
@@ -71,6 +73,7 @@ export default function RenderStudioPage() {
       if (projData.success) {
         setProjectStatus(projData.data.status);
         setRenderProgress(projData.data.render_progress || 0);
+        setHasSavedStoryIntro(Boolean(projData.data.video_metadata?.story_intro?.trim()));
         
         // Đọc Profile đã lưu
         if (projData.data.render_config) {
@@ -342,16 +345,11 @@ export default function RenderStudioPage() {
               <CardContent className="space-y-6 p-6 bg-slate-50">      
                 <div className="space-y-2">
                   <Label>Giọng đọc AI (TTS Voice)</Label>
-                  <Select value={config.voice_id} onValueChange={(val) => setConfig({...config, voice_id: val || ""})}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Chọn giọng đọc" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Nguyệt Nga">Nguyệt Nga (Nữ - Truyện cảm)</SelectItem>
-                      <SelectItem value="Bảo Hoàng">Bảo Hoàng (Nam - Trầm ấm)</SelectItem>
-                      <SelectItem value="Ngọc Huyền">Ngọc Huyền (Nữ - Tươi sáng)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <VoiceSelect
+                    value={config.voice_id}
+                    onValueChange={(voiceId) => setConfig({ ...config, voice_id: voiceId })}
+                    className="bg-white"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Chế độ Render (Render Mode)</Label>
@@ -364,6 +362,53 @@ export default function RenderStudioPage() {
                       <SelectItem value="simple">Mode Đơn Giản (Chỉ Nền + Audio)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-4 rounded-md border bg-white p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="story-intro-enabled" className="font-semibold text-slate-800">
+                      Chèn lời giới thiệu câu chuyện
+                    </Label>
+                    <Switch
+                      id="story-intro-enabled"
+                      checked={config.story_intro_enabled}
+                      disabled={!hasSavedStoryIntro}
+                      onCheckedChange={value => setConfig({...config, story_intro_enabled: value})}
+                    />
+                  </div>
+                  {!hasSavedStoryIntro && (
+                    <p className="text-xs text-slate-500">Tạo và lưu lời giới thiệu ở màn hình Metadata trước khi bật.</p>
+                  )}
+                  {config.story_intro_enabled && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Vị trí lời giới thiệu</Label>
+                        <Select
+                          value={config.story_intro_position}
+                          onValueChange={value => value && setConfig({...config, story_intro_position: value as "start" | "end"})}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="start">Trước câu chuyện</SelectItem>
+                            <SelectItem value="end">Sau câu chuyện</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="story-intro-pause">Khoảng nghỉ với nội dung truyện (ms)</Label>
+                        <Input
+                          id="story-intro-pause"
+                          type="number"
+                          min={0}
+                          step={100}
+                          className="bg-white"
+                          value={config.story_intro_pause_ms}
+                          onChange={event => setConfig({...config, story_intro_pause_ms: Math.max(0, Math.trunc(Number(event.target.value) || 0))})}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {config.render_mode === "simple" && (
                     <div className="flex items-center space-x-2">
@@ -398,6 +443,23 @@ export default function RenderStudioPage() {
                         />
                       </div>
                       <Input className="bg-white font-mono text-sm" value={config.background_audio_path} onChange={e => setConfig({...config, background_audio_path: e.target.value})} placeholder="Để trống nếu chỉ dùng giọng đọc" />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="background-audio-volume">Âm lượng nhạc nền</Label>
+                          <span className="text-sm tabular-nums text-slate-600">{Math.round(config.background_audio_volume * 100)}%</span>
+                        </div>
+                        <input
+                          id="background-audio-volume"
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={Math.round(config.background_audio_volume * 100)}
+                          onChange={e => setConfig({...config, background_audio_volume: Number(e.target.value) / 100})}
+                          className="h-2 w-full cursor-pointer accent-indigo-600"
+                          aria-label="Âm lượng nhạc nền"
+                        />
+                      </div>
                       <p className="text-xs text-slate-500">Bật công tắc để lặp và trộn file này phía sau giọng đọc ở mode Đơn giản.</p>
                     </div>
                   )}

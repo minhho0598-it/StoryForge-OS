@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Check, Loader2, Save, Settings2, SlidersHorizontal } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
+import { VoiceSelect } from "@/components/voice-select";
 
 export default function SettingsPage() {
   const [defaultConfig, setDefaultConfig] = useState<RenderConfig>(DEFAULT_RENDER_CONFIG);
@@ -104,19 +105,10 @@ export default function SettingsPage() {
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Giọng đọc AI</Label>
-                <Select
+                <VoiceSelect
                   value={renderConfig.voice_id}
                   onValueChange={(value) => updateRenderConfig("voice_id", value || DEFAULT_RENDER_CONFIG.voice_id)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Nguyệt Nga">Nguyệt Nga (Nữ - Truyện cảm)</SelectItem>
-                    <SelectItem value="Bảo Hoàng">Bảo Hoàng (Nam - Trầm ấm)</SelectItem>
-                    <SelectItem value="Ngọc Huyền">Ngọc Huyền (Nữ - Tươi sáng)</SelectItem>
-                  </SelectContent>
-                </Select>
+                />
               </div>
               <div className="space-y-2">
                 <Label>Chế độ render</Label>
@@ -133,6 +125,49 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-4 rounded-md border bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="default-story-intro-enabled">Chèn lời giới thiệu câu chuyện</Label>
+                  <p className="mt-1 text-xs text-slate-500">Mặc định cho project mới; có thể chỉnh riêng trong Studio.</p>
+                </div>
+                <Switch
+                  id="default-story-intro-enabled"
+                  checked={renderConfig.story_intro_enabled}
+                  onCheckedChange={(value) => updateRenderConfig("story_intro_enabled", value)}
+                />
+              </div>
+              {renderConfig.story_intro_enabled && (
+                <div className="grid gap-4 border-t pt-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Vị trí lời giới thiệu</Label>
+                    <Select
+                      value={renderConfig.story_intro_position}
+                      onValueChange={(value) => value && updateRenderConfig("story_intro_position", value as "start" | "end")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="start">Trước câu chuyện</SelectItem>
+                        <SelectItem value="end">Sau câu chuyện</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="default-story-intro-pause">Khoảng nghỉ với nội dung truyện (ms)</Label>
+                    <Input
+                      id="default-story-intro-pause"
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={renderConfig.story_intro_pause_ms}
+                      onChange={(event) => updateRenderConfig("story_intro_pause_ms", Math.max(0, Math.trunc(Number(event.target.value) || 0)))}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             {renderConfig.render_mode === "simple" && (
               <div className="flex items-center justify-between rounded-md border bg-slate-50 p-4">
@@ -174,6 +209,23 @@ export default function SettingsPage() {
                   className="font-mono text-sm"
                   placeholder="Nhập đường dẫn file nhạc nền"
                 />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="background-audio-volume">Âm lượng nhạc nền</Label>
+                    <span className="text-sm tabular-nums text-slate-600">{Math.round(renderConfig.background_audio_volume * 100)}%</span>
+                  </div>
+                  <input
+                    id="background-audio-volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={Math.round(renderConfig.background_audio_volume * 100)}
+                    onChange={(event) => updateRenderConfig("background_audio_volume", Number(event.target.value) / 100)}
+                    className="h-2 w-full cursor-pointer accent-indigo-600"
+                    aria-label="Âm lượng nhạc nền"
+                  />
+                </div>
                 <p className="text-xs text-slate-500">Chỉ khi bật Switch, file này mới được lặp và trộn phía sau giọng đọc.</p>
               </div>
               {renderConfig.render_mode === "full" && (

@@ -190,7 +190,7 @@ async def process_full_project_video(project_id: str, final_audio_path: str, aud
             if use_background_audio:
                 filter_parts.append(
                     "[1:a]aresample=44100[narration];"
-                    "[2:a]aresample=44100,volume=0.45[background];"
+                    f"[2:a]aresample=44100,volume={config.get('background_audio_volume', 0.45)}[background];"
                     "[narration][background]amix=inputs=2:duration=first:dropout_transition=2[mixed_audio]"
                 )
                 audio_label = "[mixed_audio]"

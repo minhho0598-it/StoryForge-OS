@@ -75,6 +75,9 @@ class RenderConfigPayload(BaseModel):
     render_mode: Literal["full", "simple"]
     auto_split_parts: bool
     use_background_audio: bool
+    story_intro_enabled: bool = False
+    story_intro_position: Literal["start", "end"] = "start"
+    story_intro_pause_ms: int = 1000
     intro_video_path: str
     main_video_path: str
     background_folder_path: str
