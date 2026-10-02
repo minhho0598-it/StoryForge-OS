@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Check, Loader2, Save, Settings2, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Save, Settings2, SlidersHorizontal } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
 import { VoiceSelect } from "@/components/voice-select";
@@ -19,7 +20,13 @@ export default function SettingsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingDefaults, setSavingDefaults] = useState(false);
   const [defaultsSaved, setDefaultsSaved] = useState(false);
+  const [returnHref, setReturnHref] = useState("/");
   const renderConfig = defaultConfig;
+
+  useEffect(() => {
+    const projectId = localStorage.getItem("story-maker-last-project-id");
+    setReturnHref(projectId ? `/project/${encodeURIComponent(projectId)}/overview` : "/");
+  }, []);
 
   useEffect(() => {
     apiClient
@@ -54,14 +61,14 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 className="h-7 w-7 animate-spin text-indigo-600" />
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 p-8 pb-24">
+    <div className="min-h-screen overflow-y-auto bg-slate-50 p-8 pb-24">
       <div className="max-w-5xl mx-auto space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -73,6 +80,10 @@ export default function SettingsPage() {
             </div>
             <p className="mt-2 text-slate-500">Cấu hình mặc định được áp dụng cho các project mới.</p>
           </div>
+          <Link href={returnHref} className={buttonVariants({ variant: "outline" })}>
+            <ArrowLeft aria-hidden="true" />
+            Về Dashboard
+          </Link>
         </div>
 
         {loadError && (
