@@ -25,7 +25,16 @@ export function getFrontendConfig(): FrontendConfig {
   if (typeof window === "undefined") return DEFAULT_FRONTEND_CONFIG;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...DEFAULT_FRONTEND_CONFIG, ...JSON.parse(raw) } : DEFAULT_FRONTEND_CONFIG;
+    const config = { ...DEFAULT_FRONTEND_CONFIG, ...(raw ? JSON.parse(raw) : {}) };
+    const backendUrl = new URL(config.backend_url);
+    const loopbackHosts = ["localhost", "127.0.0.1", "[::1]"];
+
+    if (loopbackHosts.includes(backendUrl.hostname) && !loopbackHosts.includes(window.location.hostname)) {
+      backendUrl.hostname = window.location.hostname;
+      config.backend_url = backendUrl.toString();
+    }
+
+    return config;
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
     return DEFAULT_FRONTEND_CONFIG;
