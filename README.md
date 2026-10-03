@@ -38,16 +38,17 @@ pip install -r requirements.txt
 Copy file `.env.example` thành `.env` và điền thông tin Local AI & Supabase của bạn.
 Khởi chạy Server:
 ```bash
-uvicorn main:app --reload --port 8765
+uvicorn main:app --reload --host 0.0.0.0 --port 8765
 ```
-
 ### 3. Cấu hình Frontend (Next.js)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Truy cập `http://localhost:3000` và bắt đầu sáng tạo!
+Trên máy chạy ứng dụng, truy cập `http://localhost:3000`. Để mở từ thiết bị khác cùng mạng Wi-Fi, lấy địa chỉ IPv4 LAN của máy chạy ứng dụng rồi truy cập `http://<IP-LAN>:3000` (ví dụ `http://192.168.1.20:3000`). Frontend sẽ tự gọi backend tại cùng hostname trên cổng `8765`.
+
+Đảm bảo macOS Firewall cho phép kết nối đến Node.js/Python. Nếu vẫn không truy cập được dù hai server đã chạy, kiểm tra router có bật AP/client isolation hoặc thiết bị đang dùng mạng guest không.
 
 #### ⚠️ Lưu ý Hệ thống
 - Hệ thống yêu cầu cài đặt sẵn `ffmpeg` trong biến môi trường của hệ điều hành.

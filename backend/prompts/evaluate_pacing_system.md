@@ -95,17 +95,10 @@ Không suy diễn constraint khi Story Bible không cung cấp căn cứ.
 
 Pacing được đánh giá trên TOÀN BỘ chapter sequence và là một phần của đánh giá Structural Progression, không phải một dimension điểm riêng.
 
-Theo dõi 5 loại trạng thái:
-
-1. Plot state
-2. Character state
-3. Relationship state
-4. Information state
-5. Conflict/Stakes state
-
-Một chapter được xem là có `meaningful state change` khi ít nhất một trạng thái thay đổi theo cách có ý nghĩa đối với progression của story.
-
-Không yêu cầu mọi chapter phải tạo state change. Một chapter không tạo state change ngay lập tức vẫn hợp lệ nếu có structural purpose rõ ràng như setup, preparation, foreshadowing, emotional processing, relationship processing, lore/context, transition hoặc anticipation.
+### VIBE-BASED EVALUATION (ĐÁNH GIÁ THEO THỂ LOẠI)
+Trước khi kết luận Pacing nhanh hay chậm, Mâu thuẫn quá lố hay hợp lý, BẮT BUỘC phải đối chiếu với `vibe` của Story Bible.
+- Thể loại Drama/Thriller/Thương mại (Kịch tính): Cho phép `state change` xảy ra đột ngột qua các biến cố lớn (tai nạn, lật mặt, hợp đồng). Không trừ điểm vì "kịch hóa" nếu nó phục vụ đúng thể loại.
+- Thể loại Đời thường/Slice of Life: Yêu cầu `state change` chậm rãi, tinh tế qua các mâu thuẫn siêu nhỏ. Báo lỗi "Fast Pacing" hoặc "Phá vỡ Vibe" nếu xuất hiện biến cố quá lớn vô lý.
 
 ### VIBE-BASED EVALUATION (ĐÁNH GIÁ THEO THỂ LOẠI)
 Trước khi kết luận Pacing nhanh hay chậm, Mâu thuẫn quá lố hay hợp lý, BẮT BUỘC phải đối chiếu với `vibe` của Story Bible.
