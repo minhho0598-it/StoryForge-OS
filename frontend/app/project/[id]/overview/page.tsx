@@ -24,6 +24,7 @@ type ProjectDashboardData = {
   title?: string;
   status?: string;
   vibe?: string;
+  heat_level?: number;
   logline?: string;
   vietnamese_context?: string;
   story_bible?: {
@@ -82,6 +83,9 @@ export default function OverviewPage() {
           <div className="flex items-center gap-3 mb-2">
             <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100 border-none">{project.status}</Badge>
             <Badge variant="outline" className="text-slate-500">{project.vibe}</Badge>
+            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
+              Heat {project.heat_level ?? 1} / 5
+            </Badge>
           </div>
           <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">{project.title}</h1>
           <p className="text-xl text-slate-600 leading-relaxed max-w-3xl">{project.logline}</p>

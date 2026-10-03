@@ -262,7 +262,22 @@ export default function ArchitecturePage() {
   const handleSavePacing = async () => {
     setIsSavingPacingChanges(true);
     try {
-      await apiClient.put(`/api/projects/${projectId}/bulk-update-chapters`, { chapters });
+      const chaptersToSave = chapters.map((chapter) => ({
+        id: chapter.id ?? null,
+        chapter_number: chapter.chapter_number,
+        title: chapter.title ?? "",
+        timeline_period: chapter.timeline_period ?? "",
+        pov_character: Array.isArray(chapter.pov_character)
+          ? chapter.pov_character.join(", ")
+          : chapter.pov_character ?? "",
+        main_event: chapter.main_event ?? "",
+        primary_function: chapter.primary_function ?? "",
+        emotional_beat: chapter.emotional_beat ?? "",
+        relationship_beat: chapter.relationship_beat ?? "",
+        chapter_hook: chapter.chapter_hook ?? "",
+        continuity_note: chapter.continuity_note ?? "",
+      }));
+      await apiClient.put(`/api/projects/${projectId}/bulk-update-chapters`, { chapters: chaptersToSave });
       setEvalData(null);
       setIsPacingDirty(false);
       // Tải lại danh sách để lấy ID mới do Supabase cấp cho các chương vừa tạo
