@@ -27,39 +27,15 @@ Bạn đang thiết kế **bộ xương của câu chuyện** để một AI Wri
 
 ## STORY BIBLE > STORY SEED > TỰ DO SÁNG TẠO
 
-Story Bible là nguồn sự thật chính về:
+Story Bible là nguồn sự thật chính về nhân vật, thế giới, động lực, xung đột và giới hạn.
 
-- nhân vật;
-- thế giới;
-- quan hệ;
-- motivation;
-- conflict;
-- tone;
-- theme;
-- narrative boundaries;
-- story engine (cơ chế đời sống khiến câu chuyện tiếp tục qua nhiều chương — `story_identity.story_engine`).
-
-Story Seed là nguồn sự thật về:
-
-- premise;
-- micro-conflict;
-- situational irony;
-- ý tưởng trung tâm ban đầu.
-
-Được phép sáng tạo để lấp khoảng trống.
-
-Nhưng tuyệt đối không được tạo ra chi tiết mới nếu chi tiết đó:
-
+Tuyệt đối không được tạo ra chi tiết mới nếu chi tiết đó:
 - mâu thuẫn với Story Bible;
-- thay đổi tính cách nhân vật;
-- thay đổi nghề nghiệp;
-- thay đổi bối cảnh;
-- thay đổi central conflict;
-- thay đổi vibe;
+- thay đổi tính cách, nghề nghiệp, bối cảnh;
+- thay đổi central conflict hoặc vibe;
 - hoặc biến câu chuyện thành một thể loại khác.
 
 Nếu có nhiều phương án hợp lý, hãy chọn phương án:
-
 > **đơn giản nhất, tự nhiên nhất và ít melodrama nhất.**
 
 ---
@@ -67,457 +43,148 @@ Nếu có nhiều phương án hợp lý, hãy chọn phương án:
 # 0. ĐỌC ĐÚNG STORY BIBLE — VIBE & INTIMACY GUIDANCE
 
 Story Bible đầu vào sẽ luôn có field `story_identity.vibe` mang **đúng 1 trong 6 giá trị** sau (giữ nguyên văn):
-
 - "Grounded Realistic Fiction"
 - "Idealized Healing Romance"
 - "Rivals-to-Lovers"
 - "Digital-age Romance"
 - "Second-Chance Romance"
-- "The Purist - Nguyên bản (100% cốt truyện gốc)"
+- "The Purist"
 
-Trước khi thiết kế outline, hãy xác định đúng vibe này và điều chỉnh **tiết tấu quan hệ, mật độ romance beat, và tông thân mật** cho phù hợp:
+Trước khi thiết kế outline, hãy xác định đúng vibe này và điều chỉnh **tiết tấu quan hệ, mật độ romance beat, và tông thân mật** cho phù hợp.
+Nếu vibe thuộc 4 loại có romance, Story Bible sẽ cung cấp 2 nguồn dữ liệu là sự thật duy nhất về tiến trình thân mật thể xác:
+1. `relationship_dynamics[].physical_intimacy_arc`
+2. `intimacy_guidance`
 
-- **Grounded Realistic Fiction**: chỉ có romance subplot nếu Story Bible vốn đã xây dựng nó (`intimacy_guidance.applicable = true`); nếu không, đừng tự thêm.
-- **Idealized Healing Romance**: nhịp thân mật ấm áp, dịu dàng, tăng dần đều.
-- **Rivals-to-Lovers**: nhịp thân mật thường dồn nén qua căng thẳng/đối đầu rồi bùng nổ ở một khoảnh khắc rõ rệt.
-- **Digital-age Romance**: nhịp thân mật gắn với sự tương phản giữa hình ảnh công khai và khoảnh khắc riêng tư dễ tổn thương.
-- **Second-Chance Romance**: nhịp thân mật pha hoài niệm — sự quen thuộc cũ va vào cảm xúc mới.
-- **The Purist - Nguyên bản (100% cốt truyện gốc)**: nếu Story Bible xác định vibe này CÓ romance (`intimacy_guidance.applicable = true`), bám theo đúng `physical_intimacy_arc`/`natural_intimacy_beats` mà Bible đã tự thiết kế riêng cho premise này — không rập khuôn theo nhịp của 4 vibe romance kia; nếu Bible xác định không có romance, không tự thêm romance subplot.
-
-Nếu vibe thuộc 4 loại có romance, hoặc vibe là Grounded Realistic Fiction/The Purist nhưng Story Bible đã xác định `intimacy_guidance.applicable = true`, Story Bible sẽ cung cấp hai nguồn dữ liệu **là sự thật duy nhất** về tiến trình thân mật thể xác — outline **không được tự nghĩ ra một tiến trình độc lập, tách rời hai nguồn này**:
-
-1. `relationship_dynamics[].physical_intimacy_arc` — tiến trình gần gũi cụ thể của từng cặp đôi chính.
-2. `intimacy_guidance` — gồm `comfort_level`, `natural_intimacy_beats` (danh sách các khoảnh khắc thân mật hợp lý, xếp theo mức tăng dần), `consent_and_pacing_rules`, và `depiction_style`.
-
-Nhiệm vụ của pacing là **ánh xạ (map)** các `natural_intimacy_beats` này vào đúng Phase/Chapter phù hợp với mốc tin tưởng trong `relationship_arc`, không phải phát minh lại từ đầu.
-
-Nếu Story Bible liệt kê nhiều `relationship_dynamics`, CHỈ dùng entry có `is_primary_romantic_pair: true` làm cặp đôi trung tâm cho romance subplot và Intimacy Ladder — các quan hệ khác chỉ đóng vai trò phụ trợ, không tự áp `physical_intimacy_arc` cho chúng trừ khi Bible cũng thiết kế riêng.
-
-Nhân vật được Bible đánh dấu `is_protagonist: true` là nhân vật dùng để lấp field `protagonist_emotional_state` trong `starting_state` của mỗi Phase và làm trục chính cho `character_arc` của outline. Nếu Bible đánh dấu 2 nhân vật cùng là protagonist (ensemble), `starting_state` cần phản ánh trạng thái của cả hai.
+Nhiệm vụ của pacing là **ánh xạ (map)** các `natural_intimacy_beats` này vào đúng Phase/Chapter, không phát minh lại từ đầu.
 
 ---
 
 # 1. NHẬN THỨC VỀ DÒNG THỜI GIAN (TIMELINE AWARENESS)
 Hãy kiểm tra trường `timeline_structure` trong Story Bible:
 - NẾU là "Linear" (Tuyến tính ngắn hạn): Phân bổ các chương liên tục theo thời gian thực.
-- NẾU là "Dual-Timeline" hoặc "Multi-Era" (Trải dài nhiều năm / Thanh mai trúc mã): BẠN BẮT BUỘC phải chia Phase rõ ràng theo từng mốc thời gian. 
-  Ví dụ: Phase 1 (Quá khứ tuổi thơ), Phase 2 (Sự cố chia cắt), Phase 3 (Hiện tại gặp lại).
-- Được phép sử dụng cấu trúc "Đan xen" (Intersecting): Chương 1 Hiện tại -> Chương 2 Flashback quá khứ -> Chương 3 Hiện tại... NẾU nó phục vụ tốt cho Vibe của truyện.
+- NẾU là "Dual-Timeline" hoặc "Multi-Era": BẠN BẮT BUỘC phải chia Phase rõ ràng theo từng mốc thời gian.
+- Được phép sử dụng cấu trúc "Đan xen" (Intersecting) nếu nó phục vụ tốt cho Vibe của truyện.
 
 ---
 
 # 2. STORY MUST MOVE THROUGH CAUSALITY
 
-Outline không được giống danh sách:
-
-> Sự kiện A → Sự kiện B → Sự kiện C.
-
-Mỗi bước quan trọng phải có quan hệ nhân quả:
-
-> A xảy ra  
-> → nhân vật phản ứng  
-> → nhân vật đưa ra lựa chọn  
-> → lựa chọn tạo ra hậu quả  
-> → hậu quả tạo ra tình huống tiếp theo.
-
-Hãy ưu tiên:
-
+Mỗi bước quan trọng phải có quan hệ nhân quả. Ưu tiên:
 **EVENT → CHOICE → CONSEQUENCE → NEW PRESSURE**
-
-thay vì:
-
-**EVENT → EVENT → EVENT**
-
-Đây là nguyên tắc bắt buộc.
 
 ---
 
 # 3. CONFLICT ESCALATION (LEO THANG XUNG ĐỘT THEO THỂ LOẠI)
 Sự leo thang phải ĐỒNG NHẤT VỚI VIBE CỦA STORY BIBLE.
-
-- Vibe Slice of Life/Grounded: Xung đột tăng về mặt ý nghĩa cảm xúc (VD: Lỡ lời -> Lộ ra sự tự ái -> Dẫn đến cãi vã về ranh giới cá nhân). KHÔNG dùng tai nạn, bệnh tật, phản bội.
-- Vibe Drama/Tổng tài/Thương mại: CẦN PHẢI TĂNG về độ nguy hiểm vật lý, quyền lực hoặc danh dự (VD: Phát hiện bí mật -> Bị ép ký hợp đồng -> Bị kẻ thứ 3 tung tin đồn -> Đứng trước nguy cơ mất trắng sự nghiệp/gia đình).
-- Vibe High Stakes/Thriller: Mức độ đe dọa phải tăng đến mức sinh tử hoặc sụp đổ hoàn toàn.
-**Drama tốt = Stakes (cái giá phải trả) ngày càng lớn sau mỗi lựa chọn.**
+- Vibe Slice of Life/Grounded: Xung đột tăng về mặt ý nghĩa cảm xúc (VD: Lỡ lời -> Lộ ra sự tự ái -> Dẫn đến cãi vã).
+- Vibe Thương mại/Kịch tính (Hợp đồng, Đối đầu): CẦN PHẢI TĂNG về độ rủi ro công việc, quyền lực hoặc danh dự (VD: Phát hiện bí mật -> Bị ép ký hợp đồng -> Bị kẻ thứ 3 tung tin đồn -> Nguy cơ mất trắng sự nghiệp).
+- Vibe High Stakes/Thriller: Mức độ đe dọa tăng đến mức sinh tử hoặc sụp đổ hoàn toàn.
 
 ---
 
 # 4. PHÂN BIỆT PLOT EVENT VÀ EMOTIONAL EVENT
-
-Một phase có thể không có biến cố lớn.
-
-Nếu câu chuyện là Slice of Life, một cảnh như:
-
-- cùng ăn tối;
-- đi mua đồ;
-- chờ xe;
-- sửa một món đồ;
-- đi làm;
-- tăng ca;
-- ngồi ngoài ban công;
-- gọi điện về quê;
-
-vẫn có thể là một **major emotional event** nếu quan hệ nhân vật thay đổi sau cảnh đó.
-
-Vì vậy:
-
-Không cố tạo "plot twist" ở mọi phase.
+Một phase có thể không có biến cố cốt truyện lớn. Một cảnh đời thường (cùng ăn tối, sửa đồ) vẫn có thể là **major emotional event** nếu quan hệ thay đổi. Không cố tạo "plot twist" ở mọi phase.
 
 ---
 
 # 5. CHỌN QUY MÔ CÂU CHUYỆN
-
-Tự đánh giá Story Bible để xác định:
-
-`estimated_total_chapters`
-
-Khuyến nghị:
-
-- Short: 10–14 chương.
-- Standard: 15–24 chương.
-- Extended: 25–35 chương.
-- Long-form/Saga: 36–50 chương (dùng khi Story Bible có story_engine đủ mạnh, nhiều timeline hoặc nhiều giai đoạn quan hệ để khai thác).
-
-Đối với audio story, ưu tiên 20–40 chương nếu premise có đủ chất liệu, không giới hạn cứng ở 25 nếu Story Bible cho thấy đủ chiều sâu để phát triển dài hơn.
+Tự đánh giá Story Bible để xác định `estimated_total_chapters`. Ưu tiên 20-40 chương cho audio story nếu premise có đủ chất liệu.
 
 ---
 
 # 6. PHASE ARCHITECTURE
-
-Tạo từ **3 đến 6 Phase**.
-
-Phase là các chặng lớn của câu chuyện.
-
-Mỗi Phase phải có:
-
-- mục tiêu;
-- trạng thái nhân vật;
-- thay đổi quan hệ;
-- áp lực;
-- sự kiện quan trọng;
-- emotional progression;
-- và chức năng đối với toàn bộ câu chuyện.
-
-Không yêu cầu mọi Phase phải có:
-
-- twist;
-- breakup;
-- confession;
-- kiss;
-- climax.
+Tạo từ **3 đến 6 Phase**. Mỗi Phase phải có mục tiêu, trạng thái nhân vật, thay đổi quan hệ, áp lực, sự kiện quan trọng.
 
 ---
 
 # 7. CHAPTER ALLOCATION
-
-Đây là phần bắt buộc.
-
-Mỗi Phase phải chỉ rõ:
-
-- chapter bắt đầu;
-- chapter kết thúc;
-- số chapter;
-- nhiệm vụ của phase.
-
-Ví dụ:
-
-Phase 1:
-Chapter 1–4
-
-Phase 2:
-Chapter 5–9
-
-Phase 3:
-Chapter 10–15
-
-Phase 4:
-Chapter 16–20
-
-Tổng số chapter của tất cả Phase phải **khớp chính xác với `estimated_total_chapters`**.
+Mỗi Phase phải chỉ rõ chapter bắt đầu, kết thúc, tổng số. Tổng số chapter tất cả Phase phải **khớp chính xác với `estimated_total_chapters`**.
 
 ---
 
 # 8. CHAPTER FUNCTION
-
-Trong mỗi Phase, hãy xác định các chức năng chapter quan trọng.
-
-Một chapter tốt phải làm ít nhất một trong những việc sau:
-
-- giới thiệu;
-- phát triển quan hệ;
-- hé lộ thông tin;
-- tạo lựa chọn;
-- tạo hậu quả;
-- thay đổi nhận thức;
-- thay đổi emotional state;
-- giải quyết một vấn đề;
-- mở ra vấn đề mới.
-
-Tránh những chapter chỉ:
-
-> "Nhân vật nói chuyện → ăn cơm → đi ngủ"
-
-mà không có thay đổi nào.
-
-Tuy nhiên, với Slice of Life, **thay đổi có thể rất nhỏ**.
+Mỗi chapter phải có ít nhất một chức năng rõ ràng (giới thiệu, hé lộ, tạo lựa chọn, đổi nhận thức...). Tránh những chapter không mang lại sự thay đổi nào.
 
 ---
 
 # 9. EMOTIONAL PROGRESSION
-
-Câu chuyện phải có một đường cong cảm xúc.
-
-Không cần lúc nào cũng:
-
-> vui → buồn → sốc → khóc → hạnh phúc.
-
-Có thể là:
-
-> xa lạ → tò mò → thoải mái → lệch nhịp → nhận ra → tránh né → thành thật → chấp nhận.
-
-Hoặc:
-
-> áp lực → cố gắng → mệt mỏi → được thấu hiểu → sợ phụ thuộc → học cách tin tưởng.
-
-Mỗi Phase phải xác định:
-
-- emotional state trước;
-- emotional shift;
-- emotional state sau.
+Mỗi Phase phải xác định: emotional state trước -> emotional shift -> emotional state sau.
 
 ---
 
 # 10. CHARACTER ARC PROGRESSION
-
-Outline phải thể hiện rõ Story Bible's Character Arc đang được kích hoạt như thế nào.
-
-Không được viết:
-
-> "Nhân vật trưởng thành hơn."
-
-Hãy xác định:
-
-> Niềm tin nào bị thử thách?
-> Điều gì khiến nhân vật bắt đầu nghi ngờ niềm tin đó?
-> Lựa chọn nào chứng minh họ đang thay đổi?
-
-Character arc phải được xây dựng qua:
-
-**PRESSURE → CHOICE → CONSEQUENCE → REALIZATION**
+Xác định: Niềm tin nào bị thử thách? Điều gì khiến họ nghi ngờ? Lựa chọn nào chứng minh họ thay đổi?
 
 ---
 
 # 10B. QUẢN TRỊ BÍ MẬT & PLOT TWIST (INFORMATION WITHHOLDING)
-Nếu Story Bible có chứa Bí mật lớn (VD: Nhận nhầm ân nhân, có thai giấu kín, hợp đồng ngầm, danh tính thật):
-- BẮT BUỘC phải rải "Bánh mì vụn" (Foreshadowing) ở Phase 1 và 2.
-- Tuyệt đối KHÔNG cho nhân vật chính biết toàn bộ sự thật trước Midpoint (Điểm giữa).
-- Việc Bí mật bị lộ (The Reveal) thường phải được đặt làm bước ngoặt đẩy vào Climax.
+Nếu truyện có Bí mật cốt lõi (Thân phận, hợp đồng ngầm):
+- Phải rải "Bánh mì vụn" (Foreshadowing) ở Phase 1 và 2.
+- Tuyệt đối KHÔNG cho nhân vật chính biết toàn bộ sự thật trước Midpoint.
+- Việc Bí mật bị lộ phải đẩy vào Climax.
 
 ---
 
 # 11. RELATIONSHIP ARC
-
-Nếu câu chuyện có romance hoặc một mối quan hệ trung tâm, phải xác định trạng thái quan hệ qua từng Phase.
-
-Ví dụ:
-
-- Xa lạ.
-- Có thiện cảm.
-- Hình thành thói quen gặp nhau.
-- Bắt đầu phụ thuộc cảm xúc.
-- Xuất hiện lệch pha.
-- Đối diện vấn đề.
-- Thành thật.
-- Xác lập mối quan hệ mới.
-
-Không bắt buộc phải có:
-
-- confession;
-- kiss;
-- sex;
-- breakup.
-
-Nếu câu chuyện không cần, không sử dụng.
+Xác định trạng thái quan hệ qua từng Phase. Không bắt buộc phải có nụ hôn/sex/breakup nếu câu chuyện không cần.
 
 ---
 
 # 12. ROMANCE SUBPLOT
-
-Romance chỉ được ACTIVE khi nó thực sự góp phần vào câu chuyện.
-
-Nếu Phase không cần romance:
-
-`is_active = false`
-
-và không được cố tạo romantic scene.
-
-Nếu active:
-
-Hãy xác định một **romance beat cụ thể**, và bắt buộc **bám theo `physical_intimacy_arc`** của đúng cặp đôi trong Story Bible (mục 0) — mỗi romance beat trong Phase phải tương ứng với một điểm hợp lý trên tiến trình đó, không đi trước hoặc bỏ qua các mốc tin tưởng mà Bible đã thiết lập.
-
-Romance beat phải thể hiện bằng:
-
-- hành động;
-- lựa chọn;
-- ánh mắt;
-- khoảng cách;
-- sự quan tâm;
-- một cuộc trò chuyện;
-- hoặc một khoảnh khắc đời thường.
-
-Không lạm dụng những câu thoại kiểu:
-
-> "Anh không thể sống thiếu em."
-
-> "Em là cả thế giới của anh."
-
-Ưu tiên sự thân mật tự nhiên.
+Nếu active, phải bắt buộc **bám theo `physical_intimacy_arc`** của Story Bible. Romance beat phải thể hiện bằng hành động, lựa chọn thay vì lời thoại sáo rỗng.
 
 ---
 
 # 13. INTIMACY LADDER
-
-Nếu câu chuyện có romance, mức độ thân mật phải tăng theo quá trình.
-
-Ladder dưới đây là **thang đo chung để định vị**, không phải nguồn tiến trình chính thức — nguồn chính thức luôn là `physical_intimacy_arc` và `intimacy_guidance.natural_intimacy_beats` từ Story Bible (mục 0). Dùng ladder này để gắn mỗi `natural_intimacy_beat` cụ thể vào đúng nấc, rồi phân bổ nấc đó vào Phase/Chapter tương ứng:
-
-1. Xa lạ.
-2. Xã giao.
-3. Thoải mái.
-4. Quan tâm.
-5. Rung động.
-6. Gần gũi cảm xúc.
-7. Thân mật (gần gũi thể xác rõ rệt — nụ hôn, đêm ở lại cùng nhau...).
-8. Cam kết.
-
-Không được nhảy cóc từ:
-
-> Xa lạ → tình yêu sâu sắc.
-
-Không bắt buộc phải đi đến mức 8. Nhưng nếu Bible đã liệt kê một `natural_intimacy_beat` ở mức 7 (ví dụ một đêm ở lại cùng nhau), pacing nên tìm đúng chỗ tự nhiên để đặt nó — xem mục 14.
+Thang đo chung (từ 1: Xa lạ đến 8: Cam kết). Dùng để ánh xạ beat thân mật từ Bible vào đúng nấc. Không nhảy cóc.
 
 ---
 
-# 14. THÂN MẬT ĐÚNG LÚC — KHÔNG ÉP, NHƯNG CŨNG KHÔNG NÉ TRÁNH MÁY MÓC
-
-Không bao giờ thêm cảnh tình dục hoặc sensual climax chỉ vì đây là romance, và không bao giờ chèn nó nếu Story Bible không hỗ trợ.
-
-Nhưng ngược lại: nếu Story Bible đã đặt `intimacy_guidance.applicable = true` và đã chủ động thiết kế sẵn `natural_intimacy_beats` ở mức cao (một nụ hôn, một đêm ở lại cùng nhau...) cho đúng cặp đôi này, thì pacing **không nên mặc định né tránh** những beat đó — hãy chủ động tìm đúng Phase mà mốc tin tưởng trong `relationship_arc` đã chín để đặt nó vào, giống như bất kỳ turning point cảm xúc khác trong outline.
-
-Một cảnh thân mật rõ rệt hơn (mức 7 trên Intimacy Ladder) chỉ được xuất hiện trong outline nếu đồng thời:
-
-- phù hợp và có căn cứ trong Story Bible (`physical_intimacy_arc` / `natural_intimacy_beats`);
-- quan hệ đã phát triển đủ tin tưởng đến đúng mốc đó;
-- nhân vật thực sự có lý do đời thường để cảnh xảy ra (không phải vì "đã đến chương giữa truyện");
-- cảnh đó phục vụ emotional arc — đánh dấu một bước ngoặt quan hệ, không chỉ là "cảnh thêm vào";
-- tuân thủ đúng `consent_and_pacing_rules` của Bible (đồng thuận rõ ràng hai phía, không say xỉn/ép buộc/lợi dụng vị thế);
-- và giữ đúng `depiction_style` của Bible — gợi cảm, tinh tế, show-don't-tell, có thể fade to black ở đoạn cao điểm.
-
-Nếu Bible không thiết kế beat ở mức đó (hoặc vibe là Grounded Realistic Fiction không có romance), thì:
-
-**Không có cảnh 18+.**
-
-Việc "tăng khả năng xuất hiện" ở đây có nghĩa là: **không bỏ sót một cách máy móc** những khoảnh khắc thân mật mà chính Story Bible đã cho phép và chuẩn bị sẵn — không có nghĩa là hạ chuẩn về sự đồng thuận, tính tự nhiên, hay mức độ tinh tế trong cách miêu tả.
+# 14. THÂN MẬT ĐÚNG LÚC
+Chỉ thêm cảnh thân mật (mức 7) nếu Bible cho phép (`intimacy_guidance.applicable = true`). Nếu Bible đã dọn sẵn mốc này, hãy chủ động tìm chỗ đặt vào outline, không né tránh máy móc nhưng phải tuân thủ nghiêm ngặt quy tắc đồng thuận và tinh tế.
 
 ---
 
 # 15. SETUP & PAYOFF
-
-Mỗi chi tiết quan trọng được đưa vào outline nên có lý do.
-
-Có thể đánh dấu:
-
-`setup → payoff`
-
-Ví dụ:
-
-- Setup: Nhân vật luôn để dành tiền trong một phong bì.
-- Payoff: Cuối truyện họ dùng chính số tiền đó cho một quyết định quan trọng.
-
-Không tạo setup chỉ để "trông có vẻ foreshadowing".
-
-Không phải mọi đạo cụ đều cần payoff.
-
-Chỉ những chi tiết có giá trị narrative mới cần.
+Mọi chi tiết quan trọng gieo xuống phải có lý do và được gặt ở phía sau.
 
 ---
 
 # 16. SỬ DỤNG ĐẠO CỤ VÀ BIỂU TƯỢNG (PROPS & NARRATIVE SYMBOLS)
-Đạo cụ phải mang "ngôn ngữ cảm xúc" VÀ phản ánh đúng Đẳng cấp/Vibe của cốt truyện:
-
-- Vibe Đời thường/Chữa lành (Slice of Life): Sử dụng đạo cụ sinh hoạt vi mô (hộp cơm, áo mưa, chìa khóa phòng trọ, hóa đơn, chai dầu gió).
-- Vibe Thương mại/Tổng tài/Drama: Đạo cụ phải mang tính định đoạt hoặc quyền lực (bản hợp đồng nhàu nát, chiếc nhẫn đính hôn bị ném đi, thẻ đen, chìa khóa xe sang, tài liệu mật, đoạn băng ghi âm).
-- Vibe Tâm lý/Kịch tính (Dark Twist/High Stakes): Đạo cụ mang tính bằng chứng hoặc đe dọa (một bức ảnh cũ, một món đồ của người đã khuất, một vết sẹo).
-
-**Quy tắc chung:** Một vật vô tri chỉ có ý nghĩa khi nó gắn liền với sự thay đổi quyền lực hoặc mốc chuyển biến cảm xúc giữa hai nhân vật. Hãy cài cắm đạo cụ vào những cảnh cao trào.
+- Vibe Đời thường: Đạo cụ sinh hoạt (hộp cơm, áo mưa, chìa khóa).
+- Vibe Thương mại/Kịch tính: Đạo cụ mang tính định đoạt quyền lực (bản hợp đồng, bằng chứng, thẻ nhân viên cấp cao, dữ liệu mật).
+Cài cắm đạo cụ vào cảnh cao trào.
 
 ---
 
 # 17. SITUATIONAL IRONY
-
-Giữ lại situational irony từ Story Seed và phát triển nó.
-
-Sự trớ trêu phải xuất phát từ đời sống.
-
-Ví dụ:
-
-Một người luôn nói:
-
-> "Tôi không cần ai chăm sóc."
-
-lại là người âm thầm giữ lại phần cơm người kia mua.
-
-Không cần twist lớn.
+Phát triển hoàn cảnh trớ trêu từ Story Seed. Sự trớ trêu phải xuất phát từ đời sống thực.
 
 ---
 
 # 18. SỰ ĐA DẠNG CỦA CÁI KẾT (ENDING VARIETY)
-Tự lựa chọn ending phù hợp nhất với Story Bible và sự phát triển của Character Arc:
-
-### 1. The Grand Happy Ending (Dành cho Romance/Tổng tài/Thương mại)
-Sự thỏa mãn tuyệt đối. Bí mật được giải quyết, kẻ cản trở bị trừng phạt, hai nhân vật chính chính thức gỡ bỏ mọi rào cản giai cấp/hợp đồng để danh chính ngôn thuận bên nhau.
-### 2. Grounded Happy Ending (Dành cho Đời thường/Chữa lành)
-Hai người lựa chọn ở bên nhau nhưng cuộc sống vẫn tiếp diễn với những lo toan bình thường. Không có phép màu thay đổi hoàn cảnh, chỉ có sự thay đổi trong tâm thức.
-### 3. Bittersweet / The Noble Sacrifice (Kết thúc buồn/Bi kịch)
-Tình yêu là có thật, nhưng hoàn cảnh/đạo đức không cho phép họ ở bên nhau. Một người phải hy sinh, hoặc cả hai phải buông tay để giữ lại điều tốt đẹp nhất cho người kia.
-### 4. Karmic Retribution / The Dark Triumph (Dành cho Thriller/Tâm lý)
-Cái kết ám ảnh. Mục tiêu (trả thù/sống sót) đã đạt được nhưng nhân vật đánh mất một phần nhân tính. Hoặc kẻ phản diện phải trả một cái giá đắt nhưng nhân vật chính cũng không hoàn toàn hạnh phúc.
-### 5. Open/Growth Ending (Kết mở tập trung vào trưởng thành)
-Câu chuyện dừng lại khi tương lai quan hệ chưa rõ ràng (có thể tái hợp hoặc không). Trọng tâm kết thúc nằm ở việc nhân vật đã chữa lành tổn thương và tự đứng vững trên đôi chân mình.
-
-**Tuyệt đối không chọn ending khiên cưỡng chỉ vì muốn "chiều lòng" người đọc nếu nó đi ngược lại với Logic của toàn bộ câu chuyện.**
+1. The Grand Happy Ending (Dành cho Romance/Thương mại): Bí mật giải quyết, rào cản gỡ bỏ, danh chính ngôn thuận.
+2. Grounded Happy Ending (Dành cho Đời thường): Lựa chọn bên nhau nhưng vẫn tiếp tục lo toan đời sống.
+3. Bittersweet / The Noble Sacrifice: Một người hy sinh hoặc cả hai buông tay vì hoàn cảnh.
+4. Karmic Retribution (Dành cho Thriller/Tâm lý): Mục tiêu đạt được nhưng đánh mất nhân tính.
+5. Open/Growth Ending: Kết mở, trọng tâm là sự chữa lành cá nhân.
 
 ---
 
 # 19. CLIMAX BÙNG NỔ HOẶC LẮNG ĐỌNG
-Bản chất của Climax phụ thuộc vào Core Conflict của truyện:
-- Nếu là truyện Chữa lành/Đời thường: Climax có thể chỉ là một cuộc trò chuyện thành thật, một lần phá vỡ vỏ bọc, một sự chấp nhận buông tay trong tĩnh lặng.
-- Nếu là truyện Drama/Tổng tài/Hợp đồng: Climax PHẢI là một sự bùng nổ (Sự thật bị phơi bày trước đám đông, một tai nạn/biến cố ép buộc nhân vật nhận ra họ không thể sống thiếu nhau, một cuộc đối đầu trực diện hất cẳng kẻ ngáng đường). 
-Climax phải là nơi **Áp lực ngoại cảnh (External) và Mâu thuẫn nội tâm (Internal) va chạm mạnh nhất**.
+- Truyện Đời thường: Climax có thể là một cuộc trò chuyện thành thật.
+- Truyện Thương mại/Hợp đồng: Climax PHẢI là sự bùng nổ (Sự thật phơi bày, đối đầu trực diện hất cẳng kẻ ngáng đường). Nơi Áp lực ngoại cảnh và Mâu thuẫn nội tâm va chạm mạnh nhất.
 
 ---
 
 # 20. LOGIC CỦA DRAMA (THE LOGIC OF ESCALATION)
-Mức độ kịch tính phải ĐỒNG NHẤT với Vibe của Story Bible.
-- NẾU Vibe là Slice of Life/Grounded: TUYỆT ĐỐI KHÔNG dùng tai nạn, bệnh hiểm nghèo, tổng tài, ngoại tình. Xung đột phải là đời thường (cơm áo gạo tiền, khác biệt quan điểm).
-- NẾU Vibe là Thương mại/Melodrama/Thriller (Tổng tài, Trả thù, Giật gân): ĐƯỢC PHÉP sử dụng các yếu tố drama cao trào (Tai nạn, hợp đồng ép buộc, kẻ phá bĩnh). TUY NHIÊN, mọi drama phải có nguyên nhân logic, dẫn đến một "Lựa chọn khó khăn" của nhân vật, chứ không phải từ trên trời rơi xuống chỉ để câu nước mắt.
+- Vibe Slice of Life: KHÔNG dùng tai nạn, bệnh hiểm nghèo, ngoại tình. Xung đột phải là đời thường.
+- Vibe Thương mại/Melodrama: ĐƯỢC PHÉP dùng drama cao trào (Tai nạn, hợp đồng ép buộc). TUY NHIÊN, mọi drama phải có nguyên nhân logic, dẫn đến một "Lựa chọn khó khăn".
 
 ---
 
 # 21. REALISM CHECK
-
-Mỗi major turning point phải trả lời được:
-
-- Vì sao chuyện này xảy ra?
-- Vì sao xảy ra vào thời điểm này?
-- Vì sao nhân vật lại phản ứng như vậy?
-- Nhân vật có lựa chọn nào khác không?
-- Tại sao họ không chọn lựa chọn dễ hơn?
-- Hậu quả có hợp lý không?
-
-Không cần đưa câu trả lời vào output.
-
-Nhưng phải tự kiểm tra trước khi xuất kết quả.
+Mỗi major turning point phải trả lời được: Vì sao xảy ra? Vì sao lúc này? Hậu quả hợp lý không? (Tự kiểm tra trước khi xuất kết quả).
 
 ---
 

@@ -45,7 +45,7 @@ Trước khi trả JSON, tự kiểm tra:
 # RÀNG BUỘC VỀ NHỊP ĐỘ VÀ CẢM XÚC (TONE & TENSION ADAPTATION):
 Chương mới BẮT BUỘC phải thay đổi nhịp độ (Pacing) và giọng điệu (Tone) dựa vào `vibe` của Story Bible và `primary_function` của chương:
 - Vibe Đời thường/Chữa lành: Giữ nhịp độ từ tốn, mâu thuẫn bộc lộ qua sự tĩnh lặng hoặc hội thoại ngầm.
-- Vibe Cẩu huyết/Giật gân/Tổng tài: Đẩy cao nhịp độ, ngôn từ phải mang tính va đập, dồn nén.
+- Vibe Kịch tính/Thương mại/Giật gân: Đẩy cao nhịp độ, ngôn từ phải mang tính va đập, dồn nén, đấu trí hoặc tranh giành quyền lực.
 - Nếu `primary_function` là Climax hoặc Turning Point: Hành động phải dứt khoát, cảm xúc bùng nổ, rủi ro (stakes) phải được đẩy lên cao nhất trong chương này.
 
 ---
