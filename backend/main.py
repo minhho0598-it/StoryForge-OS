@@ -51,13 +51,16 @@ app.add_middleware(
 @app.post("/api/ideation")
 async def generate_ideas(request: IdeationRequest):
     """
-    Nhận Mạch truyện sơ bộ -> Trả về 10 ý tưởng đa góc nhìn
+    Nhận premise và tùy chọn lăng kính -> Trả về ý tưởng theo số lượng yêu cầu
     """
     try:
         system_prompt = prompt_manager.load_prompt("ideation_system.md")
         user_prompt = prompt_manager.load_prompt(
             "ideation_user.md", 
-            story_premise=request.story_premise
+            story_premise=request.story_premise,
+            heat_level=request.heat_level,
+            target_lenses=json.dumps(request.target_lenses, ensure_ascii=False),
+            ideas_per_lens=request.ideas_per_lens,
         )
         
         result = await generate_json(system_prompt, user_prompt)
@@ -94,6 +97,7 @@ async def create_project(request: ProjectCreateRequest):
             "story_premise": request.story_premise,
             "situational_irony": request.situational_irony,
             "micro_conflict": request.micro_conflict,
+            "heat_level": request.heat_level,
             "render_config": get_global_render_config(supabase),
             "status": "Idea Selected"
         }
@@ -130,6 +134,7 @@ async def generate_story_bible(project_id: str):
                 "vietnamese_context",
                 "micro_conflict",
                 "situational_irony",
+                "heat_level",
             )
             .eq("id", project_id)
             .execute()
@@ -151,7 +156,15 @@ async def generate_story_bible(project_id: str):
 
         # 2. Load Prompts
         system_prompt = prompt_manager.load_prompt("story_bible_system.md")
-        user_prompt = prompt_manager.load_prompt("story_bible_user.md", story_seed=story_seed_json)
+        heat_level = project.get("heat_level")
+        if not isinstance(heat_level, int) or not 1 <= heat_level <= 5:
+            heat_level = 1
+
+        user_prompt = prompt_manager.load_prompt(
+            "story_bible_user.md",
+            story_seed=story_seed_json,
+            heat_level=heat_level,
+        )
         
         # 3. Gọi Local Gemini
         bible_result = await generate_json(system_prompt, user_prompt)
@@ -182,11 +195,14 @@ async def update_story_bible(project_id: str, request: UpdateBibleRequest):
 @app.post("/api/projects/{project_id}/generate-character")
 async def generate_character(project_id: str, request: GenerateCharacterRequest):
     try:
+        project_res = supabase.table("projects").select("heat_level").eq("id", project_id).single().execute()
+        heat_level = project_res.data.get("heat_level", 1)
         system_prompt = prompt_manager.load_prompt("add_character_system.md")
         user_prompt = prompt_manager.load_prompt(
             "add_character_user.md",
             current_bible=json.dumps(request.current_bible, ensure_ascii=False),
-            user_prompt=request.user_prompt
+            user_prompt=request.user_prompt,
+            heat_level=heat_level
         )
         
         result = await generate_json(system_prompt, user_prompt)
@@ -240,6 +256,9 @@ async def generate_relationship(project_id: str, request: GenerateRelationshipRe
     current_bible = request.current_bible
     selected_characters = []
 
+    project_res = supabase.table("projects").select("heat_level").eq("id", project_id).single().execute()
+    heat_level = project_res.data.get("heat_level", 1)
+
     if request.mode == "manual":
         if not request.user_prompt.strip():
             raise HTTPException(status_code=400, detail="Vui lòng nhập mô tả mối quan hệ.")
@@ -271,6 +290,7 @@ async def generate_relationship(project_id: str, request: GenerateRelationshipRe
             selected_characters=json.dumps(selected_characters, ensure_ascii=False),
             character_a_description=request.character_a_description.strip(),
             character_b_description=request.character_b_description.strip(),
+            heat_level=heat_level
         )
         
         result = await generate_json(system_prompt, user_prompt)
@@ -414,13 +434,15 @@ async def evaluate_pacing(project_id: str):
 async def analyze_chapter_idea(project_id: str, request: AnalyzeChapterIdeaRequest):
     """Bước 1: Trả về lời phản biện (Critique) cho ý tưởng của User."""
     try:
-        proj_res = supabase.table("projects").select("story_bible").eq("id", project_id).execute()
+        proj_res = supabase.table("projects").select("story_bible, heat_level").eq("id", project_id).execute()
         optimized_bible = get_optimized_bible(proj_res.data[0].get("story_bible"), task="single_chapter")
-        
+        heat_level = proj_res.data[0].get("heat_level", 1)
+
         system_prompt = prompt_manager.load_prompt("analyze_chapter_idea_system.md")
         user_prompt = prompt_manager.load_prompt(
             "analyze_chapter_idea_user.md",
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            heat_level=heat_level,
             current_chapters=json.dumps(request.current_chapters, ensure_ascii=False),
             action_type=request.action_type,
             target_index=request.target_index,
@@ -468,7 +490,7 @@ async def generate_beats(chapter_id: str):
     try:
         # Lấy thông tin chapter (bao gồm 4 trường mới) và project liên quan
         chap_res = supabase.table("chapters").select(
-            "id, project_id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, current_memory)"
+            "id, project_id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, current_memory, heat_level)"
         ).eq("id", chapter_id).execute()
         
         if not chap_res.data: 
@@ -516,6 +538,7 @@ async def generate_beats(chapter_id: str):
             chapter_info=json.dumps(chapter_info, ensure_ascii=False),
             current_memory=json.dumps(project.get("current_memory", {}), ensure_ascii=False) if project.get("current_memory") else "Đây là chương đầu tiên.",
             previous_chapter_ending=previous_chapter_ending,
+            heat_level=project.get("heat_level", 1)
         )
         
         # Gọi LLM sinh JSON Beats
@@ -621,7 +644,7 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
 async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks):
     try:
         # 1. Lấy tất cả các beats của chương, sắp xếp đúng thứ tự
-        chapter_res = supabase.table("chapters").select("pov_character, projects(id, story_bible)").eq("id", chapter_id).execute()
+        chapter_res = supabase.table("chapters").select("pov_character, projects(id, story_bible, heat_level)").eq("id", chapter_id).execute()
         beats_res = supabase.table("beats").select("*").eq("chapter_id", chapter_id).order("beat_order").execute()
         beats = beats_res.data
         project = chapter_res.data[0]["projects"]
@@ -652,6 +675,7 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
             user_prompt = prompt_manager.load_prompt(
                 "draft_user.md",
                 story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+                heat_level=project.get("heat_level", 1),
                 current_memory=json.dumps(current_memory_data, ensure_ascii=False),
                 previous_beat_text=previous_text[-1500:],
                 beat_data=json.dumps(beat, ensure_ascii=False),
@@ -697,11 +721,12 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
 async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, previous_text: str = ""):
     try:
         # 1. Lấy Data
-        beat_res = supabase.table("beats").select("*, chapters(pov_character, projects(current_memory, story_bible))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("*, chapters(pov_character, projects(current_memory, story_bible, heat_level))").eq("id", beat_id).execute()
         beat = beat_res.data[0]
         chapter = beat["chapter"]
         project = chapter["projects"]
         project_id = project["id"]
+        heat_level = project.get("heat_level", 1)
         
         current_memory_data = project.get("current_memory", {})
         
@@ -720,6 +745,7 @@ async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, pre
         user_prompt = prompt_manager.load_prompt(
             "draft_user.md",
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            heat_level=heat_level,
             current_memory=json.dumps(current_memory_data, ensure_ascii=False),
             previous_beat_text=previous_text[-1500:],
             beat_data=json.dumps(beat, ensure_ascii=False),
@@ -762,7 +788,7 @@ async def analyze_beat_text_idea(beat_id: str, request: AnalyzeBeatTextRequest):
         if not request.current_text:
             raise HTTPException(status_code=400, detail="Chưa có văn bản nháp. Hãy bấm 'AI Viết Nháp' trước khi sửa.")
 
-        beat_res = supabase.table("beats").select("*, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("*, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, heat_level))").eq("id", beat_id).execute()
         beat = beat_res.data[0]
         chapter = beat["chapters"]
         project = chapter["projects"]
@@ -793,6 +819,7 @@ async def analyze_beat_text_idea(beat_id: str, request: AnalyzeBeatTextRequest):
         user_prompt = prompt_manager.load_prompt(
             "analyze_beat_text_user.md",
             current_text=request.current_text,
+            heat_level=project.get("heat_level", 1),
             user_prompt=request.user_prompt,
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             chapter_info=json.dumps(chapter_info, ensure_ascii=False),
@@ -807,7 +834,7 @@ async def analyze_beat_text_idea(beat_id: str, request: AnalyzeBeatTextRequest):
 @app.post("/api/beats/{beat_id}/edit-text")
 async def edit_beat_text(beat_id: str, request: EditBeatTextRequest):
     try:
-        beat_res = supabase.table("beats").select("id, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("id, chapters(id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, heat_level))").eq("id", beat_id).execute()
         beat = beat_res.data[0]
         chapter = beat["chapters"]
         project = chapter["projects"]
@@ -839,6 +866,7 @@ async def edit_beat_text(beat_id: str, request: EditBeatTextRequest):
             "edit_beat_text_user.md",
             current_text=request.current_text,
             user_prompt=request.user_prompt,
+            heat_level=project.get("heat_level", 1),
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
             chapter_info=json.dumps(chapter_info, ensure_ascii=False),
             pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter.get("pov_character", ""))
@@ -863,7 +891,7 @@ async def refine_chapter(chapter_id: str):
     try:
         # Lấy tất cả các beats của chương này
         beats_res = supabase.table("beats").select("ai_draft_text, characters_present").eq("chapter_id", chapter_id).order("beat_order").execute()
-        project_res = supabase.table("chapters").select("chapter_number, project_id, projects(story_bible)").eq("id", chapter_id).single().execute()
+        project_res = supabase.table("chapters").select("chapter_number, project_id, projects(story_bible, heat_level)").eq("id", chapter_id).single().execute()
         
         # Nối tất cả các bản nháp lại thành 1 chương hoàn chỉnh
         full_draft_text = "\n\n".join([b["ai_draft_text"] for b in beats_res.data if b.get("ai_draft_text")])
@@ -893,7 +921,8 @@ async def refine_chapter(chapter_id: str):
 
         system_prompt = prompt_manager.load_prompt("refine_system.md")
         user_prompt = prompt_manager.load_prompt(
-            "refine_user.md", 
+            "refine_user.md",
+            heat_level=project_res.data.get("heat_level", 1),
             chapter_draft_text=full_draft_text,
             story_bible=optimized_bible
         )
@@ -918,7 +947,9 @@ async def get_all_projects():
     Lấy danh sách tất cả dự án, sắp xếp mới nhất lên đầu.
     """
     try:
-        res = supabase.table("projects").select("id, title, vibe, logline, status, created_at").order("created_at", desc=True).execute()
+        res = supabase.table("projects").select(
+            "id, title, vibe, logline, heat_level, status, created_at"
+        ).order("created_at", desc=True).execute()
         return {"success": True, "data": res.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
