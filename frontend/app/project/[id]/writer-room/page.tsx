@@ -11,6 +11,17 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 
+const REFINED_CHAPTER_STATUSES = [
+  "Refined & Ready for Audio",
+  "Preparing Text",
+  "Generating Audio",
+  "Audio Generated",
+  "Audio Compiled",
+  "Rendering",
+  "Completed",
+  "Error",
+];
+
 export default function WriterRoomPage() {
   const params = useParams();
   const router = useRouter();
@@ -73,7 +84,17 @@ export default function WriterRoomPage() {
   useEffect(() => {
     apiClient.get<any[]>(`/api/projects/${projectId}/chapters`)
       .then(data => {
-        if (data.success) setChapters(data.data);
+        if (data.success) {
+          const loadedChapters = data.data;
+          setChapters(loadedChapters);
+
+          const refinedChapters = loadedChapters.filter(chapter => REFINED_CHAPTER_STATUSES.includes(chapter.status));
+          const initialChapter = refinedChapters.length === 0 || refinedChapters.length === loadedChapters.length
+            ? loadedChapters[0]
+            : refinedChapters[refinedChapters.length - 1];
+
+          setSelectedChapter(initialChapter ?? null);
+        }
       });
   }, [projectId]);
 
