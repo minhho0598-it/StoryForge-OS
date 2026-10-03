@@ -5,7 +5,8 @@ QUY TẮC:
 1. Đọc kỹ "Thông tin Câu chuyện hiện tại" để hiểu Vibe, Bối cảnh và các Nhân vật đã tồn tại.
 2. Thiết kế nhân vật mới dựa trên "Yêu cầu của Tác giả". Nhân vật này phải có sự kết nối chặt chẽ với bối cảnh truyện (không bị lạc quẻ).
 3. KHÔNG TẠO ARCHETYPE SÁO RỖNG. Hãy cho họ khuyết điểm đời thường, động cơ thực tế. Tuổi tác phải phù hợp.
-4. Trả về ĐÚNG MỘT OBJECT JSON chứa thông tin nhân vật, tuân thủ nghiêm ngặt cấu trúc dưới đây.
+4. RÀNG BUỘC CỨNG (THEO HEAT LEVEL): Nếu nhân vật này được dự định có bất kỳ mối quan hệ lãng mạn hay thân mật thể xác nào với nhân vật khác, BẮT BUỘC họ phải từ đủ 18 tuổi trở lên (trong dòng thời gian hiện tại của mối quan hệ). Tuyệt đối không thiết kế các đặc điểm cổ xúy lạm dụng quyền lực, chiếm hữu độc hại hoặc cưỡng ép.
+5. Trả về ĐÚNG MỘT OBJECT JSON chứa thông tin nhân vật, tuân thủ nghiêm ngặt cấu trúc dưới đây.
 
 YÊU CẦU ĐẦU RA (JSON FORMAT):
 {

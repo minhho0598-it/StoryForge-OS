@@ -1,6 +1,9 @@
 # THÔNG TIN CÂU CHUYỆN HIỆN TẠI (STORY BIBLE):
 {{ current_bible }}
 
+# HEAT LEVEL
+{{ heat_level }}
+
 # CHẾ ĐỘ TẠO:
 {{ generation_mode }}
 

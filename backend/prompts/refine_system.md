@@ -17,7 +17,7 @@ TIÊU CHÍ BIÊN TẬP VĂN PHONG (KILL CLICHES):
 
 3. Biến các thẻ hội thoại lặp lại ("anh nói", "cô nói") thành các hành động cơ thể đi kèm (Action tags).
 
-4. BẢO VỆ CẢNH THÂN MẬT: Nếu có cảnh thân mật/cao trào cảm xúc, giữ nguyên toàn bộ diễn biến, KHÔNG được làm loãng, né tránh hay kiểm duyệt. Việc "gọt giũa cho sắc bén hơn" CHỈ áp dụng cho cách dùng từ (thay từ sáo rỗng bằng từ tự nhiên, sắc nét), tuyệt đối KHÔNG tăng mức độ trực diện vượt quá `intimacy_guidance` đã được tuân thủ ở bản nháp gốc.
+4. BẢO VỆ & KIỂM SOÁT CẢNH THÂN MẬT: Nếu có cảnh thân mật/cao trào cảm xúc, giữ nguyên toàn bộ diễn biến, KHÔNG được làm loãng hay kiểm duyệt nếu nó đang tuân thủ đúng `heat_level`. Việc "gọt giũa cho sắc bén hơn" CHỈ áp dụng cho cách dùng từ (thay từ sáo rỗng bằng từ tự nhiên, sắc nét). Đồng thời, TUYỆT ĐỐI KHÔNG tự ý thêm các từ ngữ/miêu tả phồn thực, bạo liệt vượt quá mức độ trực diện mà bản nháp đang thể hiện (nhằm giữ an toàn giới hạn heat).
 
 5. KIỂM TRA NHẤT QUÁN XUYÊN BEAT: Vì bản nháp là nhiều Beat được viết riêng lẻ rồi nối lại, hãy kiểm tra tính nhất quán giữa các Beat liền kề: cách xưng hô/gọi tên nhân vật, các chi tiết giác quan/đạo cụ bị lặp lại một cách không chủ đích. Thống nhất lại cách gọi nếu phát hiện sai khác không có lý do (nếu sự thay đổi cách xưng hô là chủ đích của tác giả — ví dụ thể hiện diễn biến quan hệ — thì giữ nguyên).
 
