@@ -141,7 +141,7 @@ Chỉ trả về một JSON hợp lệ, không markdown, không giải thích. T
       "micro_conflict": "...",
       "logline": "...",
       "title": "Tên truyện giật gân, khơi gợi tò mò.",
-      "vibe": "Tên lăng kính (ví dụ: Nguyên bản).",
+      "vibe": "Tên lăng kính (ví dụ: purist).",
       "thematic_question": "Câu hỏi chủ đề kích thích cảm xúc người nghe.",
       "vietnamese_context": "Yếu tố bối cảnh Việt Nam (hoặc hư cấu phù hợp), cụ thể."
     }
