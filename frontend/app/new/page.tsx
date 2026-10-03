@@ -10,7 +10,7 @@ import { Loader2, Sparkles, BrainCircuit, PenTool } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client";
 
-interface Idea { id: number; title: string; vietnamese_context: string; situational_irony: string; logline: string; micro_conflict: string; thematic_question: string; vibe: string; }
+interface Idea { id: number; lens_key: string; title: string; vietnamese_context: string; situational_irony: string; logline: string; micro_conflict: string; thematic_question: string; vibe: string; }
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function NewProjectPage() {
   const handleCreateProject = async (idea: Idea) => {
     setCreatingProject(true);
     try {
-      const result = await apiClient.post<{ project_id?: string }>("/api/projects", {
+      const result = await apiClient.post<{ id?: string }>("/api/projects", {
           title: idea.title, 
           vibe: idea.vibe, 
           logline: idea.logline,
@@ -56,9 +56,9 @@ export default function NewProjectPage() {
           micro_conflict: idea.micro_conflict, 
           story_premise: premise, // Lưu lại bản gốc
         });
-      if (result.success && result.data?.project_id) {
-        localStorage.setItem("story-maker-last-project-id", result.data.project_id);
-        router.push(`/project/${result.data.project_id}/overview`);
+      if (result.success && typeof result.project_id === "string" && result.project_id) {
+        localStorage.setItem("story-maker-last-project-id", result.project_id);
+        router.push(`/project/${result.project_id}/overview`);
       }
     } catch (e) { alert("Lỗi tạo dự án"); } 
     finally { setCreatingProject(false); }
@@ -108,9 +108,9 @@ export default function NewProjectPage() {
               <p className="text-indigo-900 font-medium italic">"{analyzedVibe}"</p>
             </div>
 
-            {/* TÁCH RIÊNG Ý TƯỞNG 11 (NGUYÊN BẢN) LÊN ĐẦU */}
-            {ideas.find(i => i.id === 11) && (() => {
-              const originalIdea = ideas.find(i => i.id === 11)!;
+            {/* TÁCH RIÊNG Ý TƯỞNG PURIST LÊN ĐẦU */}
+            {ideas.find(i => i.lens_key === "purist") && (() => {
+              const originalIdea = ideas.find(i => i.lens_key === "purist")!;
               return (
                 <div className="max-w-4xl mx-auto">
                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Bản Gọt Giũa Từ Ý Tưởng Gốc</h3>
@@ -167,7 +167,7 @@ export default function NewProjectPage() {
 
             {/* GRID 10 Ý TƯỞNG CÒN LẠI */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {ideas.filter(i => i.id !== 11).map((idea) => (
+              {ideas.filter(i => i.lens_key !== "purist").map((idea) => (
                 <Card 
                   key={idea.id} 
                   className={`cursor-pointer transition-all hover:shadow-md flex flex-col ${selectedIdea === idea.id ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''}`}
