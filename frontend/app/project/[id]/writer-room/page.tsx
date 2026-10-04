@@ -386,7 +386,7 @@ export default function WriterRoomPage() {
         if (chapter) setSelectedChapter(chapter);
       }}
     >
-      <SelectTrigger className="mb-3 w-full max-w-md" aria-label="Chọn chương">
+      <SelectTrigger className="mb-2 w-full max-w-md sm:mb-3" aria-label="Chọn chương">
         <SelectValue placeholder="Chọn chương...">
           {selectedChapter?.title}
         </SelectValue>
@@ -405,27 +405,27 @@ export default function WriterRoomPage() {
   );
 
   return (
-    <div className="flex h-screen flex-col bg-white">
-      <div className="flex flex-1 flex-col bg-slate-50 overflow-hidden">
+    <div className="flex h-dvh min-h-0 flex-col bg-white">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 xl:overflow-hidden">
         {selectedChapter ? (
           <>
             {/* Header Chương */}
-            <div className="p-4 sm:p-6 bg-white border-b shadow-sm flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex flex-col gap-3 border-b bg-white p-3 shadow-sm sm:gap-4 sm:p-6 xl:flex-row xl:items-start xl:justify-between">
               {/* Header Chương & Cấu trúc nâng cao */}
               <div className="min-w-0 flex-1">
                 {chapterSelector}
-                <h1 className="text-2xl font-bold text-slate-800">Chương {selectedChapter.chapter_number} - {selectedChapter.title}</h1>
-                <p className="text-slate-600 mt-1 font-medium"><span className="font-bold text-slate-800">Sự kiện chính:</span> {selectedChapter.main_event}</p>
+                <h1 className="break-words text-xl font-bold leading-tight text-slate-800 sm:text-2xl">Chương {selectedChapter.chapter_number} - {selectedChapter.title}</h1>
+                <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-600 sm:line-clamp-none sm:text-base"><span className="font-bold text-slate-800">Sự kiện chính:</span> {selectedChapter.main_event}</p>
                 
-                <div className="flex flex-wrap gap-2 sm:gap-4 mt-2">
-                  <p className="text-sm font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">{selectedChapter.primary_function}</p>
-                  <p className="text-sm font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">Góc nhìn: {selectedChapter.pov_character}</p>
-                  <p className="text-sm font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{selectedChapter.timeline_period || "Hiện tại"}</p>
+                <div className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:gap-4 sm:overflow-visible">
+                  <p className="shrink-0 rounded border border-orange-100 bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600 sm:text-sm">{selectedChapter.primary_function}</p>
+                  <p className="shrink-0 rounded border border-green-100 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600 sm:text-sm">Góc nhìn: {selectedChapter.pov_character}</p>
+                  <p className="shrink-0 rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 sm:text-sm">{selectedChapter.timeline_period || "Hiện tại"}</p>
                 </div>
 
                 {/* BẢNG KIM CHỈ NAM CẢM XÚC (Chỉ hiện nếu có dữ liệu) */}
                 {(selectedChapter.emotional_beat || selectedChapter.relationship_beat || selectedChapter.chapter_hook) && (
-                  <div className="mt-4 p-4 bg-indigo-50/50 border border-indigo-100 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-indigo-100 bg-indigo-50/50 p-3 sm:mt-4 sm:grid-cols-3 sm:gap-4 sm:p-4">
                     {selectedChapter.emotional_beat && (
                       <div className="space-y-1">
                         <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">Cảm xúc</span>
@@ -448,16 +448,16 @@ export default function WriterRoomPage() {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2 xl:shrink-0">
+              <div className="grid grid-cols-2 gap-2 xl:flex xl:shrink-0">
                 {loadingBeats ? (
-                  <div className="h-10 px-4 flex items-center text-sm text-slate-400">
+                  <div className="col-span-2 flex h-10 items-center px-2 text-xs text-slate-400 sm:px-4 sm:text-sm xl:col-span-1">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang kiểm tra dữ liệu...
                   </div>
                 ) : (
                   <>
                     {/* Các nút hiện ra SAU KHI đã tải xong Beats */}
                     {(beats.length === 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status)) && (
-                      <Button onClick={handleGenerateBeats}>
+                      <Button onClick={handleGenerateBeats} className="col-span-2 w-full xl:col-span-1 xl:w-auto">
                         <LayoutList className="mr-2 h-4 w-4" /> Chia Nhịp Truyện (Beats)
                       </Button>
                     )}
@@ -468,15 +468,17 @@ export default function WriterRoomPage() {
                           onClick={handleBatchDraft} 
                           disabled={batchDrafting || refining || draftingBeatId !== null} 
                           variant="outline"
-                          className="border-indigo-500 text-indigo-700 hover:bg-indigo-50"
+                          className="h-auto min-h-10 min-w-0 border-indigo-500 px-2 text-xs text-indigo-700 hover:bg-indigo-50 sm:text-sm xl:px-4"
                         >
                           {batchDrafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PenTool className="mr-2 h-4 w-4" />}
-                          Auto-Draft Toàn Bộ
+                          <span className="sm:hidden">Auto-Draft</span>
+                          <span className="hidden sm:inline">Auto-Draft Toàn Bộ</span>
                         </Button>
 
-                        <Button onClick={handleRefineChapter} disabled={refining || batchDrafting} className="bg-amber-600 hover:bg-amber-700">
+                        <Button onClick={handleRefineChapter} disabled={refining || batchDrafting} className="h-auto min-h-10 min-w-0 px-2 text-xs sm:text-sm xl:px-4">
                           {refining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} 
-                          Biên tập (Refine)
+                          <span className="sm:hidden">Biên tập</span>
+                          <span className="hidden sm:inline">Biên tập (Refine)</span>
                         </Button>
                       </>
                     )}
@@ -486,10 +488,10 @@ export default function WriterRoomPage() {
             </div>
 
             {/* KHU VỰC CUỘN CHÍNH (Đã sửa thành flex để chia cột) */}
-            <div className="flex-1 p-6 overflow-y-auto pb-32 bg-slate-50/50 flex justify-center items-start gap-8 relative"> 
+            <div className="relative flex flex-none flex-col items-stretch gap-3 overflow-visible bg-slate-50/50 px-3 pb-36 pt-3 sm:gap-8 sm:p-6 sm:pb-36 md:flex-row md:items-start md:justify-center xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
               
-              {/* CỘT TRÁI: DANH SÁCH BEATS (Width 4xl) */}
-              <div className="w-full max-w-4xl space-y-8">
+              {/* KHU VỰC NỘI DUNG CHÍNH */}
+              <div className="min-w-0 w-full max-w-4xl flex-1 space-y-4 sm:space-y-8">
                 
                 {/* TRƯỜNG HỢP 1: CHƯƠNG ĐÃ HOÀN THÀNH BIÊN TẬP */}
                 {DONE_WRITING_STATUSES.includes(selectedChapter.status) ? (
@@ -497,16 +499,16 @@ export default function WriterRoomPage() {
                   <div className="space-y-6 animate-in fade-in duration-500">
                     <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center shadow-sm">
                       <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto mb-3" />
-                      <h2 className="text-xl font-bold text-green-800 mb-1">Chương này đã hoàn thành!</h2>
+                      <h2 className="mb-1 text-lg font-bold text-green-800 sm:text-xl">Chương này đã hoàn thành!</h2>
                       <p className="text-green-700/80 text-sm">
                         Nội dung đã được biên tập mượt mà bởi AI Editor. Đây là bản thảo cuối cùng sẵn sàng mang đi làm Audio.
                       </p>
                     </div>
 
                     <Card className="border-indigo-100 shadow-md">
-                      <CardHeader className="bg-white border-b sticky top-0 z-10 py-3">
+                      <CardHeader className="static z-10 border-b bg-white py-2 sm:py-3 xl:sticky xl:top-0">
                         <div className="flex justify-between items-center w-full">
-                          <CardTitle className="text-lg text-slate-800">
+                          <CardTitle className="text-base text-slate-800 sm:text-lg">
                             Bản thảo hoàn thiện (Final Content)
                           </CardTitle>
                           <Button 
@@ -525,7 +527,7 @@ export default function WriterRoomPage() {
                       </CardHeader>
                       <CardContent className="p-0">
                         <Textarea 
-                            className="min-h-[600px] resize-y text-lg leading-loose font-serif p-8 bg-[#fdfbf7] border-0 focus-visible:ring-0 text-slate-800"
+                            className="min-h-[60vh] resize-y border-0 bg-[#fdfbf7] p-4 font-serif text-sm leading-loose text-slate-800 focus-visible:ring-0 sm:min-h-[600px] sm:p-8 sm:text-lg"
                             placeholder="Bản thảo cuối cùng sẽ hiển thị ở đây..."
                             value={selectedChapter.final_content || ""}
                             onChange={(e) => handleFinalTextChange(e.target.value)}
@@ -533,10 +535,10 @@ export default function WriterRoomPage() {
                       </CardContent>
                     </Card>
 
-                    <div className="flex justify-between items-center pt-4 border-t border-slate-200 mt-6">
-                      <Button variant="outline" onClick={goToPrevChapter} disabled={currentChapterIndex <= 0} className="text-slate-600">Chương Trước</Button>
-                      <Button onClick={() => router.push(`/project/${projectId}/studio`)} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm px-8">Vào Studio Sản Xuất</Button>
-                      <Button variant="outline" onClick={goToNextChapter} disabled={currentChapterIndex >= chapters.length - 1} className="text-slate-600">Chương Tiếp</Button>
+                    <div className="mt-6 grid grid-cols-2 gap-2 border-t border-slate-200 pt-4 sm:flex sm:items-center sm:justify-between">
+                      <Button variant="outline" onClick={goToPrevChapter} disabled={currentChapterIndex <= 0} className="min-w-0 px-2 text-xs text-slate-600 sm:px-4 sm:text-sm">Chương Trước</Button>
+                      <Button variant="outline" onClick={goToNextChapter} disabled={currentChapterIndex >= chapters.length - 1} className="min-w-0 px-2 text-xs text-slate-600 sm:order-3 sm:px-4 sm:text-sm">Chương Tiếp</Button>
+                      <Button onClick={() => router.push(`/project/${projectId}/studio`)} className="col-span-2 bg-indigo-600 px-4 text-sm shadow-sm hover:bg-indigo-700 sm:order-2 sm:col-span-1 sm:px-8">Vào Studio Sản Xuất</Button>
                     </div>
                   </div>
                 ) : (
@@ -551,13 +553,13 @@ export default function WriterRoomPage() {
                     ) : (
                       beats.map((beat, index) => (
                         // GẮN THÊM ID VÀO THẺ CARD ĐỂ LÀM MỐC CUỘN
-                        <Card id={`beat-card-${beat.id}`} key={beat.id} className="border-slate-200 shadow-sm scroll-mt-6">
+                        <Card id={`beat-card-${beat.id}`} key={beat.id} className="scroll-mt-20 border-slate-200 shadow-sm xl:scroll-mt-6">
                           
                           {/* Toàn bộ nội dung của Card (CardHeader, Kịch bản, Textarea...) bọc y hệt code hiện tại của bạn */}
                           <CardHeader className="bg-slate-50 border-b py-3">
                             <div className="flex justify-between items-center">
                               <div className="flex items-center gap-3">
-                                <CardTitle className="text-base text-slate-700 font-bold">{beat.beat_id}</CardTitle>
+                                <CardTitle className="text-sm font-bold text-slate-700 sm:text-base">{beat.beat_id}</CardTitle>
                                 <span className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-full">{beat.location}</span>
                               </div>
                             </div>
@@ -636,12 +638,12 @@ export default function WriterRoomPage() {
                             <div className="p-4 flex flex-col gap-3">
                               <div className="p-4 flex flex-col gap-3 bg-white">
                                 <Textarea 
-                                  className="min-h-[250px] resize-y text-base leading-relaxed font-serif p-4 focus-visible:ring-indigo-500"
+                                  className="min-h-[200px] resize-y p-3 font-serif text-sm leading-relaxed focus-visible:ring-indigo-500 sm:min-h-[250px] sm:p-4 sm:text-base"
                                   placeholder="Văn bản nháp sẽ xuất hiện ở đây. Tự gõ hoặc nhờ AI viết..."
                                   value={beat.ai_draft_text || ""}
                                   onChange={(e) => handleBeatTextChange(index, e.target.value)}
                                 />
-                                <div className="flex justify-end pt-2 gap-2">
+                                <div className="flex flex-wrap justify-end gap-2 pt-2">
                                   {beat.ai_draft_text && beat.ai_draft_text.trim() !== "" && (
                                     <Button variant="outline" size="sm" onClick={() => {
                                       setTargetBeatIndex(index);
@@ -667,30 +669,28 @@ export default function WriterRoomPage() {
                 )}
               </div>
 
-              {/* ========================================= */}
-              {/* CỘT PHẢI: MỤC LỤC BEAT (TOC) NEO CỐ ĐỊNH */}
-              {/* ========================================= */}
+              {/* MỤC LỤC: HÀNG CUỘN TRÊN MOBILE, SIDEBAR BÊN TRÁI TRÊN MÀN HÌNH LỚN */}
               { !loadingBeats && beats.length > 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status) && (
-                <div className="hidden xl:block sticky top-0 w-56 shrink-0 pt-2 transition-opacity duration-300">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <div className="order-first -mx-3 w-[calc(100%+1.5rem)] shrink-0 bg-slate-50/95 px-3 py-2 sm:-mx-6 sm:w-[calc(100%+3rem)] sm:px-6 md:static md:mx-0 md:w-56 md:bg-transparent md:px-0 md:pt-2">
+                  <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 md:mb-4">
                     <List className="h-4 w-4"/> Mục lục Nhịp truyện
                   </h3>
                   
-                  <div className="flex flex-col gap-1 border-l-2 border-slate-200 pl-3 relative">
+                  <div className="relative flex max-w-full gap-2 overflow-x-auto pb-1 md:flex-col md:gap-1 md:overflow-visible md:border-l-2 md:border-slate-200 md:pb-0 md:pl-3">
                     {beats.map((beat) => {
                       const isActive = activeScrollBeatId === beat.id;
                       return (
                         <button
                           key={beat.id}
                           onClick={() => scrollToBeat(beat.id)}
-                          className={`text-left text-sm py-2 px-3 rounded-lg transition-all duration-200 ease-in-out group
+                          className={`group min-w-0 shrink-0 rounded-lg border px-3 py-2 text-left text-xs transition-all duration-200 ease-in-out md:w-full md:shrink md:border-0 md:text-sm
                             ${isActive 
-                              ? 'bg-indigo-100 text-indigo-700 font-bold -ml-[14px] border-l-4 border-indigo-600 pl-[14px] shadow-sm' 
-                              : 'text-slate-500 font-medium hover:bg-slate-200 hover:text-slate-800'
+                              ? 'border-indigo-200 bg-indigo-100 font-bold text-indigo-700 shadow-sm md:-ml-[14px] md:border-l-4 md:border-indigo-600 md:pl-[14px]'
+                              : 'border-slate-200 bg-white/80 font-medium text-slate-500 hover:bg-slate-200 hover:text-slate-800 md:bg-transparent'
                             }`}
                         >
-                          <span className="block">{beat.beat_id}</span>
-                          <span className={`block text-[10px] truncate mt-0.5 transition-colors ${isActive ? 'text-indigo-500 font-medium' : 'text-slate-400 font-normal group-hover:text-slate-500'}`}>
+                          <span className="block whitespace-nowrap md:whitespace-normal">{beat.beat_id}</span>
+                          <span className={`mt-0.5 hidden truncate text-[10px] transition-colors md:block ${isActive ? 'font-medium text-indigo-500' : 'font-normal text-slate-400 group-hover:text-slate-500'}`}>
                             {beat.location}
                           </span>
                         </button>
@@ -703,13 +703,13 @@ export default function WriterRoomPage() {
 
             {/* THANH CÔNG CỤ FLOATING KHI CÓ THAY ĐỔI CHƯA LƯU */}
             {(isBeatsDirty || isFinalDirty) && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
-                <div className="bg-slate-900 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-4">
-                  <span className="font-medium">
+              <div className="fixed inset-x-3 bottom-3 z-50 animate-in slide-in-from-bottom-5 sm:absolute sm:bottom-6 sm:left-1/2 sm:right-auto sm:inset-x-auto sm:-translate-x-1/2">
+                <div className="flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-900 px-3 py-3 text-white shadow-2xl sm:w-max sm:gap-4 sm:rounded-full sm:px-6 sm:py-4">
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium sm:flex-none sm:text-sm">
                     {isFinalDirty ? "Bản thảo hoàn thiện đang được chỉnh sửa!" : "Các bản nháp (Beats) đang được chỉnh sửa!"}
                   </span>
                   <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => {
+                    <Button variant="secondary" size="sm" className="px-2 sm:px-3" onClick={() => {
                         setIsBeatsDirty(false);
                         setIsFinalDirty(false);
                         // Refresh data
@@ -717,7 +717,7 @@ export default function WriterRoomPage() {
                       }}>
                       <X className="h-4 w-4 mr-1" /> Hủy bỏ
                     </Button>
-                    <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white" onClick={handleSaveChanges} disabled={isSaving}>
+                    <Button size="sm" className="bg-green-500 px-2 text-white hover:bg-green-600 sm:px-3" onClick={handleSaveChanges} disabled={isSaving}>
                       {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
                       Lưu Thay Đổi
                     </Button>
