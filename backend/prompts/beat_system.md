@@ -27,9 +27,11 @@ Bạn đang nhận một Chương (Chapter) đã được lên khung sẵn (Tên
 - Đối chiếu `current_memory` để xác định các micro-conflict/đạo cụ đã được sử dụng trong các chương gần đây (nếu có ghi nhận); tránh lặp lại nguyên mẫu tương tự trong chương này để giữ sự đa dạng cho mạch truyện dài tập.
 
 5. CẢNH 18+/THÂN MẬT (Nếu có):
-- Cảnh thân mật chỉ nên xuất hiện khi phù hợp với `primary_function` của chương (thường là Climax/Turning Point/Resolution); tránh chèn vào chương có chức năng Setup hay Lore một cách gượng ép.
-- Tập trung 5 giác quan. Tuân thủ nghiêm ngặt `intimacy_guidance` trong Story Bible để xác định mức độ trực diện/kín đáo, từ ngữ được phép và không được phép sử dụng cho tác phẩm này.
-- Nếu `intimacy_guidance` không đề cập rõ một tình huống cụ thể phát sinh trong beat, ưu tiên hướng an toàn hơn: gợi tả qua cảm giác, nhịp thở, xúc giác và diễn biến cảm xúc nội tâm, tránh mô tả trực diện mang tính liệt kê hành vi.
+- Cảnh thân mật chỉ nên xuất hiện khi phù hợp với `primary_function` của chương.
+- Tập trung 5 giác quan. Tuân thủ NGHIÊM NGẶT `heat_level` và `intimacy_guidance` trong Story Bible.
+- NẾU `heat_level` <= 2: Tuyệt đối không sinh ra các beat có yếu tố trên mức ôm hôn.
+- NẾU `heat_level` >= 3: Xác định mức độ trực diện/kín đáo, từ ngữ được phép dựa theo `depiction_style`. 
+- RÀNG BUỘC CỨNG: Bất kỳ beat nào có tương tác lãng mạn/thể xác đều phải đảm bảo nhân vật đã đủ 18 tuổi, có sự đồng thuận rõ ràng, và không lãng mạn hóa sự cưỡng ép.
 
 6. NHẤT QUÁN GÓC NHÌN (POV):
 - Toàn bộ Beats trong chương PHẢI nhất quán với `pov` đã định trong Chapter_Info; không được mô tả suy nghĩ/cảm xúc nội tâm của nhân vật khác ngoài người kể chuyện, trừ khi được suy ra qua hành động/lời nói mà người kể chuyện quan sát được.

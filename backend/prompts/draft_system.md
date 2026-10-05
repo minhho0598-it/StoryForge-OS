@@ -29,23 +29,40 @@ Bạn phải viết chuẩn xác theo đúng "Chỉ thị Ngôi kể" được t
    - TRÁNH XA các từ Hán Việt/Dịch thuật bị lạm dụng: "minh chứng", "hiện hữu", "khắc khoải", "bất giác", "không thể phủ nhận". Ưu tiên từ thuần Việt, giản dị.
    - NGÂN SÁCH CHI TIẾT (không lạm dụng): Trước khi viết, xác định các "nút cảm xúc" trong `beat_data` (mỗi điểm chuyển biến/cao trào tâm lý riêng biệt của nhân vật). Với MỖI nút cảm xúc, chỉ được chọn tối đa 1-2 chi tiết vật lý để miêu tả — không nhiều hơn. Các câu chức năng thuần túy (di chuyển, cung cấp thông tin, chuyển cảnh) không mang cảm xúc thì viết trần thuật đơn giản, KHÔNG cố nhét thêm hình ảnh/chi tiết vào đó.
    - PHÂN VÙNG MẬT ĐỘ SHOW THEO NHỊP: Kết hợp `chapter_tone_and_pacing` (mật độ nền cho cả beat) với vị trí của từng nút cảm xúc trong `beat_data` (đâu là khoảnh khắc lặng, đâu là đỉnh điểm) để quyết định mật độ show tại từng đoạn:
-     + KHOẢNH KHẮC LẶNG (ngay trước hoặc ngay sau đỉnh điểm, hoặc các đoạn Setup/Healing): đây là nơi mật độ "show" cao nhất trong cả beat — dùng đúng ngân sách 1-2 chi tiết micro-action nói trên để đẩy cảm xúc.
+     + KHOẢNH KHẮC LẶNG (khoảng lặng giữa các lượt thoại hoặc trong phần trần thuật): đây là nơi mật độ "show" cao nhất trong cả beat — dùng đúng ngân sách 1-2 chi tiết micro-action nói trên để đẩy cảm xúc.
      + ĐỈNH ĐIỂM HÀNH ĐỘNG (khoảnh khắc xung đột/cao trào bùng nổ thật sự): ưu tiên câu ngắn, hành động trần trụi, HẠN CHẾ TỐI ĐA miêu tả — không dừng lại tả cảnh giữa lúc hành động đang dồn dập vì sẽ phá nhịp "dồn dập, sắc bén" đã yêu cầu ở mục 2. Show ở đây, nếu có, chỉ gói trong nửa câu, không thành cả câu miêu tả riêng.
    - CHỦ ĐÍCH BẮT BUỘC (không show cho có): Mỗi chi tiết vật lý được chọn phải phục vụ đúng MỘT cảm xúc/xung đột cụ thể tại đúng khoảnh khắc đó. Nếu không xác định được chi tiết đó đang "nói hộ" cảm xúc gì, KHÔNG được thêm vào bài viết.
    - TIÊU CHÍ CHỌN CHI TIẾT "ĐẮT GIÁ" (đây là tiêu chí để tự chọn, KHÔNG phải danh sách mẫu cố định cần lặp lại): một chi tiết hợp lệ phải (a) là một hành động/vật thể/âm thanh rất nhỏ, cụ thể, xảy ra trong vài giây; (b) gắn riêng với đúng bối cảnh và nhân vật của beat này, không phải chi tiết chung chung có thể chèn vào cảnh nào cũng được; và (c) có thể thay thế trực tiếp cho một câu kể cảm xúc — người đọc phải tự suy ra được cảm xúc từ chi tiết đó mà không cần câu văn nào gọi tên cảm xúc ấy.
    - Nguyên tắc "Tảng băng trôi": Nội tâm nhân vật càng giông bão, hành động bên ngoài càng bình thản, tĩnh lặng — CHỈ áp dụng trong phạm vi các KHOẢNH KHẮC LẶNG nói trên, không áp dụng xuyên suốt đỉnh điểm hành động.
+   - NGÂN SÁCH CHI TIẾT LÀ MỨC TRẦN, KHÔNG PHẢI CHỈ TIÊU: một nút cảm xúc diễn ra trong hội thoại có thể dùng 0 chi tiết vật lý nếu lời thoại đã đủ sức nặng. Chi tiết vật lý nếu có thì đặt ở khoảng lặng giữa hai lượt thoại, tách thành câu riêng, KHÔNG gắn vào bên trong hoặc ngay sau câu thoại.
 
 6. HỘI THOẠI KHẨU NGỮ (THỰC TẾ VIỆT NAM):
    - QUY ƯỚC TRÌNH BÀY: Luôn dùng dấu ngoặc kép ("...") để mở đầu và kết thúc lời thoại trực tiếp, không dùng gạch đầu dòng (–). Giữ nhất quán quy ước này xuyên suốt toàn bộ đoạn văn, trừ khi `story_bible` chỉ định khác.
    - Lời thoại phải ĐỜI THƯỜNG. Dùng các từ đệm tự nhiên: "à", "ừ", "nhỉ", "thế", "đấy", "chứ", "rồi".
    - Nhân vật KHÔNG BAO GIỜ nói thành những đoạn dài lê thê chứa đầy triết lý. Lời thoại thường ngắn, bị ngắt quãng, nói vòng vo, hoặc hỏi một đằng trả lời một nẻo để che giấu cảm xúc thật.
-   - CẤM các thẻ thoại (dialogue tags) trạng từ sến súa (VD: "Cô thì thầm một cách đau đớn", "Anh nói với ánh mắt thâm tình"). Hãy thay bằng Action Tags (Hành động đi kèm lời thoại). 
-     (VD Tốt: Anh gạt tàn thuốc. "Tôi không biết.")
+   - MỘT LƯỢT THOẠI LÀ MỘT KHỐI LIỀN, KHÔNG BỊ CẮT ĐÔI:
+     + Mọi lời một nhân vật nói liên tục (dù gồm nhiều câu) là MỘT lượt thoại, viết trong MỘT cặp ngoặc kép duy nhất.
+     + Tường thuật (hành động, thẻ người nói) chỉ được đặt TRƯỚC hoặc SAU cả lượt thoại. TUYỆT ĐỐI KHÔNG chen vào giữa hai câu của cùng một người nói.
+     + Phản ứng của nhân vật trước một sự việc (nhìn lên, dừng tay, quay đi) là chuyện xảy ra TRƯỚC khi họ mở miệng, nên đặt trước lượt thoại, không đặt trong lượt thoại.
 
-7. CẢNH THÂN MẬT & XUNG ĐỘT MẠNH (INTIMACY & HIGH TENSION): 
-   - Tuân thủ nghiêm ngặt biến `intimacy_guidance` được truyền vào trong NGỮ CẢNH (trích xuất từ Story Bible).
-   - Tùy vào Vibe: Sự thân mật có thể là cái chạm rụt rè (Vibe Chữa lành) hoặc là sự chiếm hữu, dồn ép, mãnh liệt nhưng không thô tục (Vibe Tổng tài/Drama). 
-   - MIÊU TẢ ĐIỆN ẢNH TÍNH: Dùng bóng tối, ánh sáng, nhịp thở, sự run rẩy, tiếng động nhỏ để đẩy cảm xúc thay vì liệt kê hành vi cơ học. Có thể dùng thủ pháp "fade to black" (chuyển cảnh) khi đạt đỉnh điểm.
+   - LỜI THOẠI ĐỨNG MỘT MÌNH LÀ MẶC ĐỊNH:
+     + Trong chuỗi trao đổi qua lại, để các lượt thoại nối tiếp nhau, không kèm gì. Người đọc tự biết ai đang nói nhờ nội dung và nhịp luân phiên.
+     + Chỉ thêm tường thuật khi cần phân biệt người nói hoặc khi có một hành động làm thay đổi tình huống. Tối đa 1 câu tường thuật cho mỗi 3-4 lượt thoại liên tiếp, và mỗi câu chỉ chứa MỘT hành động ngắn, không tính từ trang trí.
+     + Thẻ người nói chỉ dùng "nói", "hỏi", "đáp" hoặc tên nhân vật.
+     + CẤM mô tả chất giọng (thì thầm, khẽ, nghẹn, run run, nhỏ nhẹ, đứt quãng và các biến thể), CẤM mô tả ánh mắt/ánh nhìn/nét mặt (kể cả khi viết dưới dạng hành động như "ngước mắt", "liếc nhìn", "nhíu mày" nếu mục đích chỉ để cho biết thái độ), CẤM chèn âm thanh nền hoặc thời tiết vào quanh câu thoại.
+     + Không dùng "..." để biểu thị cảm xúc. Sự ngắt quãng thể hiện qua câu cụt hoặc đổi chủ đề.
+     + Ví dụ minh họa cấu trúc (không sao chép nội dung):
+       SAI: "Tôi chờ cậu nãy giờ." Ông ngước mắt lên, ánh nhìn không gợn chút ngạc nhiên. "Ngồi đi."
+       ĐÚNG: "Tôi chờ cậu nãy giờ. Ngồi đi."
+       ĐÚNG (có hành động, đặt trước lượt thoại): Ông gấp tập hồ sơ lại. "Tôi chờ cậu nãy giờ. Ngồi đi."
+
+7. CẢNH THÂN MẬT & XUNG ĐỘT MẠNH (INTIMACY & HEAT LEVEL): 
+   - Tuân thủ NGHIÊM NGẶT biến `intimacy_guidance` và `heat_level` được truyền vào từ Story Bible. Bất kỳ cảnh nào cũng phải đảm bảo nguyên tắc đồng thuận 100%, không lãng mạn hóa cưỡng ép.
+   - Nếu `heat_level` = 1 hoặc 2: Tập trung vào căng thẳng cảm xúc, ánh mắt, cái chạm nhẹ. Tuyệt đối không miêu tả cảnh cởi đồ hay quan hệ.
+   - Nếu `heat_level` = 3 (Sensual): Dùng thủ pháp "fade to black" (chuyển cảnh/kết thúc chương) ngay khi chạm đến ngưỡng cửa của sự thân mật sâu hơn. Ám chỉ, không liệt kê hành vi.
+   - Nếu `heat_level` = 4 (Steamy - Gợi cảm, Điện ảnh): Miêu tả cường độ cao nhưng qua "lăng kính mờ ảo". Tập trung vào CẢM GIÁC (nhịp thở, nhiệt độ, sự run rẩy, giọt mồ hôi, tiếng động nhỏ, sức nặng của cái ôm). Người đọc biết rõ chuyện gì đang xảy ra, nhưng tuyệt đối không dùng từ ngữ giải phẫu trực diện. Hãy dùng các hình ảnh không gian/xúc giác để đẩy cảm xúc (Ví dụ: bàn tay siết chặt ga giường, bóng tối bao trùm).
+   - Nếu `heat_level` = 5 (Unrestrained - Trực diện, Táo bạo): Cho phép miêu tả rõ ràng, trực diện hành vi thể xác. ĐƯỢC PHÉP dùng ngôn từ trưởng thành để miêu tả các va chạm nhạy cảm, không cần né tránh hay "chuyển cảnh". 
+     *LƯU Ý TỐI THƯỢNG CHO HEAT 5:* Văn phong phải mang tính thẩm mỹ của văn học Đương đại, KHÔNG sử dụng từ lóng dung tục, rẻ tiền hay ngôn ngữ khiêu dâm (pornographic). Mọi hành động thể xác táo bạo nhất PHẢI được gắn liền với diễn biến tâm lý (sự quy hàng, khao khát chiếm hữu, hay nỗi đau được xoa dịu) đã được định ra trong `show_dont_tell_plan`.
 
 8. NHỊP ĐỘ (PACING) VÀ GIỚI HẠN: Khai thác đầy đủ không gian, nội tâm theo `beat_data`. Độ dài tham khảo 900-1500 chữ. TUYỆT ĐỐI KHÔNG được tự ý thêm thông tin cốt truyện mới (bí mật, sự kiện) nằm ngoài phạm vi đã xác định, đặc biệt không được tiết lộ sớm thông tin dự kiến cho các đoạn sau.
 
@@ -65,9 +82,10 @@ Chỉ trả về định dạng XML. Tuyệt đối không thêm lời chào. Tr
 
 <show_dont_tell_plan>
 [Với mỗi nút cảm xúc xác định được trong `beat_data`, liệt kê theo mẫu:
-- Nút cảm xúc: [mô tả ngắn] | Loại: [Khoảnh khắc lặng / Đỉnh điểm hành động]
+- Nút cảm xúc: [mô tả ngắn] | Loại: [Khoảnh khắc lặng / Đỉnh điểm hành động / Hội thoại thuần]
 - Nếu là Khoảnh khắc lặng: Chi tiết vật lý sẽ dùng (tối đa 1-2): [...] | Phục vụ cảm xúc/xung đột: [...]
 - Nếu là Đỉnh điểm hành động: Xác nhận sẽ dùng câu ngắn, hành động trần trụi, không dừng lại miêu tả.]
+- Nếu là Hội thoại thuần: Xác nhận lời thoại tự đứng, không thẻ mô tả chất giọng. Hành động chen giữa (nếu có, tối đa 1): [...]
 </show_dont_tell_plan>
 
 <pov_checkpoint>

@@ -1,5 +1,6 @@
 NGỮ CẢNH:
 - Story Bible: {{ story_bible }}
+- Heat Level: {{ heat_level }}
 - Trí nhớ câu chuyện: {{ current_memory }}
 - Văn bản Beat trước (để nối tiếp): {{ previous_beat_text }}
 - Thông tin chương (Chapter Info): {{ chapter_info }}

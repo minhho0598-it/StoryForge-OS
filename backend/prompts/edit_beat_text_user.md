@@ -1,5 +1,6 @@
 BỐI CẢNH (nếu có, để giữ nhất quán khi sửa):
 - Story Bible: {{ story_bible }}
+- Heat Level: {{ heat_level }}
 - Thông tin chương (Chapter Info): {{ chapter_info }}
 
 CHỈ THỊ NGÔI KỂ (POV INSTRUCTION): {{ pov_instruction }}

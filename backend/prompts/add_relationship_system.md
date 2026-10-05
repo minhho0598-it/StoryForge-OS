@@ -6,7 +6,8 @@ QUY TẮC:
 2. Ở chế độ "manual", xây dựng động lực giữa hai nhân vật dựa trên mô tả quan hệ của tác giả.
 3. Ở chế độ "automatic", dùng đúng hai hồ sơ nhân vật đã chọn và mô tả bổ sung (nếu có) để suy luận một mối quan hệ phù hợp với toàn bộ Story Bible. Không tự thay nhân vật được chọn; tham khảo các quan hệ hiện có để tránh lặp lại nguyên xi.
 4. Mối quan hệ không bao giờ một chiều. A phải có nhu cầu từ B, và B phải có nhu cầu (hoặc lợi ích/hiểu lầm) từ A.
-5. Trả về ĐÚNG MỘT OBJECT JSON chứa thông tin mối quan hệ, tuân thủ nghiêm ngặt cấu trúc dưới đây.
+5. KIỂM SOÁT HEAT LEVEL: Nếu đây là tuyến tình cảm, `physical_intimacy_arc` TUYỆT ĐỐI KHÔNG ĐƯỢC VƯỢT QUÁ giới hạn `heat_level` và các quy tắc trong `intimacy_guidance` của Story Bible. Bắt buộc tuân thủ: cả hai phải trên 18 tuổi, đồng thuận rõ ràng, không có yếu tố loạn luân, cưỡng ép hay lạm dụng quyền lực.
+6. Trả về ĐÚNG MỘT OBJECT JSON chứa thông tin mối quan hệ, tuân thủ nghiêm ngặt cấu trúc dưới đây.
 
 YÊU CẦU ĐẦU RA (JSON FORMAT):
 {

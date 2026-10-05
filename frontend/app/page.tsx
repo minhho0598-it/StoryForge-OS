@@ -9,13 +9,23 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, FolderOpen, Clock, ArrowRight } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 
+interface ProjectListItem {
+  id: string;
+  title?: string;
+  logline?: string;
+  status?: string;
+  vibe?: string;
+  heat_level?: number | null;
+  created_at?: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiClient.get<any[]>("/api/projects")
+    apiClient.get<ProjectListItem[]>("/api/projects")
       .then((data) => {
         if (data.success) {
           setProjects(data.data);
@@ -130,6 +140,7 @@ export default function DashboardPage() {
                       <th className="px-6 py-3">Story</th>
                       <th className="px-6 py-3">Status</th>
                       <th className="px-6 py-3">Vibe</th>
+                      <th className="px-6 py-3">Heat</th>
                       <th className="px-6 py-3">Ngày tạo</th>
                       <th className="px-6 py-3 text-right">Thao tác</th>
                     </tr>
@@ -149,6 +160,11 @@ export default function DashboardPage() {
                         <td className="px-6 py-4">
                           <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 font-normal">
                             {project.vibe || "—"}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
+                            {project.heat_level ?? 1} / 5
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">

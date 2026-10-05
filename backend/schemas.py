@@ -1,11 +1,34 @@
-from typing import Any, List, Optional
-from typing import Literal
+from typing import Any, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class IdeationRequest(BaseModel):
     story_premise: str
+    target_lenses: List[Literal[
+        "purist",
+        "false_truth",
+        "contract",
+        "dark_twist",
+        "second_chance",
+        "healing",
+        "forbidden",
+        "steamy",
+    ]] = Field(
+        default_factory=lambda: [
+            "purist",
+            "false_truth",
+            "contract",
+            "dark_twist",
+            "second_chance",
+            "healing",
+            "forbidden",
+            "steamy",
+        ],
+        min_length=1,
+    )
+    ideas_per_lens: int = Field(default=1, ge=1, le=5)
+    heat_level: int = Field(default=1, ge=1, le=5)
 
 # Schema khi user bấm "Tạo dự án" từ 1 ý tưởng
 class ProjectCreateRequest(BaseModel):
@@ -17,6 +40,7 @@ class ProjectCreateRequest(BaseModel):
     situational_irony: str
     micro_conflict: str
     story_premise: str
+    heat_level: int = Field(default=1, ge=1, le=5)
 
 # Schema dùng để update Story Bible hoặc Pacing do user tự sửa tay
 class ProjectUpdateRequest(BaseModel):

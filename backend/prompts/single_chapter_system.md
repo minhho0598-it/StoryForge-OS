@@ -61,21 +61,24 @@ Trước khi trả JSON, tự kiểm tra:
 
 Chỉ trả về JSON theo đúng cấu trúc sau. TÙY VÀO ĐỘ LỚN CỦA Ý TƯỞNG, BẠN CÓ THỂ TRẢ VỀ 1 CHƯƠNG, HOẶC MỘT MẢNG 2-3 CHƯƠNG LIÊN TIẾP NẾU CẦN THIẾT KÉO DÃN NHỊP ĐỘ:
 {
-  "chapter": {
-    "chapter_number": "Số thứ tự chương SAU KHI chèn/sửa, tính theo target_index và action_type (xem hướng dẫn renumbering bên dưới).",
-    "title": "Tên chương",
-    "timeline_period": "Mốc thời gian của chapter này — hiện tại, một mốc quá khứ cụ thể, hoặc flashback — xác định dựa theo timeline_structure thực tế của Story Bible cho câu chuyện này.",
-    "pov_character": [
-        "Chương được kể dưới góc nhìn của ai, BẮT BUỘC liệt kê CHÍNH XÁC TÊN RIÊNG của các nhân vật (Ví dụ: 'Hoàng Nam', 'Bích Ngọc'). TUYỆT ĐỐI KHÔNG dùng danh từ chung chung như 'cả nhà', 'hai người', 'nhân vật chính', 'bạn bè'."
-      ],
-    "primary_function": "BẮT BUỘC CHỌN 1 TRONG CÁC GIÁ TRỊ SAU ĐÂY (Giữ nguyên văn tiếng Anh/Việt): 'Setup (Thiết lập cơ bản)', 'Inciting Incident (Biến cố kích hoạt)', 'Character Development (Phát triển nhân vật)', 'Relationship Development (Phát triển quan hệ)', 'Rising Action (Leo thang xung đột)', 'Turning Point (Bước ngoặt)', 'Midpoint (Điểm giữa)', 'Climax (Cao trào)', 'Resolution (Giải quyết)', 'Lore (Hé lộ thông tin thế giới/bí mật)'.",
-    "main_event": "Sự kiện chính.",
-    "emotional_beat": "Thay đổi cảm xúc chính của pov_character trong chương.",
-    "relationship_beat": "Thay đổi quan hệ nếu có, phải nhất quán với relationship_arc của cặp/nhóm liên quan trong Story Bible.",
-    "chapter_hook": "Điểm khiến người đọc/nghe muốn tiếp tục — không bắt buộc là cliffhanger.",
-    "continuity_note": "Chi tiết cụ thể của CHÍNH chương này cần được các chương sau ghi nhớ và giữ nhất quán.",
-    "chapter_tone_and_pacing": "Chỉ định rõ: Nhịp độ của chương này là Dồn dập/Chậm rãi? Cảm xúc là Tĩnh lặng/Bùng nổ/U ám? (Phải khớp với Vibe và Function của chương).",
-  },
+  "chapters": [
+    {
+      "chapter_number": "Số thứ tự chương SAU KHI chèn/sửa, tính theo target_index và action_type (xem hướng dẫn renumbering bên dưới).",
+      "title": "Tên chương",
+      "timeline_period": "Mốc thời gian của chapter này — hiện tại, một mốc quá khứ cụ thể, hoặc flashback — xác định dựa theo timeline_structure thực tế của Story Bible cho câu chuyện này.",
+      "pov_character": [
+          "Chương được kể dưới góc nhìn của ai, BẮT BUỘC liệt kê CHÍNH XÁC TÊN RIÊNG của các nhân vật (Ví dụ: 'Hoàng Nam', 'Bích Ngọc'). TUYỆT ĐỐI KHÔNG dùng danh từ chung chung như 'cả nhà', 'hai người', 'nhân vật chính', 'bạn bè'."
+        ],
+      "primary_function": "BẮT BUỘC CHỌN 1 TRONG CÁC GIÁ TRỊ SAU ĐÂY (Giữ nguyên văn tiếng Anh/Việt): 'Setup (Thiết lập cơ bản)', 'Inciting Incident (Biến cố kích hoạt)', 'Character Development (Phát triển nhân vật)', 'Relationship Development (Phát triển quan hệ)', 'Rising Action (Leo thang xung đột)', 'Turning Point (Bước ngoặt)', 'Midpoint (Điểm giữa)', 'Climax (Cao trào)', 'Resolution (Giải quyết)', 'Lore (Hé lộ thông tin thế giới/bí mật)'.",
+      "main_event": "Sự kiện chính.",
+      "emotional_beat": "Thay đổi cảm xúc chính của pov_character trong chương.",
+      "relationship_beat": "Thay đổi quan hệ nếu có, phải nhất quán với relationship_arc của cặp/nhóm liên quan trong Story Bible.",
+      "chapter_hook": "Điểm khiến người đọc/nghe muốn tiếp tục — không bắt buộc là cliffhanger.",
+      "continuity_note": "Chi tiết cụ thể của CHÍNH chương này cần được các chương sau ghi nhớ và giữ nhất quán.",
+      "chapter_tone_and_pacing": "Chỉ định rõ: Nhịp độ của chương này là Dồn dập/Chậm rãi? Cảm xúc là Tĩnh lặng/Bùng nổ/U ám? (Phải khớp với Vibe và Function của chương).",
+    },
+    ...
+  ]
   "continuity_check": {
     "inherits_from_previous": "Tóm tắt trạng thái/vị trí/cảm xúc cuối cùng của chương ngay trước target_index mà chương mới này bắt buộc phải tiếp nối.",
     "sets_up_for_next": "Trạng thái/vị trí/cảm xúc mà chương mới này để lại, làm điểm khởi đầu bắt buộc cho chương ngay sau target_index."

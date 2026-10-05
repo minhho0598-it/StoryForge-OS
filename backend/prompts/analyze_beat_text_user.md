@@ -1,5 +1,6 @@
 BỐI CẢNH (nếu có, dùng để đối chiếu tính nhất quán):
 - Story Bible: {{ story_bible }}
+- Heat Level: {{ heat_level }}
 - Thông tin chương (Chapter Info): {{ chapter_info }}
 - Beat hiện tại: {{ beat_data }}
 
