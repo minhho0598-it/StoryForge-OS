@@ -1,15 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { AlertCircle, Check, CheckCircle2, Copy, Loader2, Save, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2, PenTool, LayoutList, CheckCircle2, Wand2, Save, X, Sparkles, Activity, Camera, MessageSquare, HeartPulse, List, Copy, Check } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import StoryWorkflowPlanner from "@/components/story-workflow-planner";
 import { apiClient } from "@/lib/api-client";
+
+const OUTLINE_SIGNATURE_FIELDS = [
+  "id",
+  "chapter_number",
+  "title",
+  "timeline_period",
+  "pov_character",
+  "main_event",
+  "primary_function",
+  "emotional_beat",
+  "relationship_beat",
+  "chapter_hook",
+  "continuity_note",
+] as const;
+
+type OutlineChapter = {
+  id?: string | null;
+  chapter_number: number;
+  title?: string | null;
+  timeline_period?: string | null;
+  pov_character?: string | null;
+  main_event?: string | null;
+  primary_function?: string | null;
+  emotional_beat?: string | null;
+  relationship_beat?: string | null;
+  chapter_hook?: string | null;
+  continuity_note?: string | null;
+};
+
+type WriterChapter = {
+  id: string;
+  chapter_number: number;
+  title: string;
+  timeline_period: string;
+  pov_character: string;
+  main_event: string;
+  primary_function: string;
+  emotional_beat: string;
+  relationship_beat: string;
+  chapter_hook: string;
+  continuity_note: string;
+  status?: string;
+  final_content?: string | null;
+};
+
+type StoryOutlineState = {
+  content: string;
+  confirmed: boolean;
+  chapter_signature: Record<string, unknown>[];
+  story_bible_signature: string;
+};
+
+type BeatGenerationState = {
+  status: "running" | "completed" | "failed" | "stale" | "not_started";
+  completed: number;
+  total: number;
+};
+
+type ProjectWorkflowState = {
+  story_outline?: StoryOutlineState | null;
+  story_outline_current?: boolean;
+};
+
+function hasCurrentConfirmedOutline(
+  chapters: OutlineChapter[],
+  outline: StoryOutlineState | null,
+  storyBibleCurrent: boolean,
+) {
+  if (!outline?.confirmed || !storyBibleCurrent || !Array.isArray(outline.chapter_signature)) return false;
+  const signature = chapters.map((chapter) =>
+    Object.fromEntries(
+      OUTLINE_SIGNATURE_FIELDS.map((field) => [field, chapter[field] || ""]),
+    ),
+  );
+  return JSON.stringify(signature) === JSON.stringify(outline.chapter_signature);
+}
 
 const REFINED_CHAPTER_STATUSES = [
   "Refined & Ready for Audio",
@@ -27,783 +102,315 @@ export default function WriterRoomPage() {
   const router = useRouter();
   const projectId = params.id as string;
 
-  const [chapters, setChapters] = useState<any[]>([]);
-  const [selectedChapter, setSelectedChapter] = useState<any | null>(null);
-  
-  const [beats, setBeats] = useState<any[]>([]);
-  const [loadingBeats, setLoadingBeats] = useState(false);
-  const [draftingBeatId, setDraftingBeatId] = useState<string | null>(null);
-  const [refining, setRefining] = useState(false);
-  const [batchDrafting, setBatchDrafting] = useState(false);
-
-  // --- CÁC STATE QUẢN LÝ LƯU (MỚI) ---
-  const [isBeatsDirty, setIsBeatsDirty] = useState(false);
+  const [chapters, setChapters] = useState<WriterChapter[]>([]);
+  const [selectedChapter, setSelectedChapter] = useState<WriterChapter | null>(null);
+  const [workflowOutline, setWorkflowOutline] = useState<StoryOutlineState | null>(null);
+  const [outlineBibleCurrent, setOutlineBibleCurrent] = useState(false);
+  const [beatGeneration, setBeatGeneration] = useState<BeatGenerationState | null>(null);
+  const [workflowReady, setWorkflowReady] = useState(false);
+  const [showPlanner, setShowPlanner] = useState(true);
+  const [workflowLoadError, setWorkflowLoadError] = useState<string | null>(null);
+  const [chapterLoadError, setChapterLoadError] = useState<string | null>(null);
   const [isFinalDirty, setIsFinalDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // === STATE CHO AI BEAT EDIT (2-STEP WIZARD) ===
-  const [isAiBeatModalOpen, setIsAiBeatModalOpen] = useState(false);
-  const [aiBeatStep, setAiBeatStep] = useState<1 | 2>(1);
-  const [targetBeatIndex, setTargetBeatIndex] = useState(0);
-  
-  const [userBeatPrompt, setUserBeatPrompt] = useState("");
-  const [isAnalyzingBeat, setIsAnalyzingBeat] = useState(false);
-  const [aiBeatAnalysisData, setAiBeatAnalysisData] = useState<any>(null);
-  const [isGeneratingAiBeat, setIsGeneratingAiBeat] = useState(false);
-
-  const [activeScrollBeatId, setActiveScrollBeatId] = useState<string | null>(null);
-
-  // State quản lý hiệu ứng Copy
   const [isCopied, setIsCopied] = useState(false);
-  
 
-  const DONE_WRITING_STATUSES = [
-    "Refined & Ready for Audio", 
-    "Preparing Text", 
-    "Generating Audio", 
-    "Audio Generatedd", 
-    "Rendering", 
-    "Completed"
-  ];
+  const currentChapterIndex = chapters.findIndex((chapter) => chapter.id === selectedChapter?.id);
 
-  const currentChapterIndex = chapters.findIndex(c => c.id === selectedChapter?.id);
-
-  const goToNextChapter = () => {
-    if (currentChapterIndex < chapters.length - 1) {
-      setSelectedChapter(chapters[currentChapterIndex + 1]);
-    }
-  };
-
-  const goToPrevChapter = () => {
-    if (currentChapterIndex > 0) {
-      setSelectedChapter(chapters[currentChapterIndex - 1]);
-    }
-  };
-
-  // 1. Tải danh sách Chương khi vào trang
   useEffect(() => {
-    apiClient.get<any[]>(`/api/projects/${projectId}/chapters`)
-      .then(data => {
-        if (data.success) {
-          const loadedChapters = data.data;
-          setChapters(loadedChapters);
+    let cancelled = false;
+    Promise.all([
+      apiClient.get<WriterChapter[]>(`/api/projects/${projectId}/chapters`),
+      apiClient.get<ProjectWorkflowState>(`/api/projects/${projectId}`),
+      apiClient.get<BeatGenerationState>(`/api/projects/${projectId}/beat-generation`),
+    ]).then(([chapterResult, projectResult, generationResult]) => {
+      if (cancelled) return;
+      const loadedChapters = chapterResult.data ?? [];
+      const project = projectResult.data ?? {};
+      const refinedChapters = loadedChapters.filter((chapter) =>
+        REFINED_CHAPTER_STATUSES.includes(chapter.status ?? ""),
+      );
+      const initialChapter = refinedChapters.length === 0 || refinedChapters.length === loadedChapters.length
+        ? loadedChapters[0]
+        : refinedChapters[refinedChapters.length - 1];
 
-          const refinedChapters = loadedChapters.filter(chapter => REFINED_CHAPTER_STATUSES.includes(chapter.status));
-          const initialChapter = refinedChapters.length === 0 || refinedChapters.length === loadedChapters.length
-            ? loadedChapters[0]
-            : refinedChapters[refinedChapters.length - 1];
+      setChapters(loadedChapters);
+      setWorkflowOutline(project.story_outline ?? null);
+      setOutlineBibleCurrent(Boolean(project.story_outline_current));
+      setBeatGeneration(generationResult.data ?? null);
+      setSelectedChapter(initialChapter ?? null);
+      setWorkflowReady(true);
+    }).catch((error) => {
+      if (cancelled) return;
+      console.error("Failed to load Writer Room workflow state:", error);
+      setWorkflowLoadError(error instanceof Error ? error.message : "Không tải được trạng thái Writer Room.");
+    });
 
-          setSelectedChapter(initialChapter ?? null);
-        }
-      });
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
-  // 2. Tải danh sách Beats khi chọn 1 Chương
   useEffect(() => {
-    if (!selectedChapter) return;
-
-    if (DONE_WRITING_STATUSES.includes(selectedChapter.status) && !selectedChapter.final_content) {
-      // Nếu chương đã hoàn thiện, không cần tải beats nữa, chuyển qua tải final_content
-      setBeats([]);
-      apiClient.get<any>(`/api/chapters/${selectedChapter.id}`)
-        .then(data => {
-          if (data.success) {
-            setSelectedChapter((prev: any) => ({ ...prev, final_content: data.data.final_content }));
-          }
-        });
+    if (!selectedChapter || selectedChapter.final_content || !REFINED_CHAPTER_STATUSES.includes(selectedChapter.status ?? "")) {
       return;
-    } else if (!DONE_WRITING_STATUSES.includes(selectedChapter.status)) {
-      setLoadingBeats(true);
-      apiClient.get<any[]>(`/api/chapters/${selectedChapter.id}/beats`)
-        .then(data => {
-          if (data.success) setBeats(data.data);
-        })
-        .finally(() => setLoadingBeats(false));
     }
+
+    let cancelled = false;
+    apiClient.get<WriterChapter>(`/api/chapters/${selectedChapter.id}`)
+      .then((result) => {
+        if (!cancelled && result.data?.final_content) {
+          setSelectedChapter((current) => current?.id === selectedChapter.id
+            ? { ...current, final_content: result.data.final_content }
+            : current);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setChapterLoadError(error instanceof Error ? error.message : "Không tải được bản thảo chương.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedChapter]);
 
-  // --- HÀM XỬ LÝ TEXT THAY ĐỔI TRÊN GIAO DIỆN ---
-  
-  // 1. Khi gõ chữ vào một Beat
-  const handleBeatTextChange = (index: number, newText: string) => {
-    const newBeats = [...beats];
-    newBeats[index].ai_draft_text = newText;
-    setBeats(newBeats);
-    setIsBeatsDirty(true); // Bật cờ
-  };
-
-  // 2. Khi gõ chữ vào Bản Final
   const handleFinalTextChange = (newText: string) => {
-    const newChapters = chapters.map(c => 
-      c.id === selectedChapter.id ? { ...c, final_content: newText } : c
-    );
-    setChapters(newChapters);
-    setSelectedChapter({ ...selectedChapter, final_content: newText });
-    setIsFinalDirty(true); // Bật cờ
+    if (!selectedChapter) return;
+    setSelectedChapter((current) => current ? { ...current, final_content: newText } : current);
+    setChapters((current) => current.map((chapter) =>
+      chapter.id === selectedChapter.id ? { ...chapter, final_content: newText } : chapter,
+    ));
+    setIsFinalDirty(true);
   };
 
-  // --- HÀM LƯU DỮ LIỆU XUỐNG DB ---
   const handleSaveChanges = async () => {
+    if (!selectedChapter || !isFinalDirty) return true;
     setIsSaving(true);
+    setChapterLoadError(null);
     try {
-      // Lưu Beats (nếu có thay đổi)
-      if (isBeatsDirty && beats.length > 0) {
-        const payload = beats.map(b => ({ id: b.id, draft_text: b.ai_draft_text }));
-        await apiClient.put(`/api/beats/bulk-update`, { beats: payload });
-        setIsBeatsDirty(false);
-      }
-
-      // Lưu Bản Final (nếu có thay đổi)
-      if (isFinalDirty && selectedChapter) {
-        await apiClient.put(`/api/chapters/${selectedChapter.id}`, { final_content: selectedChapter.final_content });
-        setIsFinalDirty(false);
-      }
-      
-    } catch (e) {
-      alert("Lỗi khi lưu dữ liệu.");
+      await apiClient.put(`/api/chapters/${selectedChapter.id}`, {
+        final_content: selectedChapter.final_content,
+      });
+      setIsFinalDirty(false);
+      return true;
+    } catch (error) {
+      setChapterLoadError(error instanceof Error ? error.message : "Không lưu được bản thảo chương.");
+      return false;
     } finally {
       setIsSaving(false);
     }
   };
 
-  // --- CÁC HÀM GỌI API ---
+  const selectChapter = async (chapter: WriterChapter) => {
+    if (isSaving) return;
+    if (isFinalDirty && !(await handleSaveChanges())) return;
+    setChapterLoadError(null);
+    setSelectedChapter(chapter);
+  };
 
-  // Nút: "Tạo Nhịp Truyện (Generate Beats)"
-  const handleGenerateBeats = async () => {
-    if (!selectedChapter) return;
-    setLoadingBeats(true);
+  const goToChapter = async (direction: -1 | 1) => {
+    const nextChapter = chapters[currentChapterIndex + direction];
+    if (nextChapter) await selectChapter(nextChapter);
+  };
+
+  const handleCopyChapter = async () => {
+    if (!selectedChapter?.final_content) return;
     try {
-      const result = await apiClient.post<any>(`/api/chapters/${selectedChapter.id}/generate-beats`);
-      if (result.success) {
-        // Gọi lại api lấy beats mới
-        const newBeats = await apiClient.get<any[]>(`/api/chapters/${selectedChapter.id}/beats`);
-        setBeats(newBeats.data);
-      }
-    } catch (error) {
-      alert("Lỗi khi tạo Beats.");
-    } finally {
-      setLoadingBeats(false);
-    }
-  };
-
-  // Nút: "AI Viết Nháp (Draft Beat)"
-  const handleDraftBeat = async (beatId: string, index: number) => {
-    setDraftingBeatId(beatId);
-    try {
-      // Lấy 1500 ký tự của beat phía trước làm văn cảnh nối tiếp
-      const previousText = index > 0 && beats[index - 1].ai_draft_text 
-        ? encodeURIComponent(beats[index - 1].ai_draft_text.slice(-1500)) 
-        : "";
-
-      const result = await apiClient.post<any>(`/api/beats/${beatId}/draft?previous_text=${previousText}`);
-      
-      if (result.success) {
-        // Cập nhật text mới vào state ngay lập tức
-        const newBeats = [...beats];
-        newBeats[index].ai_draft_text = result.text;
-        setBeats(newBeats);
-      }
-    } catch (error) {
-      alert("Lỗi khi AI viết nháp.");
-    } finally {
-      setDraftingBeatId(null);
-    }
-  };
-
-  // Hàm bấm vào mục lục để cuộn tới Beat
-  const scrollToBeat = (beatId: string) => {
-    const element = document.getElementById(`beat-card-${beatId}`);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
-  // Logic tự động bôi đậm Mục lục khi cuộn chuột
-  // 2. Logic tự động bôi đậm Mục lục khi cuộn chuột (ĐÃ FIX LỖI LỆCH ITEM)
-  useEffect(() => {
-    if (beats.length === 0) return;
-
-    // Lưu trữ tỷ lệ hiển thị của tất cả các Beat hiện tại
-    const visibleRatios: Record<string, number> = {};
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const id = entry.target.id.replace("beat-card-", "");
-          
-          if (entry.isIntersecting) {
-            // Lưu lại % diện tích Beat đó đang chiếm trên màn hình
-            visibleRatios[id] = entry.intersectionRatio;
-          } else {
-            // Nếu khuất khỏi màn hình thì xóa đi
-            delete visibleRatios[id];
-          }
-        });
-
-        // Nếu có Beat nào đang hiển thị
-        const visibleIds = Object.keys(visibleRatios);
-        if (visibleIds.length > 0) {
-          // Lấy cái ID nào đang có intersectionRatio lớn nhất (Tức là đang chiếm phần lớn màn hình)
-          const mostVisibleId = visibleIds.reduce((a, b) => 
-            visibleRatios[a] > visibleRatios[b] ? a : b
-          );
-          
-          setActiveScrollBeatId(mostVisibleId);
-        }
-      },
-      { 
-        // rootMargin: Mở rộng vùng quan sát lên xuống một chút để không bị lỡ nhịp khi Card quá dài
-        rootMargin: "-10% 0px -10% 0px", 
-        // threshold: Tạo nhiều điểm trigger (từ 0% đến 100%) để observer liên tục bắn event khi cuộn
-        threshold: [0, 0.1, 0.25, 0.5, 0.75, 1.0] 
-      }
-    );
-
-    // Bắt đầu theo dõi tất cả các Beat
-    beats.forEach((b) => {
-      const el = document.getElementById(`beat-card-${b.id}`);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, [beats]);
-
-  // Nút: "Biên tập toàn bộ Chương (Refine)"
-  const handleRefineChapter = async () => {
-    if (!selectedChapter) return;
-    setRefining(true);
-    try {
-      const result = await apiClient.post<any>(`/api/chapters/${selectedChapter.id}/refine`);
-      if (result.success) {
-        alert("Đã biên tập thành công! Chương đã khóa sổ.");
-        // Cập nhật lại UI để hiển thị bài chốt
-        const updatedChapters = chapters.map(c => 
-          c.id === selectedChapter.id ? { 
-            ...c, 
-            status: "Refined & Ready for Audio",
-            final_content: result.final_content 
-          } : c
-        );
-        setChapters(updatedChapters);
-        setSelectedChapter({ 
-          ...selectedChapter, 
-          status: "Refined & Ready for Audio",
-          final_content: result.final_content 
-        });
-      }
-    } catch (error) {
-      alert("Lỗi khi refine chương.");
-    } finally {
-      setRefining(false);
-    }
-  };
-
-  const handleBatchDraft = async () => {
-    if (!selectedChapter) return;
-    setBatchDrafting(true);
-    
-    // Tùy chọn: Hiện thông báo nhắc nhở user quá trình này tốn thời gian
-    alert("Hệ thống bắt đầu viết toàn bộ các cảnh. Quá trình này có thể tốn vài phút. Vui lòng không đóng trang.");
-
-    try {
-      const result = await apiClient.post<any>(`/api/chapters/${selectedChapter.id}/batch-draft`);
-      
-      if (result.success) {
-        alert(result.message);
-        // Tải lại danh sách Beats để hiển thị chữ lên màn hình
-        const newBeats = await apiClient.get<any[]>(`/api/chapters/${selectedChapter.id}/beats`);
-        setBeats(newBeats.data);
-      } else {
-         alert("Lỗi Backend: " + result.detail);
-      }
-    } catch (error) {
-      alert("Mất kết nối Backend khi Batch Draft.");
-    } finally {
-      setBatchDrafting(false);
-    }
-  };
-
-  const openAiBeatModal = (index: number) => {
-    setTargetBeatIndex(index);
-    setUserBeatPrompt("");
-    setAiBeatStep(1);
-    setAiBeatAnalysisData(null);
-    setIsAiBeatModalOpen(true);
-  };
-
-  const analyzeAiBeatIdea = async () => {
-    if (!userBeatPrompt.trim()) return alert("Vui lòng nhập ý tưởng!");
-    setIsAnalyzingBeat(true);
-    try {
-      const beatId = beats[targetBeatIndex].id;
-      const currentText = beats[targetBeatIndex].ai_draft_text || "";
-      
-      const result = await apiClient.post<any>(`/api/beats/${beatId}/analyze-text-idea`, { user_prompt: userBeatPrompt, current_text: currentText });
-      if (result.success) {
-        setAiBeatAnalysisData(result.data);
-        setAiBeatStep(2);
-      } else alert("Lỗi phân tích: " + result.detail);
-    } catch (e) { alert("Mất kết nối Backend."); } 
-    finally { setIsAnalyzingBeat(false); }
-  };
-
-  const generateFinalAiBeat = async (finalPromptToUse: string) => {
-    if (!finalPromptToUse || finalPromptToUse.trim() === "") return;
-    setIsGeneratingAiBeat(true);
-    try {
-      const beatId = beats[targetBeatIndex].id;
-      const currentText = beats[targetBeatIndex].ai_draft_text || "";
-
-      const result = await apiClient.post<any>(`/api/beats/${beatId}/edit-text`, { user_prompt: finalPromptToUse, current_text: currentText });
-      
-      if (result.success) {
-        // Ghi đè văn bản mới vào State, kích hoạt cờ Lưu
-        const newBeats = [...beats];
-        newBeats[targetBeatIndex].ai_draft_text = result.text;
-        setBeats(newBeats);
-        setIsBeatsDirty(true); // Bật thanh Save dưới đáy
-        
-        setIsAiBeatModalOpen(false);
-      } else alert("Lỗi sửa đoạn văn: " + result.detail);
-    } catch (e) { alert("Mất kết nối Backend."); } 
-    finally { setIsGeneratingAiBeat(false); }
-  };
-
-  // Hàm xử lý Copy
-  const handleCopyChapter = () => {
-    if (selectedChapter?.final_content) {
-      navigator.clipboard.writeText(selectedChapter.final_content);
+      await navigator.clipboard.writeText(selectedChapter.final_content);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      window.setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      setChapterLoadError(error instanceof Error ? error.message : "Không thể sao chép bản thảo.");
     }
   };
 
-  const chapterSelector = (
-    <Select
-      value={selectedChapter?.id ?? null}
-      onValueChange={(value) => {
-        const chapter = chapters.find((item) => item.id === value);
-        if (chapter) setSelectedChapter(chapter);
-      }}
-    >
-      <SelectTrigger className="mb-2 w-full max-w-md sm:mb-3" aria-label="Chọn chương">
-        <SelectValue placeholder="Chọn chương...">
-          {selectedChapter?.title}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent align="start">
-        {chapters.map((chapter) => (
-          <SelectItem key={chapter.id} value={chapter.id} label={chapter.title}>
-            <span className="truncate">Chương {chapter.chapter_number}: {chapter.title}</span>
-            {DONE_WRITING_STATUSES.includes(chapter.status) && (
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" aria-label="Đã hoàn tất" />
-            )}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+  const handleStartWriting = useCallback(async () => {
+    const selectedChapterId = selectedChapter?.id;
+    try {
+      const [refreshed, project] = await Promise.all([
+        apiClient.get<WriterChapter[]>(`/api/projects/${projectId}/chapters`),
+        apiClient.get<ProjectWorkflowState>(`/api/projects/${projectId}`),
+      ]);
+      setChapters(refreshed.data ?? []);
+      setWorkflowOutline(project.data?.story_outline ?? null);
+      setOutlineBibleCurrent(Boolean(project.data?.story_outline_current));
+      setBeatGeneration({
+        status: "completed",
+        completed: refreshed.data?.length ?? 0,
+        total: refreshed.data?.length ?? 0,
+      });
+      setSelectedChapter(
+        refreshed.data?.find((chapter) => chapter.id === selectedChapterId)
+          ?? refreshed.data?.[0]
+          ?? null,
+      );
+      setChapterLoadError(null);
+      setShowPlanner(false);
+    } catch (error) {
+      setWorkflowLoadError(error instanceof Error ? error.message : "Không tải được dữ liệu Writer Room.");
+    }
+  }, [projectId, selectedChapter?.id]);
+
+  if (workflowLoadError) {
+    return (
+      <div role="alert" className="m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        Không thể tải trạng thái Story Workflow: {workflowLoadError}. Hãy kiểm tra kết nối backend và đã áp dụng migration `002_story_workflow.sql`.
+      </div>
+    );
+  }
+
+  if (!workflowReady) {
+    return (
+      <div className="flex h-full items-center justify-center gap-3 text-slate-500">
+        <Loader2 className="h-5 w-5 animate-spin" /> Đang kiểm tra trạng thái Story Workflow...
+      </div>
+    );
+  }
+
+  if (showPlanner) {
+    return (
+      <StoryWorkflowPlanner
+        chapters={chapters}
+        storyOutline={workflowOutline}
+        outlineBibleCurrent={outlineBibleCurrent}
+        beatGeneration={beatGeneration}
+        onStartWriting={handleStartWriting}
+        onBack={hasCurrentConfirmedOutline(chapters, workflowOutline, outlineBibleCurrent) && beatGeneration?.status === "completed"
+          ? () => setShowPlanner(false)
+          : undefined}
+      />
+    );
+  }
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col bg-white">
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 xl:overflow-hidden">
-        {selectedChapter ? (
-          <>
-            {/* Header Chương */}
-            <div className="flex flex-col gap-3 border-b bg-white p-3 shadow-sm sm:gap-4 sm:p-6 xl:flex-row xl:items-start xl:justify-between">
-              {/* Header Chương & Cấu trúc nâng cao */}
-              <div className="min-w-0 flex-1">
-                {chapterSelector}
-                <h1 className="break-words text-xl font-bold leading-tight text-slate-800 sm:text-2xl">Chương {selectedChapter.chapter_number} - {selectedChapter.title}</h1>
-                <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-600 sm:line-clamp-none sm:text-base"><span className="font-bold text-slate-800">Sự kiện chính:</span> {selectedChapter.main_event}</p>
-                
-                <div className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:gap-4 sm:overflow-visible">
-                  <p className="shrink-0 rounded border border-orange-100 bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600 sm:text-sm">{selectedChapter.primary_function}</p>
-                  <p className="shrink-0 rounded border border-green-100 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600 sm:text-sm">Góc nhìn: {selectedChapter.pov_character}</p>
-                  <p className="shrink-0 rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 sm:text-sm">{selectedChapter.timeline_period || "Hiện tại"}</p>
-                </div>
+    <main className="min-h-dvh bg-slate-50 p-4 sm:p-8">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Writer Room</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">Bản thảo chương</h1>
+            <p className="mt-1 text-sm text-slate-600">Draft beat và refine chương được quản lý trong Story Workflow Planner.</p>
+          </div>
+          <Button variant="outline" onClick={() => setShowPlanner(true)}>
+            <Wand2 className="mr-2 h-4 w-4" /> Quản lý Story Workflow
+          </Button>
+        </header>
 
-                {/* BẢNG KIM CHỈ NAM CẢM XÚC (Chỉ hiện nếu có dữ liệu) */}
-                {(selectedChapter.emotional_beat || selectedChapter.relationship_beat || selectedChapter.chapter_hook) && (
-                  <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-indigo-100 bg-indigo-50/50 p-3 sm:mt-4 sm:grid-cols-3 sm:gap-4 sm:p-4">
-                    {selectedChapter.emotional_beat && (
-                      <div className="space-y-1">
-                        <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">Cảm xúc</span>
-                        <p className="text-xs text-slate-700 leading-relaxed">{selectedChapter.emotional_beat}</p>
-                      </div>
-                    )}
-                    {selectedChapter.relationship_beat && (
-                      <div className="space-y-1">
-                        <span className="text-[10px] uppercase font-bold text-pink-500 tracking-wider">Quan hệ</span>
-                        <p className="text-xs text-slate-700 leading-relaxed">{selectedChapter.relationship_beat}</p>
-                      </div>
-                    )}
-                    {selectedChapter.chapter_hook && (
-                      <div className="space-y-1">
-                        <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Điểm neo (Hook)</span>
-                        <p className="text-xs text-slate-700 leading-relaxed">{selectedChapter.chapter_hook}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 xl:flex xl:shrink-0">
-                {loadingBeats ? (
-                  <div className="col-span-2 flex h-10 items-center px-2 text-xs text-slate-400 sm:px-4 sm:text-sm xl:col-span-1">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang kiểm tra dữ liệu...
-                  </div>
-                ) : (
-                  <>
-                    {/* Các nút hiện ra SAU KHI đã tải xong Beats */}
-                    {(beats.length === 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status)) && (
-                      <Button onClick={handleGenerateBeats} className="col-span-2 w-full xl:col-span-1 xl:w-auto">
-                        <LayoutList className="mr-2 h-4 w-4" /> Chia Nhịp Truyện (Beats)
-                      </Button>
-                    )}
-                    
-                    {beats.length > 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status) && (
-                      <>
-                        <Button 
-                          onClick={handleBatchDraft} 
-                          disabled={batchDrafting || refining || draftingBeatId !== null} 
-                          variant="outline"
-                          className="h-auto min-h-10 min-w-0 border-indigo-500 px-2 text-xs text-indigo-700 hover:bg-indigo-50 sm:text-sm xl:px-4"
-                        >
-                          {batchDrafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PenTool className="mr-2 h-4 w-4" />}
-                          <span className="sm:hidden">Auto-Draft</span>
-                          <span className="hidden sm:inline">Auto-Draft Toàn Bộ</span>
-                        </Button>
-
-                        <Button onClick={handleRefineChapter} disabled={refining || batchDrafting} className="h-auto min-h-10 min-w-0 px-2 text-xs sm:text-sm xl:px-4">
-                          {refining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} 
-                          <span className="sm:hidden">Biên tập</span>
-                          <span className="hidden sm:inline">Biên tập (Refine)</span>
-                        </Button>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* KHU VỰC CUỘN CHÍNH (Đã sửa thành flex để chia cột) */}
-            <div className="relative flex flex-none flex-col items-stretch gap-3 overflow-visible bg-slate-50/50 px-3 pb-36 pt-3 sm:gap-8 sm:p-6 sm:pb-36 md:flex-row md:items-start md:justify-center xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
-              
-              {/* KHU VỰC NỘI DUNG CHÍNH */}
-              <div className="min-w-0 w-full max-w-4xl flex-1 space-y-4 sm:space-y-8">
-                
-                {/* TRƯỜNG HỢP 1: CHƯƠNG ĐÃ HOÀN THÀNH BIÊN TẬP */}
-                {DONE_WRITING_STATUSES.includes(selectedChapter.status) ? (
-                  // ... (Giữ nguyên toàn bộ code cũ của phần Chương Đã Hoàn Thành)
-                  <div className="space-y-6 animate-in fade-in duration-500">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center shadow-sm">
-                      <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto mb-3" />
-                      <h2 className="mb-1 text-lg font-bold text-green-800 sm:text-xl">Chương này đã hoàn thành!</h2>
-                      <p className="text-green-700/80 text-sm">
-                        Nội dung đã được biên tập mượt mà bởi AI Editor. Đây là bản thảo cuối cùng sẵn sàng mang đi làm Audio.
-                      </p>
-                    </div>
-
-                    <Card className="border-indigo-100 shadow-md">
-                      <CardHeader className="static z-10 border-b bg-white py-2 sm:py-3 xl:sticky xl:top-0">
-                        <div className="flex justify-between items-center w-full">
-                          <CardTitle className="text-base text-slate-800 sm:text-lg">
-                            Bản thảo hoàn thiện (Final Content)
-                          </CardTitle>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={handleCopyChapter}
-                            className="h-8 px-3 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                          >
-                            {isCopied ? (
-                              <><Check className="mr-2 h-4 w-4 text-green-600"/> Đã Copy</>
-                            ) : (
-                              <><Copy className="mr-2 h-4 w-4"/> Copy toàn bộ</>
-                            )}
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <Textarea 
-                            className="min-h-[60vh] resize-y border-0 bg-[#fdfbf7] p-4 font-serif text-sm leading-loose text-slate-800 focus-visible:ring-0 sm:min-h-[600px] sm:p-8 sm:text-lg"
-                            placeholder="Bản thảo cuối cùng sẽ hiển thị ở đây..."
-                            value={selectedChapter.final_content || ""}
-                            onChange={(e) => handleFinalTextChange(e.target.value)}
-                         />
-                      </CardContent>
-                    </Card>
-
-                    <div className="mt-6 grid grid-cols-2 gap-2 border-t border-slate-200 pt-4 sm:flex sm:items-center sm:justify-between">
-                      <Button variant="outline" onClick={goToPrevChapter} disabled={currentChapterIndex <= 0} className="min-w-0 px-2 text-xs text-slate-600 sm:px-4 sm:text-sm">Chương Trước</Button>
-                      <Button variant="outline" onClick={goToNextChapter} disabled={currentChapterIndex >= chapters.length - 1} className="min-w-0 px-2 text-xs text-slate-600 sm:order-3 sm:px-4 sm:text-sm">Chương Tiếp</Button>
-                      <Button onClick={() => router.push(`/project/${projectId}/studio`)} className="col-span-2 bg-indigo-600 px-4 text-sm shadow-sm hover:bg-indigo-700 sm:order-2 sm:col-span-1 sm:px-8">Vào Studio Sản Xuất</Button>
-                    </div>
-                  </div>
-                ) : (
-                  
-                  /* TRƯỜNG HỢP 2: CHƯƠNG ĐANG VIẾT DỞ (HIỆN DANH SÁCH BEATS) */
-                  <>
-                    {loadingBeats ? (
-                      <div className="flex flex-col items-center justify-center text-slate-500 mt-20 space-y-4">
-                        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-                        <p>Đang phân tích và tải các cảnh...</p>
-                      </div>
-                    ) : (
-                      beats.map((beat, index) => (
-                        // GẮN THÊM ID VÀO THẺ CARD ĐỂ LÀM MỐC CUỘN
-                        <Card id={`beat-card-${beat.id}`} key={beat.id} className="scroll-mt-20 border-slate-200 shadow-sm xl:scroll-mt-6">
-                          
-                          {/* Toàn bộ nội dung của Card (CardHeader, Kịch bản, Textarea...) bọc y hệt code hiện tại của bạn */}
-                          <CardHeader className="bg-slate-50 border-b py-3">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-3">
-                                <CardTitle className="text-sm font-bold text-slate-700 sm:text-base">{beat.beat_id}</CardTitle>
-                                <span className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-full">{beat.location}</span>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="p-0">
-                            
-                            {/* KHỐI CODE TÁCH CHUỖI CỦA BẠN (Giữ nguyên) */}
-                            <div className="bg-slate-50/50 border-b border-slate-200 flex flex-col text-sm">
-                              {(() => {
-                                const [actionPart = "", dialoguePart = ""] = (beat.action_and_dialogue || "").split(/Dialogue:\s*/i);
-                                const action = actionPart.replace(/^Action:\s*/i, "").trim();
-                                const dialogue = dialoguePart.replace(/^Dialogue:\s*/i, "").trim();
-
-                                return (
-                                  <>
-                                    {/* PHẦN 1: HÀNH ĐỘNG VÀ ĐẠO CỤ */}
-                                    {action && (() => {
-                                      const [mainAction = "", props = ""] = action.split(/(?:Đạo cụ|Props)\s*:/i);
-                                      return (
-                                        <>
-                                          <div className="flex items-start gap-3 p-4 border-b border-slate-100">
-                                            <div className="mt-0.5 p-1.5 bg-blue-100 rounded-md text-blue-600 shadow-sm"><Camera className="w-4 h-4" /></div>
-                                            <div>
-                                              <span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider block mb-1">Hành động & Góc máy</span>
-                                              <p className="text-slate-600 text-sm leading-relaxed">{mainAction || "Không có mô tả hành động."}</p>
-                                            </div>
-                                          </div>
-                                          {props && props.toLowerCase() !== "không" && props.toLowerCase() !== "none" && (
-                                            <div className="flex items-start gap-3 p-4 border-b border-slate-100 bg-indigo-50/30">
-                                              <div className="mt-0.5 px-2 py-1 bg-slate-700 rounded text-slate-100 text-[10px] font-bold shadow-sm uppercase tracking-wider">Đạo cụ</div>
-                                              <div><p className="text-indigo-700 font-medium text-sm leading-relaxed border-l-2 border-indigo-300 pl-3">{props}</p></div>
-                                            </div>
-                                          )}
-                                        </>
-                                      );
-                                    })()}
-
-                                    {/* PHẦN 2 & 3: THOẠI VÀ ẨN Ý (SUBTEXT) */}
-                                    {dialogue && (() => {
-                                      const [spokenDialogue = "", subtext = ""] = dialogue.split(/(?:Ẩn ý|Subtext)\s*:/i);
-                                      return (
-                                        <>
-                                          <div className="flex items-start gap-3 p-4 border-b border-slate-100">
-                                            <div className="mt-0.5 p-1.5 bg-emerald-100 rounded-md text-emerald-600 shadow-sm"><MessageSquare className="w-4 h-4" /></div>
-                                            <div>
-                                              <span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider block mb-1">Nội dung Thoại</span>
-                                              <p className="text-slate-600 text-sm leading-relaxed">{spokenDialogue || "Không có thoại."}</p>
-                                            </div>
-                                          </div>
-                                          {subtext && (
-                                            <div className="flex items-start gap-3 p-4 border-b border-slate-100 bg-emerald-50/30">
-                                              <div className="mt-0.5 px-2 py-1 bg-slate-800 rounded text-slate-100 text-[10px] font-bold shadow-sm uppercase tracking-wider">Ẩn ý</div>
-                                              <div><p className="text-emerald-700 font-medium text-sm leading-relaxed italic border-l-2 border-emerald-300 pl-3">"{subtext}"</p></div>
-                                            </div>
-                                          )}
-                                        </>
-                                      );
-                                    })()}
-
-                                    {/* PHẦN 3: MỤC TIÊU CẢM XÚC */}
-                                    {beat.emotional_shift && (
-                                      <div className="flex items-start gap-3 p-4 bg-amber-50/50">
-                                        <div className="mt-0.5 p-1.5 bg-rose-100 rounded-md text-rose-500 shadow-sm"><HeartPulse className="w-4 h-4" /></div>
-                                        <div>
-                                          <span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider block mb-1">Mục tiêu Cảm xúc</span>
-                                          <p className="text-slate-600 text-sm leading-relaxed font-medium">{beat.emotional_shift}</p>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                            
-                            {/* Vùng viết văn */}
-                            <div className="p-4 flex flex-col gap-3">
-                              <div className="p-4 flex flex-col gap-3 bg-white">
-                                <Textarea 
-                                  className="min-h-[200px] resize-y p-3 font-serif text-sm leading-relaxed focus-visible:ring-indigo-500 sm:min-h-[250px] sm:p-4 sm:text-base"
-                                  placeholder="Văn bản nháp sẽ xuất hiện ở đây. Tự gõ hoặc nhờ AI viết..."
-                                  value={beat.ai_draft_text || ""}
-                                  onChange={(e) => handleBeatTextChange(index, e.target.value)}
-                                />
-                                <div className="flex flex-wrap justify-end gap-2 pt-2">
-                                  {beat.ai_draft_text && beat.ai_draft_text.trim() !== "" && (
-                                    <Button variant="outline" size="sm" onClick={() => {
-                                      setTargetBeatIndex(index);
-                                      setUserBeatPrompt("");
-                                      setAiBeatStep(1);
-                                      setAiBeatAnalysisData(null);
-                                      setIsAiBeatModalOpen(true); // Mở Modal Edit Text
-                                    }} disabled={draftingBeatId === beat.id || batchDrafting || refining} className="border-amber-200 text-amber-700 hover:bg-amber-50">
-                                      <Sparkles className="mr-2 h-4 w-4"/> AI Sửa Đoạn Này
-                                    </Button>
-                                  )}
-                                  <Button variant="outline" size="sm" onClick={() => handleDraftBeat(beat.id, index)} disabled={draftingBeatId === beat.id || batchDrafting || refining} className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                                    {draftingBeatId === beat.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><Wand2 className="mr-2 h-4 w-4"/> AI Viết Nháp Cảnh Này</>}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* MỤC LỤC: HÀNG CUỘN TRÊN MOBILE, SIDEBAR BÊN TRÁI TRÊN MÀN HÌNH LỚN */}
-              { !loadingBeats && beats.length > 0 && !DONE_WRITING_STATUSES.includes(selectedChapter.status) && (
-                <div className="order-first -mx-3 w-[calc(100%+1.5rem)] shrink-0 bg-slate-50/95 px-3 py-2 sm:-mx-6 sm:w-[calc(100%+3rem)] sm:px-6 md:static md:mx-0 md:w-56 md:bg-transparent md:px-0 md:pt-2">
-                  <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 md:mb-4">
-                    <List className="h-4 w-4"/> Mục lục Nhịp truyện
-                  </h3>
-                  
-                  <div className="relative flex max-w-full gap-2 overflow-x-auto pb-1 md:flex-col md:gap-1 md:overflow-visible md:border-l-2 md:border-slate-200 md:pb-0 md:pl-3">
-                    {beats.map((beat) => {
-                      const isActive = activeScrollBeatId === beat.id;
-                      return (
-                        <button
-                          key={beat.id}
-                          onClick={() => scrollToBeat(beat.id)}
-                          className={`group min-w-0 shrink-0 rounded-lg border px-3 py-2 text-left text-xs transition-all duration-200 ease-in-out md:w-full md:shrink md:border-0 md:text-sm
-                            ${isActive 
-                              ? 'border-indigo-200 bg-indigo-100 font-bold text-indigo-700 shadow-sm md:-ml-[14px] md:border-l-4 md:border-indigo-600 md:pl-[14px]'
-                              : 'border-slate-200 bg-white/80 font-medium text-slate-500 hover:bg-slate-200 hover:text-slate-800 md:bg-transparent'
-                            }`}
-                        >
-                          <span className="block whitespace-nowrap md:whitespace-normal">{beat.beat_id}</span>
-                          <span className={`mt-0.5 hidden truncate text-[10px] transition-colors md:block ${isActive ? 'font-medium text-indigo-500' : 'font-normal text-slate-400 group-hover:text-slate-500'}`}>
-                            {beat.location}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* THANH CÔNG CỤ FLOATING KHI CÓ THAY ĐỔI CHƯA LƯU */}
-            {(isBeatsDirty || isFinalDirty) && (
-              <div className="fixed inset-x-3 bottom-3 z-50 animate-in slide-in-from-bottom-5 sm:absolute sm:bottom-6 sm:left-1/2 sm:right-auto sm:inset-x-auto sm:-translate-x-1/2">
-                <div className="flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-900 px-3 py-3 text-white shadow-2xl sm:w-max sm:gap-4 sm:rounded-full sm:px-6 sm:py-4">
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium sm:flex-none sm:text-sm">
-                    {isFinalDirty ? "Bản thảo hoàn thiện đang được chỉnh sửa!" : "Các bản nháp (Beats) đang được chỉnh sửa!"}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" className="px-2 sm:px-3" onClick={() => {
-                        setIsBeatsDirty(false);
-                        setIsFinalDirty(false);
-                        // Refresh data
-                        window.location.reload(); 
-                      }}>
-                      <X className="h-4 w-4 mr-1" /> Hủy bỏ
-                    </Button>
-                    <Button size="sm" className="bg-green-500 px-2 text-white hover:bg-green-600 sm:px-3" onClick={handleSaveChanges} disabled={isSaving}>
-                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                      Lưu Thay Đổi
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400 px-4">
-            {chapterSelector}
-            <p>Chọn một chương để bắt đầu viết.</p>
+        {chapterLoadError && (
+          <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {chapterLoadError}
           </div>
         )}
-      </div>
-      {/* MODAL AI SỬA CẢNH (BEAT) - 2 STEP WIZARD */}
-      <Dialog open={isAiBeatModalOpen} onOpenChange={setIsAiBeatModalOpen}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-600" />
-              Sửa nội dung văn bản: {beats[targetBeatIndex]?.beat_id}
-            </DialogTitle>
-          </DialogHeader>
 
-          {aiBeatStep === 1 ? (
-            <div className="grid gap-4 py-4">
-              <p className="text-sm text-slate-500">
-                Hãy cho Biên tập viên AI biết bạn muốn thay đổi cảnh này như thế nào (VD: Đổi địa điểm, thêm đạo cụ, làm cho cuộc cãi vã gay gắt hơn...)
-              </p>
-              <Textarea 
-                placeholder="VD: Cho nam chính vô tình làm rơi chiếc nhẫn khi đang nói chuyện..."
-                value={userBeatPrompt}
-                onChange={(e) => setUserBeatPrompt(e.target.value)}
-                className="resize-none h-32 focus-visible:ring-amber-500"
-              />
-              <div className="flex justify-end mt-2">
-                <Button onClick={analyzeAiBeatIdea} disabled={isAnalyzingBeat || !userBeatPrompt} className="bg-amber-600 hover:bg-amber-700">
-                  {isAnalyzingBeat ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Activity className="h-4 w-4 mr-2"/>}
-                  Biên tập viên Phân tích
+        {selectedChapter ? (
+          <>
+            <Select
+              value={selectedChapter.id}
+              onValueChange={(value) => {
+                const chapter = chapters.find((item) => item.id === value);
+                if (chapter) void selectChapter(chapter);
+              }}
+            >
+              <SelectTrigger className="w-full max-w-md" aria-label="Chọn chương">
+                <SelectValue placeholder="Chọn chương" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {chapters.map((chapter) => (
+                  <SelectItem key={chapter.id} value={chapter.id}>
+                    Chương {chapter.chapter_number}: {chapter.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="flex flex-row items-start justify-between gap-4 border-b bg-white">
+                <div className="min-w-0">
+                  <CardTitle className="text-lg text-slate-800">
+                    Chương {selectedChapter.chapter_number}: {selectedChapter.title}
+                  </CardTitle>
+                  {selectedChapter.main_event && (
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{selectedChapter.main_event}</p>
+                  )}
+                </div>
+                {selectedChapter.final_content && (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-label="Đã refine" />
+                )}
+              </CardHeader>
+              <CardContent className="p-0">
+                {selectedChapter.final_content ? (
+                  <>
+                    <div className="flex items-center justify-between border-b px-4 py-2">
+                      <p className="text-sm font-medium text-slate-600">Nội dung đã refine</p>
+                      <Button variant="ghost" size="sm" onClick={() => void handleCopyChapter()}>
+                        {isCopied
+                          ? <><Check className="mr-2 h-4 w-4 text-emerald-600" /> Đã copy</>
+                          : <><Copy className="mr-2 h-4 w-4" /> Copy</>}
+                      </Button>
+                    </div>
+                    <Textarea
+                      className="min-h-[60vh] resize-y rounded-none border-0 bg-[#fdfbf7] p-4 font-serif text-sm leading-loose text-slate-800 focus-visible:ring-0 sm:p-8 sm:text-lg"
+                      value={selectedChapter.final_content}
+                      onChange={(event) => handleFinalTextChange(event.target.value)}
+                      disabled={isSaving}
+                    />
+                  </>
+                ) : (
+                  <div className="space-y-3 p-6 text-sm text-slate-600">
+                    <p>Chương này chưa có bản refine. Hãy dùng Planner để tạo hoặc chỉnh beats và refine chương.</p>
+                    <Button onClick={() => setShowPlanner(true)}>
+                      <Wand2 className="mr-2 h-4 w-4" /> Mở Story Workflow Planner
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+              <Button
+                variant="outline"
+                onClick={() => void goToChapter(-1)}
+                disabled={currentChapterIndex <= 0 || isSaving}
+              >
+                Chương trước
+              </Button>
+              <div className="flex flex-wrap gap-2">
+                {isFinalDirty && (
+                  <Button onClick={() => void handleSaveChanges()} disabled={isSaving}>
+                    {isSaving
+                      ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      : <Save className="mr-2 h-4 w-4" />}
+                    Lưu bản thảo
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => void goToChapter(1)}
+                  disabled={currentChapterIndex >= chapters.length - 1 || isSaving}
+                >
+                  Chương tiếp
                 </Button>
+                {selectedChapter.final_content && (
+                  <Button onClick={() => router.push(`/project/${projectId}/studio`)}>
+                    Vào Studio
+                  </Button>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="py-2 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">Logic: {aiBeatAnalysisData?.feasibility_score}/10</Badge>
-                  <span className="font-bold text-sm text-amber-800">Góp ý từ Biên tập viên AI:</span>
-                </div>
-                <p className="text-sm text-slate-700 italic">"{aiBeatAnalysisData?.critique}"</p>
-              </div>
-
-              <div className="space-y-3 mt-4">
-                <p className="text-sm font-semibold text-slate-800">Chọn phương án chốt kịch bản:</p>
-                
-                <div 
-                  className="border border-amber-200 bg-amber-50/30 p-3 rounded-lg hover:bg-amber-50 cursor-pointer transition-colors" 
-                  onClick={() => generateFinalAiBeat(aiBeatAnalysisData?.suggested_prompt || "")}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-amber-700 uppercase">✨ Đề xuất của Biên tập viên (Khuyên dùng)</span>
-                  </div>
-                  <p className="text-xs text-slate-600">{aiBeatAnalysisData?.suggested_prompt}</p>
-                </div>
-
-                <div 
-                  className="border border-slate-200 p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors" 
-                  onClick={() => generateFinalAiBeat(userBeatPrompt)}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-500 uppercase">Ý tưởng gốc của bạn</span>
-                  </div>
-                  <p className="text-xs text-slate-400">{userBeatPrompt}</p>
-                </div>
-              </div>
-              
-              {isGeneratingAiBeat && (
-                <div className="flex items-center justify-center text-amber-600 mt-4 text-sm font-medium">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2"/> Đang cấu trúc lại cảnh này...
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+          </>
+        ) : (
+          <Card>
+            <CardContent className="space-y-3 p-6 text-center text-sm text-slate-600">
+              <p>Chưa có chapter trong project này.</p>
+              <Button onClick={() => setShowPlanner(true)}>
+                <Wand2 className="mr-2 h-4 w-4" /> Mở Story Workflow Planner
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </main>
   );
 }

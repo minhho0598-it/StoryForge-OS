@@ -119,20 +119,20 @@ export default function ProjectLayout({
 
             <Link
               href={`/project/${projectId}/architecture`}
-              title="Cấu Trúc & DNA"
+              title="Story Bible & DNA"
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/architecture') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <BookOpen className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="hidden truncate sm:inline">Cấu Trúc & DNA</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Story Bible & DNA</span>}
             </Link>
 
             <Link
               href={`/project/${projectId}/writer-room`}
-              title="Lò Luyện Chữ"
+              title="Dàn Ý & Lò Luyện Chữ"
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/writer-room') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <PenTool className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="hidden truncate sm:inline">Lò Luyện Chữ</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Dàn Ý & Lò Luyện Chữ</span>}
             </Link>
 
             <Link

@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Layers, ArrowRight, Save, X, Wand2, Map, Sparkles, Activity, ChevronDown } from "lucide-react";
+import { Loader2, Layers, Save, X, Wand2, Map, Sparkles, Activity, ChevronDown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -123,7 +123,6 @@ const PRIMARY_FUNCTIONS = [
 
 export default function ArchitecturePage() {
   const params = useParams();
-  const router = useRouter();
   const projectId = params.id as string;
 
   // States
@@ -176,6 +175,16 @@ export default function ArchitecturePage() {
   const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalData, setEvalData] = useState<any>(null);
+
+  const fetchChapters = async () => {
+    apiClient.get<any[]>(`/api/projects/${projectId}/chapters`)
+      .then((data) => {
+        if (data.success && data.data.length > 0) {
+          setChapters(data.data);
+          setPacingStatus("done");
+        }
+      });
+  };
   
   useEffect(() => {
     apiClient.get<any>(`/api/projects/${projectId}`)
@@ -189,17 +198,6 @@ export default function ArchitecturePage() {
       });
     fetchChapters();
   }, [projectId]);
-
-
-  const fetchChapters = async () => {
-    apiClient.get<any[]>(`/api/projects/${projectId}/chapters`)
-      .then((data) => {
-        if (data.success && data.data.length > 0) {
-          setChapters(data.data);
-          setPacingStatus("done");
-        }
-      });
-  };
 
   // 1. HÀM LƯU RIÊNG CHO STORY BIBLE
   const handleSaveBible = async (dataToSave = bibleData) => {
@@ -657,28 +655,13 @@ export default function ArchitecturePage() {
         {/* HEADER */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Thiết kế Cấu trúc Truyện</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Story Bible & DNA Truyện</h1>
             <p className="text-slate-500">ID Dự án: <span className="font-mono text-xs">{projectId}</span></p>
           </div>
-          {pacingStatus === "done" && !isPacingDirty && !isBibleDirty && (
-            <Button size="lg" className="bg-green-600 hover:bg-green-700 shadow-md" onClick={() => router.push(`/project/${projectId}/writer-room`)}>
-              Vào Lò Luyện Chữ <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          )}
         </div>
 
-        {/* THIẾT KẾ TABS (THAY THẾ CHIA CỘT) */}
+        {/* Story Bible */}
         <Tabs defaultValue="bible" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-slate-200">
-            <TabsTrigger value="bible" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <BookOpen className="h-4 w-4 mr-2" /> DNA Câu Chuyện
-            </TabsTrigger>
-            <TabsTrigger value="pacing" disabled={bibleStatus === "pending"} className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <Layers className="h-4 w-4 mr-2" /> Khung Chương (Pacing)
-            </TabsTrigger>
-          </TabsList>
-
-          {/* TAB 1: STORY BIBLE */}
           <TabsContent value="bible">
             <Card className="border-slate-200 shadow-sm">
               <CardHeader className="bg-white border-b pb-4 flex flex-row items-center justify-between">
