@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 
@@ -13,18 +15,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
     AnalyzeBeatTextRequest,
     AnalyzeChapterIdeaRequest,
+    BeatEvaluationRequest,
+    BeatInsertRequest,
     BeatUpdateRequest,
     BulkBeatUpdateRequest,
     BulkUpdateChaptersRequest,
     ChapterUpdateRequest,
     EditBeatTextRequest,
     GenerateCharacterRequest,
+    GenerateAllBeatsRequest,
     GeneratePovRecommendationRequest,
     GenerateRelationshipRequest,
     GenerateSingleChapterRequest,
     IdeationRequest,
     MetadataGenerateRequest,
     ProjectCreateRequest,
+    StoryOutlineUpdateRequest,
     UpdateGlobalRenderConfigRequest,
     UpdateBibleRequest,
     UpdateRenderConfigRequest,
@@ -43,6 +49,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _sanitize_story_text(text: str) -> str:
+    story_start = re.search(r"<story_text\b[^>]*>", text, re.IGNORECASE)
+    if story_start:
+        text = text[story_start.end():]
+        story_end = re.search(r"</story_text\s*>", text, re.IGNORECASE)
+        if story_end:
+            text = text[:story_end.start()]
+
+    text = re.sub(r"<!--.*?-->|<\?.*?\?>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<!\[CDATA\[(.*?)\]\]>", r"\1", text, flags=re.DOTALL)
+    text = re.sub(
+        r"</?[A-Za-z_][\w:.-]*(?:\s+[^<>]*?)?\s*/?>",
+        "",
+        text,
+    )
+    return text.strip()
+
+
+def _sanitize_beat_drafts(beats: list[dict]) -> list[dict]:
+    return [
+        {
+            **beat,
+            "ai_draft_text": _sanitize_story_text(beat["ai_draft_text"]),
+        }
+        if isinstance(beat.get("ai_draft_text"), str)
+        else beat
+        for beat in beats
+    ]
 
 
 # ==========================================
@@ -430,6 +466,69 @@ async def evaluate_pacing(project_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/projects/{project_id}/evaluate-beats")
+async def evaluate_beats(project_id: str, request: BeatEvaluationRequest):
+    try:
+        project_result = (
+            supabase.table("projects")
+            .select("id, story_bible, story_outline")
+            .eq("id", project_id)
+            .execute()
+        )
+        if not project_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
+
+        chapter_query = (
+            supabase.table("chapters")
+            .select(
+                "id, chapter_number, title, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note"
+            )
+            .eq("project_id", project_id)
+        )
+        if request.scope == "chapter":
+            if not request.chapter_id:
+                raise HTTPException(status_code=400, detail="Cần chapter_id để đánh giá trong phạm vi chapter.")
+            chapter_query = chapter_query.eq("id", request.chapter_id)
+        chapters = chapter_query.order("chapter_number").execute().data or []
+        if not chapters:
+            raise HTTPException(status_code=400, detail="Không có chapter để đánh giá.")
+        if request.scope == "chapter" and chapters[0]["id"] != request.chapter_id:
+            raise HTTPException(status_code=404, detail="Chapter không thuộc dự án này.")
+
+        evaluated_chapters = []
+        for chapter in chapters:
+            beat_result = (
+                supabase.table("beats")
+                .select("beat_id, beat_order, location, characters_present, action_and_dialogue, emotional_shift")
+                .eq("chapter_id", chapter["id"])
+                .order("beat_order")
+                .execute()
+            )
+            evaluated_chapters.append({
+                **{key: value for key, value in chapter.items() if key != "id"},
+                "beats": beat_result.data or [],
+            })
+        if not any(chapter["beats"] for chapter in evaluated_chapters):
+            raise HTTPException(status_code=400, detail="Chưa có beat để đánh giá.")
+
+        project = project_result.data[0]
+        optimized_bible = get_optimized_bible(project.get("story_bible"), task="pacing")
+        system_prompt = prompt_manager.load_prompt("evaluate_beats_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "evaluate_beats_user.md",
+            scope="toàn story" if request.scope == "story" else "chapter",
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            story_outline=(project.get("story_outline") or {}).get("content", ""),
+            chapters=json.dumps(evaluated_chapters, ensure_ascii=False),
+        )
+        result_json = await generate_json(system_prompt, user_prompt)
+        return {"success": True, "data": result_json}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/projects/{project_id}/analyze-chapter-idea")
 async def analyze_chapter_idea(project_id: str, request: AnalyzeChapterIdeaRequest):
     """Bước 1: Trả về lời phản biện (Critique) cho ý tưởng của User."""
@@ -490,7 +589,7 @@ async def generate_beats(chapter_id: str):
     try:
         # Lấy thông tin chapter (bao gồm 4 trường mới) và project liên quan
         chap_res = supabase.table("chapters").select(
-            "id, project_id, chapter_number, title, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, current_memory, heat_level)"
+            "id, project_id, chapter_number, title, timeline_period, pov_character, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(story_bible, current_memory, heat_level)"
         ).eq("id", chapter_id).execute()
         
         if not chap_res.data: 
@@ -519,6 +618,8 @@ async def generate_beats(chapter_id: str):
         # Đóng gói thông tin Chapter để mớm cho AI
         chapter_info = {
             "title": chapter["title"],
+            "timeline_period": chapter.get("timeline_period"),
+            "pov_character": chapter.get("pov_character"),
             "primary_function": chapter.get("primary_function"),
             "main_event": chapter.get("main_event"),
             "emotional_beat": chapter.get("emotional_beat"),
@@ -538,7 +639,9 @@ async def generate_beats(chapter_id: str):
             chapter_info=json.dumps(chapter_info, ensure_ascii=False),
             current_memory=json.dumps(project.get("current_memory", {}), ensure_ascii=False) if project.get("current_memory") else "Đây là chương đầu tiên.",
             previous_chapter_ending=previous_chapter_ending,
-            heat_level=project.get("heat_level", 1)
+            heat_level=project.get("heat_level", 1),
+            story_outline="",
+            previous_beats_context=""
         )
         
         # Gọi LLM sinh JSON Beats
@@ -579,11 +682,474 @@ async def generate_beats(chapter_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _chapter_signature(chapters: list[dict]) -> list[dict]:
+    signature_fields = (
+        "id",
+        "chapter_number",
+        "title",
+        "timeline_period",
+        "pov_character",
+        "main_event",
+        "primary_function",
+        "emotional_beat",
+        "relationship_beat",
+        "chapter_hook",
+        "continuity_note",
+    )
+    return [
+        {field: chapter.get(field) or "" for field in signature_fields}
+        for chapter in chapters
+    ]
+
+
+def _story_bible_signature(story_bible: dict | None) -> str:
+    canonical_bible = json.dumps(
+        story_bible or {},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical_bible.encode("utf-8")).hexdigest()
+
+
+async def _load_project_chapters(project_id: str) -> list[dict]:
+    result = (
+        supabase.table("chapters")
+        .select(
+            "id, chapter_number, title, timeline_period, pov_character, main_event, "
+            "primary_function, emotional_beat, relationship_beat, chapter_hook, continuity_note"
+        )
+        .eq("project_id", project_id)
+        .order("chapter_number")
+        .execute()
+    )
+    return result.data or []
+
+
+@app.post("/api/projects/{project_id}/generate-story-outline")
+async def generate_story_outline(project_id: str):
+    try:
+        project_result = (
+            supabase.table("projects")
+            .select("id, title, vibe, logline, story_bible, story_outline, beat_generation")
+            .eq("id", project_id)
+            .execute()
+        )
+        if not project_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
+        project = project_result.data[0]
+        chapters = await _load_project_chapters(project_id)
+        if not chapters:
+            raise HTTPException(status_code=400, detail="Hãy tạo và lưu danh sách chapter trước.")
+        if not project.get("story_bible"):
+            raise HTTPException(status_code=400, detail="Dự án chưa có Story Bible.")
+        if (project.get("beat_generation") or {}).get("status") == "running":
+            raise HTTPException(status_code=409, detail="Không thể thay đổi dàn ý trong khi đang sinh beats.")
+
+        optimized_bible = get_optimized_bible(project["story_bible"], task="pacing")
+        system_prompt = prompt_manager.load_prompt("story_outline_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "story_outline_user.md",
+            story_seed=json.dumps(
+                {key: project.get(key) for key in ("title", "vibe", "logline")},
+                ensure_ascii=False,
+            ),
+            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+            chapters=json.dumps(chapters, ensure_ascii=False),
+        )
+        result = await generate_json(system_prompt, user_prompt)
+        outline_text = result.get("story_outline")
+        if not isinstance(outline_text, str) or not outline_text.strip():
+            raise ValueError("AI không trả về nội dung 'story_outline' hợp lệ.")
+
+        outline = {
+            "content": outline_text.strip(),
+            "confirmed": False,
+            "chapter_signature": _chapter_signature(chapters),
+            "story_bible_signature": _story_bible_signature(project["story_bible"]),
+        }
+        supabase.table("projects").update({"story_outline": outline}).eq("id", project_id).execute()
+        previous_generation = project.get("beat_generation") or {}
+        has_existing_beats = await _project_has_beats(project_id)
+        if has_existing_beats and (
+            (project.get("story_outline") or {}).get("confirmed")
+            or previous_generation.get("status") in {"completed", "stale"}
+        ):
+            supabase.table("projects").update(
+                {"beat_generation": {"status": "stale", "completed": 0, "total": len(chapters)}}
+            ).eq("id", project_id).execute()
+        return {"success": True, "data": outline}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/projects/{project_id}/story-outline")
+async def update_story_outline(project_id: str, request: StoryOutlineUpdateRequest):
+    try:
+        project_result = (
+            supabase.table("projects")
+            .select("story_bible, beat_generation")
+            .eq("id", project_id)
+            .execute()
+        )
+        if not project_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
+        project = project_result.data[0]
+        if (project.get("beat_generation") or {}).get("status") == "running":
+            raise HTTPException(status_code=409, detail="Không thể thay đổi dàn ý trong khi đang sinh beats.")
+        chapters = await _load_project_chapters(project_id)
+        if not chapters:
+            raise HTTPException(status_code=400, detail="Hãy tạo và lưu danh sách chapter trước.")
+
+        current_signature = _chapter_signature(chapters)
+        if request.chapter_signature != current_signature:
+            raise HTTPException(
+                status_code=409,
+                detail="Danh sách chapter đã thay đổi. Hãy tải lại và tạo hoặc chốt lại dàn ý.",
+            )
+        if request.story_bible_signature != _story_bible_signature(project.get("story_bible")):
+            raise HTTPException(
+                status_code=409,
+                detail="Story Bible đã thay đổi. Hãy tạo lại dàn ý trước khi chốt.",
+            )
+        if not request.story_outline.strip():
+            raise HTTPException(status_code=400, detail="Dàn ý story không được để trống.")
+
+        outline = {
+            "content": request.story_outline.strip(),
+            "confirmed": request.confirmed,
+            "chapter_signature": current_signature,
+            "story_bible_signature": request.story_bible_signature,
+        }
+        previous_outline_result = (
+            supabase.table("projects")
+            .select("story_outline")
+            .eq("id", project_id)
+            .execute()
+        )
+        previous_outline = (previous_outline_result.data or [{}])[0].get("story_outline") or {}
+        if previous_outline.get("content") != outline["content"] and await _project_has_beats(project_id):
+            supabase.table("projects").update(
+                {"beat_generation": {"status": "stale", "completed": 0, "total": len(chapters)}}
+            ).eq("id", project_id).execute()
+        supabase.table("projects").update({"story_outline": outline}).eq("id", project_id).execute()
+        return {"success": True, "data": outline}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _project_has_beats(project_id: str) -> bool:
+    chapter_result = supabase.table("chapters").select("id").eq("project_id", project_id).execute()
+    chapter_ids = [chapter["id"] for chapter in chapter_result.data or []]
+    if not chapter_ids:
+        return False
+    for chapter_id in chapter_ids:
+        beats = (
+            supabase.table("beats")
+            .select("id")
+            .eq("chapter_id", chapter_id)
+            .limit(1)
+            .execute()
+        )
+        if beats.data:
+            return True
+    return False
+
+
+def _format_previous_beats(chapters_with_beats: list[tuple[dict, list[dict]]]) -> str:
+    sections = []
+    for chapter, beats in chapters_with_beats:
+        if not beats:
+            continue
+        beat_lines = [
+            {
+                "beat_id": beat.get("beat_id"),
+                "location": beat.get("location"),
+                "characters_present": beat.get("characters_present"),
+                "action_and_dialogue": beat.get("action_and_dialogue"),
+                "emotional_shift": beat.get("emotional_shift"),
+            }
+            for beat in beats
+        ]
+        sections.append(
+            json.dumps(
+                {
+                    "chapter_number": chapter.get("chapter_number"),
+                    "chapter_title": chapter.get("title"),
+                    "beats": beat_lines,
+                },
+                ensure_ascii=False,
+            )
+        )
+    return "\n".join(sections)
+
+
+async def _generate_project_beats(project_id: str):
+    try:
+        project_result = (
+            supabase.table("projects")
+            .select("id, story_bible, story_outline, current_memory, heat_level")
+            .eq("id", project_id)
+            .execute()
+        )
+        if not project_result.data:
+            raise ValueError("Không tìm thấy dự án.")
+        project = project_result.data[0]
+        chapters = await _load_project_chapters(project_id)
+        outline = project.get("story_outline") or {}
+        if (
+            not outline.get("confirmed")
+            or outline.get("chapter_signature") != _chapter_signature(chapters)
+            or outline.get("story_bible_signature") != _story_bible_signature(project.get("story_bible"))
+        ):
+            raise ValueError("Dàn ý chưa được chốt hoặc không còn khớp với danh sách chapter.")
+
+        completed = 0
+        prior_chapters: list[tuple[dict, list[dict]]] = []
+        for chapter in chapters:
+            existing_result = (
+                supabase.table("beats")
+                .select("*")
+                .eq("chapter_id", chapter["id"])
+                .order("beat_order")
+                .execute()
+            )
+            existing_beats = existing_result.data or []
+            if existing_beats:
+                prior_chapters.append((chapter, existing_beats))
+                completed += 1
+                supabase.table("projects").update(
+                    {
+                        "beat_generation": {
+                            "status": "running",
+                            "completed": completed,
+                            "total": len(chapters),
+                            "current_chapter": chapter["chapter_number"],
+                        }
+                    }
+                ).eq("id", project_id).execute()
+                continue
+
+            context = _format_previous_beats(prior_chapters)
+            if prior_chapters:
+                previous_chapter, previous_beats = prior_chapters[-1]
+                previous_chapter_ending = json.dumps(
+                    {
+                        "chapter": previous_chapter.get("title"),
+                        "last_beat": previous_beats[-1] if previous_beats else {},
+                    },
+                    ensure_ascii=False,
+                )[-1500:]
+            else:
+                previous_chapter_ending = "Đây là chương đầu tiên, chưa có beats trước đó."
+            chapter_info = {
+                "title": chapter["title"],
+                "timeline_period": chapter.get("timeline_period"),
+                "pov_character": chapter.get("pov_character"),
+                "primary_function": chapter.get("primary_function"),
+                "main_event": chapter.get("main_event"),
+                "emotional_beat": chapter.get("emotional_beat"),
+                "relationship_beat": chapter.get("relationship_beat"),
+                "chapter_hook": chapter.get("chapter_hook"),
+                "continuity_note": chapter.get("continuity_note"),
+            }
+            optimized_bible = get_optimized_bible(project.get("story_bible"), task="beat_breakdown")
+            user_prompt = prompt_manager.load_prompt(
+                "beat_user.md",
+                story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+                chapter_info=json.dumps(chapter_info, ensure_ascii=False),
+                current_memory=json.dumps(project.get("current_memory") or {}, ensure_ascii=False),
+                previous_chapter_ending=previous_chapter_ending,
+                heat_level=project.get("heat_level", 1),
+                story_outline=outline["content"],
+                previous_beats_context=context or "Chưa có beats của chapter trước.",
+            )
+            beats_json = await generate_json(
+                prompt_manager.load_prompt("beat_system.md"),
+                user_prompt,
+            )
+            generated_beats = beats_json.get("beats")
+            if not isinstance(generated_beats, list) or not generated_beats:
+                raise ValueError(f"AI không tạo được beats hợp lệ cho chương {chapter['chapter_number']}.")
+
+            rows = []
+            for index, beat in enumerate(generated_beats, start=1):
+                characters = beat.get("characters_present", [])
+                rows.append(
+                    {
+                        "chapter_id": chapter["id"],
+                        "beat_id": f"C{chapter['chapter_number']}_B{index}",
+                        "beat_order": index,
+                        "location": beat.get("location_and_atmosphere", "Chưa xác định"),
+                        "characters_present": ", ".join(characters) if isinstance(characters, list) else str(characters),
+                        "action_and_dialogue": (
+                            f"Action: {beat.get('main_action')}. Props: {beat.get('sensory_focus')}\n"
+                            f"Dialogue: {beat.get('dialogue')}. Subtext: {beat.get('subtext')}"
+                        ),
+                        "emotional_shift": beat.get("emotional_shift", ""),
+                    }
+                )
+            supabase.table("beats").insert(rows).execute()
+            supabase.table("chapters").update({"status": "Beats Generated"}).eq("id", chapter["id"]).execute()
+            prior_chapters.append((chapter, rows))
+            completed += 1
+            supabase.table("projects").update(
+                {
+                    "beat_generation": {
+                        "status": "running",
+                        "completed": completed,
+                        "total": len(chapters),
+                        "current_chapter": chapter["chapter_number"],
+                    }
+                }
+            ).eq("id", project_id).execute()
+
+        supabase.table("projects").update(
+            {
+                "beat_generation": {
+                    "status": "completed",
+                    "completed": len(chapters),
+                    "total": len(chapters),
+                    "current_chapter": None,
+                }
+            }
+        ).eq("id", project_id).execute()
+    except Exception as e:
+        print(f"[Error Generate Project Beats] {e}")
+        supabase.table("projects").update(
+            {
+                "beat_generation": {
+                    "status": "failed",
+                    "completed": locals().get("completed", 0),
+                    "total": len(locals().get("chapters", [])),
+                    "error": str(e),
+                }
+            }
+        ).eq("id", project_id).execute()
+
+
+@app.post("/api/projects/{project_id}/generate-all-beats")
+async def generate_all_project_beats(
+    project_id: str,
+    request: GenerateAllBeatsRequest,
+    background_tasks: BackgroundTasks,
+):
+    try:
+        project_result = (
+            supabase.table("projects")
+            .select("id, story_bible, story_outline, beat_generation")
+            .eq("id", project_id)
+            .execute()
+        )
+        if not project_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
+        project = project_result.data[0]
+        chapters = await _load_project_chapters(project_id)
+        outline = project.get("story_outline") or {}
+        if not chapters:
+            raise HTTPException(status_code=400, detail="Chưa có chapter nào.")
+        if (
+            not outline.get("confirmed")
+            or outline.get("chapter_signature") != _chapter_signature(chapters)
+            or outline.get("story_bible_signature") != _story_bible_signature(project.get("story_bible"))
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Hãy tạo và chốt lại dàn ý theo Story Bible và danh sách chapter hiện tại.",
+            )
+        if (project.get("beat_generation") or {}).get("status") == "running":
+            raise HTTPException(status_code=409, detail="Đang có một tiến trình sinh beats chạy.")
+        if (project.get("beat_generation") or {}).get("status") == "stale":
+            if not request.reset_existing:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Dàn ý hoặc chapter đã thay đổi. Xác nhận xóa beats cũ trước khi sinh lại.",
+                )
+            for chapter in chapters:
+                supabase.table("beats").delete().eq("chapter_id", chapter["id"]).execute()
+                supabase.table("chapters").update(
+                    {"final_content": None, "status": "Drafting Pending"}
+                ).eq("id", chapter["id"]).execute()
+
+        initial_status = {
+            "status": "running",
+            "completed": 0,
+            "total": len(chapters),
+            "current_chapter": chapters[0]["chapter_number"],
+        }
+        supabase.table("projects").update({"beat_generation": initial_status}).eq("id", project_id).execute()
+        background_tasks.add_task(_generate_project_beats, project_id)
+        return {"success": True, "data": initial_status}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/projects/{project_id}/beat-generation")
+async def get_project_beat_generation(project_id: str):
+    try:
+        result = (
+            supabase.table("projects")
+            .select("beat_generation")
+            .eq("id", project_id)
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
+        return {"success": True, "data": result.data[0].get("beat_generation")}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.put("/api/projects/{project_id}/bulk-update-chapters")
 async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersRequest):
     try:
-        current_chaps_res = supabase.table("chapters").select("id").eq("project_id", project_id).execute()
-        current_ids = [str(c["id"]) for c in current_chaps_res.data]
+        project_result = (
+            supabase.table("projects")
+            .select("beat_generation")
+            .eq("id", project_id)
+            .execute()
+        )
+        if not project_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
+        if (project_result.data[0].get("beat_generation") or {}).get("status") == "running":
+            raise HTTPException(status_code=409, detail="Không thể sửa chapter trong khi đang sinh beats.")
+        current_chaps_res = (
+            supabase.table("chapters")
+            .select(
+                "id, chapter_number, title, timeline_period, pov_character, main_event, "
+                "primary_function, emotional_beat, relationship_beat, chapter_hook, continuity_note"
+            )
+            .eq("project_id", project_id)
+            .order("chapter_number")
+            .execute()
+        )
+        current_chapters = current_chaps_res.data or []
+        current_ids = [str(c["id"]) for c in current_chapters]
+        incoming_chapters = [
+            {
+                "id": str(chapter.id) if chapter.id else "",
+                "chapter_number": chapter.chapter_number,
+                "title": chapter.title,
+                "timeline_period": chapter.timeline_period,
+                "pov_character": chapter.pov_character,
+                "main_event": chapter.main_event,
+                "primary_function": chapter.primary_function,
+                "emotional_beat": chapter.emotional_beat or "",
+                "relationship_beat": chapter.relationship_beat or "",
+                "chapter_hook": chapter.chapter_hook or "",
+                "continuity_note": chapter.continuity_note or "",
+            }
+            for chapter in request.chapters
+        ]
+        chapters_changed = _chapter_signature(current_chapters) != _chapter_signature(incoming_chapters)
         
         incoming_ids = [str(c.id) for c in request.chapters if c.id]
         
@@ -633,8 +1199,21 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
         if chapters_to_insert:
             supabase.table("chapters").insert(chapters_to_insert).execute()
 
+        if chapters_changed and await _project_has_beats(project_id):
+            supabase.table("projects").update(
+                {
+                    "beat_generation": {
+                        "status": "stale",
+                        "completed": 0,
+                        "total": len(request.chapters),
+                    }
+                }
+            ).eq("id", project_id).execute()
+
         return {"success": True}
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[Error Bulk Update] LỖI: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -652,6 +1231,11 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
         
         if not beats:
             raise HTTPException(status_code=400, detail="Chương này chưa có nhịp truyện (Beats) nào.")
+
+        supabase.table("chapters").update({
+            "status": "Drafting",
+            "final_content": None,
+        }).eq("id", chapter_id).execute()
 
         # 2. CHẠY TUẦN TỰ QUA TỪNG BEAT
         previous_text = ""
@@ -682,7 +1266,9 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
                 pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter_res.data[0].get("pov_character", ""))
             )
             
-            draft_text = await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+            draft_text = _sanitize_story_text(
+                await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+            )
             
             # Lưu bản nháp vào DB
             supabase.table("beats").update({"ai_draft_text": draft_text}).eq("id", beat["id"]).execute()
@@ -705,8 +1291,11 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
             except Exception as mem_err:
                 print(f"[Cảnh báo Memory] Lỗi cập nhật trí nhớ, vẫn tiếp tục draft: {mem_err}")
 
-        # Cập nhật status của chương thành "Drafted" để UI biết
-        supabase.table("chapters").update({"status": "Draft Completed"}).eq("id", chapter_id).execute()
+        # A new draft invalidates any previously refined chapter text.
+        supabase.table("chapters").update({
+            "status": "Draft Completed",
+            "final_content": None,
+        }).eq("id", chapter_id).execute()
 
         return {"success": True, "message": "Đã tự động viết xong toàn bộ các cảnh trong chương."}
 
@@ -721,7 +1310,7 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
 async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, previous_text: str = ""):
     try:
         # 1. Lấy Data
-        beat_res = supabase.table("beats").select("*, chapters(pov_character, projects(current_memory, story_bible, heat_level))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("*, chapters(id, pov_character, projects(current_memory, story_bible, heat_level))").eq("id", beat_id).execute()
         beat = beat_res.data[0]
         chapter = beat["chapter"]
         project = chapter["projects"]
@@ -752,10 +1341,16 @@ async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, pre
             pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter.get("pov_character", ""))
         )
         
-        draft_text = await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+        draft_text = _sanitize_story_text(
+            await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+        )
         
         # 3. Lưu bản nháp vào DB
         supabase.table("beats").update({"ai_draft_text": draft_text}).eq("id", beat_id).execute()
+        supabase.table("chapters").update({
+            "status": "Draft Completed",
+            "final_content": None,
+        }).eq("id", chapter["id"]).execute()
         
         # 4. KÍCH HOẠT BACKGROUND TASK ĐỂ CẬP NHẬT TRÍ NHỚ
         # Giao diện Frontend sẽ nhận được draft_text ngay lập tức mà không phải chờ bước này!
@@ -776,7 +1371,12 @@ async def bulk_update_beats(request: BulkBeatUpdateRequest):
     try:
         # Update từng beat (Hoặc dùng thư viện batch của Supabase nếu có)
         for beat in request.beats:
-            supabase.table("beats").update({"ai_draft_text": beat["draft_text"]}).eq("id", beat["id"]).execute()
+            draft_text = beat["draft_text"]
+            supabase.table("beats").update({
+                "ai_draft_text": (
+                    _sanitize_story_text(draft_text) if draft_text is not None else None
+                ),
+            }).eq("id", beat["id"]).execute()
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -873,7 +1473,9 @@ async def edit_beat_text(beat_id: str, request: EditBeatTextRequest):
         )
         
         # Gọi hàm trả về Text (XML tag) giống hệt lúc Draft
-        new_text = await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+        new_text = _sanitize_story_text(
+            await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+        )
         
         # Cập nhật trực tiếp văn bản vào DB
         supabase.table("beats").update({"ai_draft_text": new_text}).eq("id", beat_id).execute()
@@ -961,7 +1563,15 @@ async def get_single_project(project_id: str):
         res = supabase.table("projects").select("*").eq("id", project_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
-        return {"success": True, "data": res.data[0]}
+        project = res.data[0]
+        chapters = await _load_project_chapters(project_id)
+        outline = project.get("story_outline") or {}
+        project["story_outline_current"] = bool(
+            outline.get("confirmed")
+            and outline.get("chapter_signature") == _chapter_signature(chapters)
+            and outline.get("story_bible_signature") == _story_bible_signature(project.get("story_bible"))
+        )
+        return {"success": True, "data": project}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -969,7 +1579,7 @@ async def get_single_project(project_id: str):
 @app.get("/api/projects/{project_id}/chapters")
 async def get_chapters(project_id: str):
     try:
-        columns = "id, chapter_number, title, pov_character, status, timeline_period, main_event, primary_function, emotional_beat, relationship_beat, chapter_hook, continuity_note"
+        columns = "id, chapter_number, title, pov_character, status, final_content, timeline_period, main_event, primary_function, emotional_beat, relationship_beat, chapter_hook, continuity_note"
         res = supabase.table("chapters").select(columns).eq("project_id", project_id).order("chapter_number").execute()
         return {"success": True, "data": res.data}
     except Exception as e:
@@ -980,7 +1590,132 @@ async def get_beats(chapter_id: str):
     try:
         # Lấy danh sách beats của 1 chương, sắp xếp theo thời gian tạo
         res = supabase.table("beats").select("*").eq("chapter_id", chapter_id).order("beat_order").execute()
-        return {"success": True, "data": res.data}
+        return {"success": True, "data": _sanitize_beat_drafts(res.data or [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/projects/{project_id}/beats")
+async def get_project_beats(project_id: str):
+    try:
+        chapters_res = (
+            supabase.table("chapters")
+            .select("id")
+            .eq("project_id", project_id)
+            .execute()
+        )
+        chapter_ids = [chapter["id"] for chapter in chapters_res.data or []]
+        if not chapter_ids:
+            return {"success": True, "data": []}
+
+        beats_res = (
+            supabase.table("beats")
+            .select("*")
+            .in_("chapter_id", chapter_ids)
+            .order("beat_order")
+            .execute()
+        )
+        return {"success": True, "data": _sanitize_beat_drafts(beats_res.data or [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chapters/{chapter_id}/beats")
+async def insert_beat(chapter_id: str, request: BeatInsertRequest):
+    try:
+        chapter_result = (
+            supabase.table("chapters")
+            .select("id, chapter_number")
+            .eq("id", chapter_id)
+            .execute()
+        )
+        if not chapter_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy chapter.")
+        chapter_number = chapter_result.data[0]["chapter_number"]
+        existing = (
+            supabase.table("beats")
+            .select("id, beat_order")
+            .eq("chapter_id", chapter_id)
+            .order("beat_order")
+            .execute()
+        ).data or []
+        insert_index = min(request.insert_index, len(existing))
+        for index in range(len(existing) - 1, insert_index - 1, -1):
+            beat = existing[index]
+            new_order = index + 2
+            supabase.table("beats").update({
+                "beat_order": new_order,
+                "beat_id": f"C{chapter_number}_B{new_order}",
+            }).eq("id", beat["id"]).execute()
+
+        new_order = insert_index + 1
+        inserted_result = supabase.table("beats").insert({
+            "chapter_id": chapter_id,
+            "beat_id": f"C{chapter_number}_B{new_order}",
+            "beat_order": new_order,
+            "location": request.location if request.location is not None else "Chưa xác định",
+            "characters_present": request.characters_present if request.characters_present is not None else "",
+            "action_and_dialogue": request.action_and_dialogue if request.action_and_dialogue is not None else "Action: \nDialogue: ",
+            "emotional_shift": request.emotional_shift if request.emotional_shift is not None else "",
+            "ai_draft_text": _sanitize_story_text(request.draft_text) if request.draft_text is not None else "",
+        }).execute().data
+        if not inserted_result:
+            raise HTTPException(status_code=500, detail="Không nhận được beat vừa tạo từ database.")
+        supabase.table("chapters").update({
+            "status": "Beats Generated",
+            "final_content": None,
+        }).eq("id", chapter_id).execute()
+        return {
+            "success": True,
+            "data": _sanitize_beat_drafts(inserted_result)[0],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/beats/{beat_id}")
+async def delete_beat(beat_id: str):
+    try:
+        beat_result = (
+            supabase.table("beats")
+            .select("id, chapter_id")
+            .eq("id", beat_id)
+            .execute()
+        )
+        if not beat_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy beat.")
+        chapter_id = beat_result.data[0]["chapter_id"]
+        chapter_result = (
+            supabase.table("chapters")
+            .select("chapter_number")
+            .eq("id", chapter_id)
+            .execute()
+        )
+        if not chapter_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy chapter của beat.")
+        chapter_number = chapter_result.data[0]["chapter_number"]
+        supabase.table("beats").delete().eq("id", beat_id).execute()
+        remaining = (
+            supabase.table("beats")
+            .select("id")
+            .eq("chapter_id", chapter_id)
+            .order("beat_order")
+            .execute()
+        ).data or []
+        for index, beat in enumerate(remaining, start=1):
+            supabase.table("beats").update({
+                "beat_order": index,
+                "beat_id": f"C{chapter_number}_B{index}",
+            }).eq("id", beat["id"]).execute()
+        supabase.table("chapters").update({
+            "status": "Beats Generated",
+            "final_content": None,
+        }).eq("id", chapter_id).execute()
+        return {"success": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -988,8 +1723,25 @@ async def get_beats(chapter_id: str):
 @app.put("/api/beats/{beat_id}")
 async def update_beat_text(beat_id: str, request: BeatUpdateRequest):
     try:
-        supabase.table("beats").update({"ai_draft_text": request.draft_text}).eq("id", beat_id).execute()
+        updates = request.model_dump(exclude_unset=True)
+        if "draft_text" in updates:
+            draft_text = updates.pop("draft_text")
+            updates["ai_draft_text"] = (
+                _sanitize_story_text(draft_text) if draft_text is not None else None
+            )
+        if not updates:
+            raise HTTPException(status_code=400, detail="Không có dữ liệu để cập nhật.")
+        beat_result = supabase.table("beats").select("chapter_id").eq("id", beat_id).execute()
+        if not beat_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy beat.")
+        supabase.table("beats").update(updates).eq("id", beat_id).execute()
+        supabase.table("chapters").update({
+            "status": "Beats Generated",
+            "final_content": None,
+        }).eq("id", beat_result.data[0]["chapter_id"]).execute()
         return {"success": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

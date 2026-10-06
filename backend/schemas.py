@@ -66,7 +66,25 @@ class RenderRequest(BaseModel):
     overlay_h: int = 1070
 
 class BeatUpdateRequest(BaseModel):
-    draft_text: str
+    draft_text: str | None = None
+    location: str | None = None
+    characters_present: str | None = None
+    action_and_dialogue: str | None = None
+    emotional_shift: str | None = None
+
+
+class BeatInsertRequest(BaseModel):
+    insert_index: int = Field(ge=0)
+    location: str | None = None
+    characters_present: str | None = None
+    action_and_dialogue: str | None = None
+    emotional_shift: str | None = None
+    draft_text: str | None = None
+
+
+class BeatEvaluationRequest(BaseModel):
+    scope: Literal["chapter", "story"]
+    chapter_id: str | None = None
 
 class ChapterUpdateRequest(BaseModel):
     final_content: str
@@ -147,6 +165,15 @@ class ChapterItem(BaseModel):
 
 class BulkUpdateChaptersRequest(BaseModel):
     chapters: list[ChapterItem]
+
+class StoryOutlineUpdateRequest(BaseModel):
+    story_outline: str
+    confirmed: bool = False
+    chapter_signature: list[dict]
+    story_bible_signature: str
+
+class GenerateAllBeatsRequest(BaseModel):
+    reset_existing: bool = False
 
 class GenerateSingleChapterRequest(BaseModel):
     action_type: str  # "insert" hoặc "edit"
