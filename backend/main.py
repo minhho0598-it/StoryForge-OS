@@ -1220,7 +1220,11 @@ async def bulk_update_chapters(project_id: str, request: BulkUpdateChaptersReque
     
 
 @app.post("/api/chapters/{chapter_id}/batch-draft")
-async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks):
+async def batch_draft_chapter(
+    chapter_id: str,
+    background_tasks: BackgroundTasks,
+    previous_text: str = "",
+):
     try:
         # 1. Lấy tất cả các beats của chương, sắp xếp đúng thứ tự
         chapter_res = supabase.table("chapters").select("pov_character, projects(id, story_bible, heat_level)").eq("id", chapter_id).execute()
@@ -1238,7 +1242,6 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
         }).eq("id", chapter_id).execute()
 
         # 2. CHẠY TUẦN TỰ QUA TỪNG BEAT
-        previous_text = ""
         for beat in beats:
             # Lấy Memory mới nhất trực tiếp từ DB cho TỪNG vòng lặp (vì Memory có thể thay đổi sau mỗi Beat)
             curr_proj = supabase.table("projects").select("current_memory").eq("id", project_id).execute()
@@ -1288,6 +1291,7 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
                 )
                 memory_result = await generate_json(mem_sys, mem_usr)
                 supabase.table("projects").update({"current_memory": memory_result}).eq("id", project_id).execute()
+                print(f"[Batch Draft] Cập nhật bộ nhớ thành công sau Beat {beat['beat_id']}.")
             except Exception as mem_err:
                 print(f"[Cảnh báo Memory] Lỗi cập nhật trí nhớ, vẫn tiếp tục draft: {mem_err}")
 
@@ -1306,41 +1310,97 @@ async def batch_draft_chapter(chapter_id: str, background_tasks: BackgroundTasks
 # ==========================================
 # 5. DRAFT A BEAT (VIẾT NHÁP CHO 1 BEAT CỤ THỂ)
 # ==========================================
+def _build_single_beat_draft_prompts(beat: dict, previous_text: str) -> tuple[str, str]:
+    beat_data = {
+        "location": beat.get("location", ""),
+        "characters_present": beat.get("characters_present", ""),
+        "action_and_dialogue": beat.get("action_and_dialogue", ""),
+        "emotional_shift": beat.get("emotional_shift", ""),
+    }
+    chapter = beat["chapter"]
+    project = chapter["projects"]
+    current_memory_data = project.get("current_memory", {})
+    chars_str = beat.get("characters_present", "")
+    present_chars_list = [c.strip() for c in chars_str.split(",") if c.strip()]
+
+    optimized_bible = get_optimized_bible(
+        project.get("story_bible", {}),
+        task="drafting",
+        present_characters=present_chars_list,
+        pov_character=chapter.get("pov_character", ""),
+    )
+    chapter_info = {
+        "title": chapter["title"],
+        "primary_function": chapter.get("primary_function"),
+        "main_event": chapter.get("main_event"),
+        "emotional_beat": chapter.get("emotional_beat"),
+        "relationship_beat": chapter.get("relationship_beat"),
+        "chapter_hook": chapter.get("chapter_hook"),
+        "continuity_note": chapter.get("continuity_note"),
+    }
+
+
+    system_prompt = prompt_manager.load_prompt("draft_system.md")
+    user_prompt = prompt_manager.load_prompt(
+        "draft_user.md",
+        story_bible=json.dumps(optimized_bible, ensure_ascii=False),
+        chapter_info=json.dumps(chapter_info, ensure_ascii=False),
+        heat_level=project.get("heat_level", 1),
+        current_memory=json.dumps(current_memory_data, ensure_ascii=False),
+        previous_beat_text=previous_text[-1500:],
+        beat_data=json.dumps(beat_data, ensure_ascii=False),
+        pov_instruction=get_pov_instruction(
+            project.get("story_bible", {}),
+            chapter.get("pov_character", ""),
+        ),
+    )
+    return system_prompt, user_prompt
+
+
+@app.get("/api/beats/{beat_id}/draft-prompt")
+async def get_single_beat_draft_prompt(beat_id: str, previous_text: str = ""):
+    try:
+        beat_res = (
+            supabase.table("beats")
+            .select("location, characters_present, action_and_dialogue, emotional_shift, chapter:chapters(id, title, pov_character, timeline_period, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(id, current_memory, story_bible, heat_level))")
+            .eq("id", beat_id)
+            .execute()
+        )
+
+        if not beat_res.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy beat.")
+        system_prompt, user_prompt = _build_single_beat_draft_prompts(
+            beat_res.data[0],
+            previous_text,
+        )
+        return {
+            "success": True,
+            "data": {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/beats/{beat_id}/draft")
 async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, previous_text: str = ""):
     try:
         # 1. Lấy Data
-        beat_res = supabase.table("beats").select("*, chapters(id, pov_character, projects(current_memory, story_bible, heat_level))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("*, chapter:chapters(id, title, pov_character, timeline_period, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(id, current_memory, story_bible, heat_level))").eq("id", beat_id).execute()
+        if not beat_res.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy beat.")
         beat = beat_res.data[0]
         chapter = beat["chapter"]
         project = chapter["projects"]
         project_id = project["id"]
-        heat_level = project.get("heat_level", 1)
-        
         current_memory_data = project.get("current_memory", {})
-        
-        # 2. Gọi AI Viết Văn
-        chars_str = beat.get("characters_present", "")
-        present_chars_list = [c.strip() for c in chars_str.split(",") if c.strip()]
 
-        # Gọi hàm lọc
-        optimized_bible = get_optimized_bible(
-            project.get("story_bible", {}), 
-            task="drafting", 
-            present_characters=present_chars_list,
-            pov_character=chapter.get("pov_character", "")
-        )
-        system_prompt = prompt_manager.load_prompt("draft_system.md")
-        user_prompt = prompt_manager.load_prompt(
-            "draft_user.md",
-            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
-            heat_level=heat_level,
-            current_memory=json.dumps(current_memory_data, ensure_ascii=False),
-            previous_beat_text=previous_text[-1500:],
-            beat_data=json.dumps(beat, ensure_ascii=False),
-            pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter.get("pov_character", ""))
-        )
-        
+        # 2. Gọi AI Viết Văn
+        system_prompt, user_prompt = _build_single_beat_draft_prompts(beat, previous_text)
         draft_text = _sanitize_story_text(
             await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
         )
@@ -1367,17 +1427,73 @@ async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, pre
 
 
 @app.put("/api/beats/bulk-update")
-async def bulk_update_beats(request: BulkBeatUpdateRequest):
+async def bulk_update_beats(request: BulkBeatUpdateRequest, background_tasks: BackgroundTasks):
     try:
-        # Update từng beat (Hoặc dùng thư viện batch của Supabase nếu có)
+        memory_updates: dict[str, dict] = {}
         for beat in request.beats:
+            beat_id = beat.get("id")
+            if not beat_id or "draft_text" not in beat:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Mỗi beat cần có id và draft_text.",
+                )
             draft_text = beat["draft_text"]
+            beat_result = (
+                supabase.table("beats")
+                .select("id, chapter_id, ai_draft_text")
+                .eq("id", beat_id)
+                .execute()
+            )
+            if not beat_result.data:
+                raise HTTPException(status_code=404, detail=f"Không tìm thấy beat {beat_id}.")
+            saved_beat = beat_result.data[0]
+            sanitized_text = (
+                _sanitize_story_text(draft_text) if draft_text is not None else None
+            )
             supabase.table("beats").update({
-                "ai_draft_text": (
-                    _sanitize_story_text(draft_text) if draft_text is not None else None
-                ),
-            }).eq("id", beat["id"]).execute()
+                "ai_draft_text": sanitized_text,
+            }).eq("id", beat_id).execute()
+
+            if (
+                not sanitized_text
+                or sanitized_text == saved_beat.get("ai_draft_text")
+            ):
+                continue
+
+            chapter_result = (
+                supabase.table("chapters")
+                .select("project_id")
+                .eq("id", saved_beat["chapter_id"])
+                .execute()
+            )
+            if not chapter_result.data:
+                raise HTTPException(status_code=404, detail="Không tìm thấy chapter của beat.")
+            project_id = chapter_result.data[0]["project_id"]
+            if project_id not in memory_updates:
+                project_result = (
+                    supabase.table("projects")
+                    .select("current_memory")
+                    .eq("id", project_id)
+                    .execute()
+                )
+                if not project_result.data:
+                    raise HTTPException(status_code=404, detail="Không tìm thấy project của beat.")
+                memory_updates[project_id] = {
+                    "old_memory": project_result.data[0].get("current_memory") or {},
+                    "drafts": [],
+                }
+            memory_updates[project_id]["drafts"].append(sanitized_text)
+
+        for project_id, update in memory_updates.items():
+            background_tasks.add_task(
+                background_update_memory,
+                project_id=project_id,
+                old_memory=update["old_memory"],
+                new_text="\n\n".join(update["drafts"]),
+            )
         return {"success": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1721,24 +1837,66 @@ async def delete_beat(beat_id: str):
 
 
 @app.put("/api/beats/{beat_id}")
-async def update_beat_text(beat_id: str, request: BeatUpdateRequest):
+async def update_beat_text(
+    beat_id: str,
+    request: BeatUpdateRequest,
+    background_tasks: BackgroundTasks,
+):
     try:
         updates = request.model_dump(exclude_unset=True)
+        draft_text_changed = False
         if "draft_text" in updates:
             draft_text = updates.pop("draft_text")
-            updates["ai_draft_text"] = (
+            sanitized_text = (
                 _sanitize_story_text(draft_text) if draft_text is not None else None
             )
+            updates["ai_draft_text"] = sanitized_text
+            draft_text_changed = bool(sanitized_text)
         if not updates:
             raise HTTPException(status_code=400, detail="Không có dữ liệu để cập nhật.")
-        beat_result = supabase.table("beats").select("chapter_id").eq("id", beat_id).execute()
+        beat_result = (
+            supabase.table("beats")
+            .select("chapter_id, ai_draft_text")
+            .eq("id", beat_id)
+            .execute()
+        )
         if not beat_result.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy beat.")
+        saved_beat = beat_result.data[0]
+        draft_text_changed = (
+            draft_text_changed
+            and updates.get("ai_draft_text") != saved_beat.get("ai_draft_text")
+        )
         supabase.table("beats").update(updates).eq("id", beat_id).execute()
+        chapter_id = saved_beat["chapter_id"]
         supabase.table("chapters").update({
             "status": "Beats Generated",
             "final_content": None,
-        }).eq("id", beat_result.data[0]["chapter_id"]).execute()
+        }).eq("id", chapter_id).execute()
+        if draft_text_changed:
+            chapter_result = (
+                supabase.table("chapters")
+                .select("project_id")
+                .eq("id", chapter_id)
+                .execute()
+            )
+            if not chapter_result.data:
+                raise HTTPException(status_code=404, detail="Không tìm thấy chapter của beat.")
+            project_id = chapter_result.data[0]["project_id"]
+            project_result = (
+                supabase.table("projects")
+                .select("current_memory")
+                .eq("id", project_id)
+                .execute()
+            )
+            if not project_result.data:
+                raise HTTPException(status_code=404, detail="Không tìm thấy project của beat.")
+            background_tasks.add_task(
+                background_update_memory,
+                project_id=project_id,
+                old_memory=project_result.data[0].get("current_memory") or {},
+                new_text=updates["ai_draft_text"],
+            )
         return {"success": True}
     except HTTPException:
         raise
