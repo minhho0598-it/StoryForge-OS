@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Activity, AlertCircle, BookOpen, CheckCircle2, ChevronDown, FileText, Layers, List, Loader2, Map, MapPin, Plus, Save, Sparkles, Trash2, Users, Wand2, X } from "lucide-react";
+import { Activity, AlertCircle, BookOpen, Check, CheckCircle2, ChevronDown, Copy, FileText, Layers, List, Loader2, Map, MapPin, Plus, Save, Sparkles, Trash2, Users, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api-client";
+import { createTemporaryId } from "@/lib/utils";
 
 type Chapter = {
   id?: string;
@@ -84,6 +85,44 @@ function isLocalBeat(beatId: string) {
   return beatId.startsWith(LOCAL_BEAT_ID_PREFIX);
 }
 
+async function copyTextToClipboard(text: string) {
+  let clipboardError: unknown;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch (error) {
+    clipboardError = error;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.setAttribute("aria-hidden", "true");
+  textarea.style.position = "fixed";
+  textarea.style.top = "0";
+  textarea.style.left = "-9999px";
+  textarea.style.fontSize = "16px";
+  document.body.appendChild(textarea);
+
+  try {
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    if (!document.execCommand("copy")) {
+      throw new Error("Trình duyệt không cho phép sao chép vào clipboard.");
+    }
+  } catch (fallbackError) {
+    const messages = [clipboardError, fallbackError]
+      .filter((error): error is Error => error instanceof Error)
+      .map((error) => error.message);
+    throw new Error(messages.join(" "));
+  } finally {
+    textarea.remove();
+  }
+}
+
 type BeatEvaluation = {
   overall_score: number | string;
   summary: string;
@@ -137,7 +176,7 @@ function chapterSignature(chapters: Chapter[]) {
 }
 
 const emptyChapter = (chapter_number: number): Chapter => ({
-  temp_id: crypto.randomUUID(),
+  temp_id: createTemporaryId(),
   chapter_number,
   title: `Chương ${chapter_number}`,
   timeline_period: "Hiện tại",
@@ -243,6 +282,7 @@ export default function StoryWorkflowPlanner({
   const [refiningChapterId, setRefiningChapterId] = useState<string | null>(null);
   const [draftingWorkflowBeatId, setDraftingWorkflowBeatId] = useState<string | null>(null);
   const [batchDraftingChapterId, setBatchDraftingChapterId] = useState<string | null>(null);
+  const [copiedWorkflowBeatPromptId, setCopiedWorkflowBeatPromptId] = useState<string | null>(null);
   const [isPlannerTocOpen, setIsPlannerTocOpen] = useState(false);
   const [activePlannerTocId, setActivePlannerTocId] = useState<string | null>(null);
 
@@ -347,6 +387,55 @@ export default function StoryWorkflowPlanner({
     });
   };
 
+  const previousWorkflowBeatText = (chapter: Chapter, beatIndex: number) => {
+    const chapterBeats = chapter.id ? beatsByChapter[chapter.id] ?? [] : [];
+    if (beatIndex > 0) {
+      return chapterBeats[beatIndex - 1]?.ai_draft_text ?? "";
+    }
+
+    const chapterIndex = chapters.findIndex((item) => item.id === chapter.id);
+    if (chapterIndex <= 0) return "";
+    const previousChapter = chapters[chapterIndex - 1];
+    if (!previousChapter.id) return "";
+    const previousChapterBeats = beatsByChapter[previousChapter.id] ?? [];
+    return previousChapterBeats.at(-1)?.ai_draft_text ?? "";
+  };
+
+  const copyWorkflowBeatPrompt = async (chapter: Chapter, beat: StoryBeat, index: number) => {
+    setWorkflowBeatsError(null);
+    if (hasUnsavedLocalBeats) {
+      setWorkflowBeatsError("Hãy lưu các beat mới trước khi sao chép prompt.");
+      return;
+    }
+    if (dirtyBeatCount > 0 && !(await saveWorkflowBeats())) return;
+    try {
+      const previousText = previousWorkflowBeatText(chapter, index);
+      const query = new URLSearchParams({ previous_text: previousText.slice(-1500) });
+      const result = await apiClient.get<{ system_prompt: string; user_prompt: string }>(
+        `/api/beats/${beat.id}/draft-prompt?${query.toString()}`,
+      );
+      if (!result.data?.system_prompt || !result.data.user_prompt) {
+        throw new Error("Backend không trả về đầy đủ prompt tạo draft beat.");
+      }
+      const fullPrompt = [
+        "SYSTEM PROMPT",
+        result.data.system_prompt,
+        "",
+        "USER PROMPT",
+        result.data.user_prompt,
+      ].join("\n");
+      await copyTextToClipboard(fullPrompt);
+      setCopiedWorkflowBeatPromptId(beat.id);
+      window.setTimeout(() => {
+        setCopiedWorkflowBeatPromptId((current) => current === beat.id ? null : current);
+      }, 2000);
+    } catch (copyError) {
+      setWorkflowBeatsError(
+        copyError instanceof Error ? `Không thể sao chép prompt tạo draft beat: ${copyError.message}` : "Không thể sao chép prompt tạo draft beat.",
+      );
+    }
+  };
+
   const draftWorkflowBeat = async (chapter: Chapter, beat: StoryBeat, index: number) => {
     if (!chapter.id || draftingWorkflowBeatId || batchDraftingChapterId) return;
     if (hasUnsavedLocalBeats) {
@@ -361,8 +450,7 @@ export default function StoryWorkflowPlanner({
     setWorkflowBeatsError(null);
     setDraftingWorkflowBeatId(beat.id);
     try {
-      const chapterBeats = beatsByChapter[chapter.id] ?? [];
-      const previousText = index > 0 ? chapterBeats[index - 1]?.ai_draft_text ?? "" : "";
+      const previousText = previousWorkflowBeatText(chapter, index);
       const query = new URLSearchParams({
         previous_text: previousText.slice(-1500),
       });
@@ -401,7 +489,9 @@ export default function StoryWorkflowPlanner({
     markChapterDraftStale(chapter.id, "Drafting");
     setBatchDraftingChapterId(chapter.id);
     try {
-      await apiClient.post(`/api/chapters/${chapter.id}/batch-draft`);
+      const previousText = previousWorkflowBeatText(chapter, 0);
+      const query = new URLSearchParams({ previous_text: previousText.slice(-1500) });
+      await apiClient.post(`/api/chapters/${chapter.id}/batch-draft?${query.toString()}`);
       const result = await apiClient.get<StoryBeat[]>(`/api/chapters/${chapter.id}/beats`);
       setBeatsByChapter((current) => ({ ...current, [chapter.id!]: result.data ?? [] }));
       markChapterDraftStale(chapter.id, "Draft Completed");
@@ -464,9 +554,16 @@ export default function StoryWorkflowPlanner({
           characters_present: beat.characters_present,
           action_and_dialogue: beat.action_and_dialogue,
           emotional_shift: beat.emotional_shift,
-          draft_text: beat.ai_draft_text,
         }),
       ));
+      if (existingBeats.length > 0) {
+        await apiClient.put("/api/beats/bulk-update", {
+          beats: existingBeats.map((beat) => ({
+            id: beat.id,
+            draft_text: beat.ai_draft_text,
+          })),
+        });
+      }
 
       new Set(existingBeats.map((beat) => beat.chapter_id)).forEach((chapterId) =>
         markChapterDraftStale(chapterId),
@@ -561,7 +658,7 @@ export default function StoryWorkflowPlanner({
   const insertWorkflowBeat = (chapter: Chapter, insertIndex: number) => {
     if (!chapter.id) return;
     setWorkflowBeatsError(null);
-    const beatId = `${LOCAL_BEAT_ID_PREFIX}${crypto.randomUUID()}`;
+    const beatId = `${LOCAL_BEAT_ID_PREFIX}${createTemporaryId()}`;
     const newBeat: StoryBeat = {
       id: beatId,
       chapter_id: chapter.id,
@@ -830,7 +927,7 @@ export default function StoryWorkflowPlanner({
       const generated = result.data.map((chapter) => ({
         ...emptyChapter(1),
         ...chapter,
-        temp_id: crypto.randomUUID(),
+        temp_id: createTemporaryId(),
       }));
       const updated = [...chapters];
       if (action === "insert") {
@@ -1557,7 +1654,7 @@ export default function StoryWorkflowPlanner({
                               </div>
                               </div>
                             </details>
-                            <div className="flex items-center justify-between border-t bg-white px-4 py-2">
+                            <div className="flex flex-wrap items-center justify-between gap-1 border-t bg-white px-4 py-2">
                               <Button
                                 type="button"
                                 size="sm"
@@ -1585,6 +1682,19 @@ export default function StoryWorkflowPlanner({
                                   {draftingWorkflowBeatId === beat.id ? "Đang viết..." : "AI viết beat"}
                                 </Button>
                               )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1.5 text-xs"
+                                disabled={generation?.status === "running" || savingBeats || draftingWorkflowBeatId !== null || batchDraftingChapterId !== null}
+                                onClick={() => void copyWorkflowBeatPrompt(chapter, beat, index)}
+                              >
+                                {copiedWorkflowBeatPromptId === beat.id
+                                  ? <Check className="h-3.5 w-3.5" />
+                                  : <Copy className="h-3.5 w-3.5" />}
+                                {copiedWorkflowBeatPromptId === beat.id ? "Đã copy prompt" : "Copy prompt tạo draft"}
+                              </Button>
                               <Button
                                 type="button"
                                 size="sm"

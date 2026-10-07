@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
+import { createTemporaryId } from "@/lib/utils";
 import StoryBibleVisual from "@/components/story-bible-visual";
 
 
@@ -217,7 +218,7 @@ export default function ArchitecturePage() {
     const newChaps = [...chapters];
     // Chèn 1 object rỗng (chưa có ID) vào vị trí index
     newChaps.splice(index, 0, {
-      temp_id: crypto.randomUUID(),
+      temp_id: createTemporaryId(),
       chapter_number: 0, // Sẽ được đánh số lại ở hàm recalculate
       title: "Chương mới",
       timeline_period: "Hiện tại",
@@ -597,7 +598,7 @@ export default function ArchitecturePage() {
         // Nhận về một MẢNG chứa 1 hoặc nhiều chapters
         const newGeneratedChapters = result.data.map((c: any) => ({
           ...c,
-          temp_id: crypto.randomUUID(), // Ép ID tạm an toàn
+          temp_id: createTemporaryId(),
           status: "Drafting Pending"
         }));
         
