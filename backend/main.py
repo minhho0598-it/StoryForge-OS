@@ -10,6 +10,7 @@ import httpx
 from core.database import supabase  # Import DB
 from core.prompt_manager import prompt_manager
 from core.render_config import get_global_render_config, normalize_render_config, save_global_render_config
+from core.style_filter import load_forbidden_phrases
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
@@ -1226,13 +1227,13 @@ async def batch_draft_chapter(
     previous_text: str = "",
 ):
     try:
+        forbidden_phrases = load_forbidden_phrases()
         # 1. Lấy tất cả các beats của chương, sắp xếp đúng thứ tự
         chapter_res = supabase.table("chapters").select("pov_character, projects(id, story_bible, heat_level)").eq("id", chapter_id).execute()
         beats_res = supabase.table("beats").select("*").eq("chapter_id", chapter_id).order("beat_order").execute()
         beats = beats_res.data
         project = chapter_res.data[0]["projects"]
         project_id = project["id"]
-        
         if not beats:
             raise HTTPException(status_code=400, detail="Chương này chưa có nhịp truyện (Beats) nào.")
 
@@ -1259,16 +1260,23 @@ async def batch_draft_chapter(
                 pov_character=chapter_res.data[0].get("pov_character", "")
             )
             system_prompt = prompt_manager.load_prompt("draft_system.md")
+            pov_instruction = get_pov_instruction(
+                project.get("story_bible", {}),
+                chapter_res.data[0].get("pov_character", ""),
+            )
             user_prompt = prompt_manager.load_prompt(
                 "draft_user.md",
                 story_bible=json.dumps(optimized_bible, ensure_ascii=False),
                 heat_level=project.get("heat_level", 1),
                 current_memory=json.dumps(current_memory_data, ensure_ascii=False),
-                previous_beat_text=previous_text[-1500:],
+                previous_beat_text=previous_text[-900:],
                 beat_data=json.dumps(beat, ensure_ascii=False),
-                pov_instruction=get_pov_instruction(project.get("story_bible", {}), chapter_res.data[0].get("pov_character", ""))
+                pov_instruction=pov_instruction,
+                forbidden_phrases=json.dumps(
+                    forbidden_phrases, ensure_ascii=False
+                ),
             )
-            
+
             draft_text = _sanitize_story_text(
                 await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
             )
@@ -1276,7 +1284,7 @@ async def batch_draft_chapter(
             # Lưu bản nháp vào DB
             supabase.table("beats").update({"ai_draft_text": draft_text}).eq("id", beat["id"]).execute()
             
-            # Lấy 1500 ký tự cuối để làm mồi cho Beat tiếp theo
+            # Lấy 900 ký tự cuối để làm mồi cho Beat tiếp theo
             previous_text = draft_text
 
             # CẬP NHẬT TRÍ NHỚ ĐỒNG BỘ (Bắt buộc phải await ở đây thay vì background task
@@ -1338,21 +1346,21 @@ def _build_single_beat_draft_prompts(beat: dict, previous_text: str) -> tuple[st
         "chapter_hook": chapter.get("chapter_hook"),
         "continuity_note": chapter.get("continuity_note"),
     }
-
-
     system_prompt = prompt_manager.load_prompt("draft_system.md")
+    forbidden_phrases = load_forbidden_phrases()
     user_prompt = prompt_manager.load_prompt(
         "draft_user.md",
         story_bible=json.dumps(optimized_bible, ensure_ascii=False),
         chapter_info=json.dumps(chapter_info, ensure_ascii=False),
         heat_level=project.get("heat_level", 1),
         current_memory=json.dumps(current_memory_data, ensure_ascii=False),
-        previous_beat_text=previous_text[-1500:],
+        previous_beat_text=previous_text[-900:],
         beat_data=json.dumps(beat_data, ensure_ascii=False),
         pov_instruction=get_pov_instruction(
             project.get("story_bible", {}),
             chapter.get("pov_character", ""),
         ),
+        forbidden_phrases=json.dumps(forbidden_phrases, ensure_ascii=False),
     )
     return system_prompt, user_prompt
 

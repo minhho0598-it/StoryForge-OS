@@ -280,6 +280,8 @@ export default function StoryWorkflowPlanner({
   const [expandedChapterIds, setExpandedChapterIds] = useState<Record<string, boolean>>({});
   const [chapterContentMode, setChapterContentMode] = useState<Record<string, "beats" | "refined">>({});
   const [refiningChapterId, setRefiningChapterId] = useState<string | null>(null);
+  const [dirtyChapterContentIds, setDirtyChapterContentIds] = useState<Record<string, boolean>>({});
+  const [savingRefinedChapterId, setSavingRefinedChapterId] = useState<string | null>(null);
   const [draftingWorkflowBeatId, setDraftingWorkflowBeatId] = useState<string | null>(null);
   const [batchDraftingChapterId, setBatchDraftingChapterId] = useState<string | null>(null);
   const [copiedWorkflowBeatPromptId, setCopiedWorkflowBeatPromptId] = useState<string | null>(null);
@@ -535,7 +537,43 @@ export default function StoryWorkflowPlanner({
         ? { ...chapter, status, final_content: null }
         : chapter,
     ));
+    setDirtyChapterContentIds((current) => {
+      const next = { ...current };
+      delete next[chapterId];
+      return next;
+    });
     setChapterContentMode((current) => ({ ...current, [chapterId]: "beats" }));
+  };
+
+  const updateRefinedChapterContent = (chapterId: string, content: string) => {
+    setChapters((current) => current.map((chapter) =>
+      chapter.id === chapterId ? { ...chapter, final_content: content } : chapter,
+    ));
+    setDirtyChapterContentIds((current) => ({ ...current, [chapterId]: true }));
+    setWorkflowBeatsError(null);
+  };
+
+  const saveRefinedChapterContent = async (chapterId: string) => {
+    const chapter = chapters.find((item) => item.id === chapterId);
+    if (!chapter || savingRefinedChapterId) return;
+    setSavingRefinedChapterId(chapterId);
+    setWorkflowBeatsError(null);
+    try {
+      await apiClient.put(`/api/chapters/${chapterId}`, {
+        final_content: chapter.final_content ?? "",
+      });
+      setDirtyChapterContentIds((current) => {
+        const next = { ...current };
+        delete next[chapterId];
+        return next;
+      });
+    } catch (requestError) {
+      setWorkflowBeatsError(
+        requestError instanceof Error ? requestError.message : "Không lưu được nội dung chương đã refine.",
+      );
+    } finally {
+      setSavingRefinedChapterId(null);
+    }
   };
 
   const saveWorkflowBeats = async (): Promise<boolean> => {
@@ -1575,12 +1613,34 @@ export default function StoryWorkflowPlanner({
                     {expandedChapterIds[chapter.id ?? ""] && chapterContentMode[chapter.id ?? ""] === "refined" && chapter.final_content && (
                       <CardContent className="p-3 sm:p-5">
                         <section className="overflow-hidden rounded-xl border border-emerald-100 bg-white">
-                          <h3 className="border-b bg-emerald-50/70 px-4 py-3 text-sm font-semibold text-emerald-900">
-                            Nội dung chapter đã refine
-                          </h3>
-                          <article className="max-h-[70vh] overflow-y-auto whitespace-pre-wrap bg-[#fdfbf7] p-4 font-serif text-sm leading-8 text-slate-800 sm:p-8 sm:text-base">
-                            {chapter.final_content}
-                          </article>
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-emerald-50/70 px-4 py-3">
+                            <h3 className="text-sm font-semibold text-emerald-900">
+                              Nội dung chapter đã refine
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              {dirtyChapterContentIds[chapter.id!] && (
+                                <span className="text-xs font-medium text-amber-700">Chưa lưu</span>
+                              )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => void saveRefinedChapterContent(chapter.id!)}
+                                disabled={!dirtyChapterContentIds[chapter.id!] || savingRefinedChapterId !== null}
+                              >
+                                {savingRefinedChapterId === chapter.id
+                                  ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                                  : <Save className="mr-1.5 h-4 w-4" />}
+                                Lưu nội dung
+                              </Button>
+                            </div>
+                          </div>
+                          <Textarea
+                            aria-label={`Nội dung chương ${chapter.chapter_number} đã refine`}
+                            className="max-h-[70vh] min-h-[45vh] resize-y rounded-none border-0 bg-[#fdfbf7] p-4 font-serif text-sm leading-8 text-slate-800 focus-visible:ring-0 sm:p-8 sm:text-base"
+                            value={chapter.final_content}
+                            onChange={(event) => updateRefinedChapterContent(chapter.id!, event.target.value)}
+                            disabled={savingRefinedChapterId === chapter.id}
+                          />
                         </section>
                       </CardContent>
                     )}
