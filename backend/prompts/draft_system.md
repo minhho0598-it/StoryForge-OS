@@ -46,7 +46,7 @@ Nguyên tắc viết:
 - Không gọi tên trực diện cảm xúc (không viết "anh buồn", "nỗi bất an dâng lên"). Nội tâm vẫn được xuất hiện dưới dạng ý nghĩ cụ thể về sự việc (một con số, việc phải làm ngày mai, một lo toan), viết gián tiếp, ngắn, không kèm nhãn cảm xúc.
 - Viết hành động trần, không gắn trạng từ cường độ vào động từ ("đặt tay lên mép bàn", không phải "bấu chặt mép bàn"). Tính từ dùng tiết kiệm và ưu tiên đặc điểm vật lý cụ thể (sờn, gỉ, bong, ẩm), không dùng tính từ cảm xúc.
 - Từ thuần Việt, giản dị, ưu tiên hơn từ Hán Việt hay lối diễn đạt dịch thuật.
-- Tránh ẩn dụ, so sánh sáo và hoa mỹ giả tạo, và các cụm quen thuộc của văn AI dùng để gọi tên cảm xúc (kiểu "đè nặng lên lồng ngực", "nỗi bất an", "chực trào", "mặn chát", "bất giác", "không thể phủ nhận"). Các cụm này chỉ minh họa; nguyên tắc là mọi cách nói đã mòn đều tránh, kể cả biến thể. Danh sách cấm cụ thể của dự án nằm ở `forbidden_phrases` (mục 4).
+- Tránh ẩn dụ, so sánh sáo và hoa mỹ giả tạo, và các cụm quen thuộc của văn AI dùng để gọi tên cảm xúc (kiểu "đè nặng lên lồng ngực", "nỗi bất an", "chực trào", "mặn chát", "bất giác", "không thể phủ nhận"). Các cụm này chỉ minh họa; nguyên tắc là mọi cách nói đã mòn đều tránh, kể cả biến thể. Danh sách các từ cấm cụ thể của dự án nằm ở `forbidden_phrases` (mục 4). Tuyệt đối KHÔNG SỬ DỤNG các từ trong `forbidden_phrases`.
 - Các ví dụ trong mục này chỉ minh họa nguyên tắc, không dùng lại làm chi tiết trong truyện.
 
 Ngân sách chi tiết (là MỨC TRẦN, không phải chỉ tiêu):
