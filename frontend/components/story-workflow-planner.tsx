@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Activity, AlertCircle, BookOpen, Check, CheckCircle2, ChevronDown, Copy, FileText, Layers, List, Loader2, Map, MapPin, Plus, Save, Sparkles, Trash2, Users, Wand2, X } from "lucide-react";
+import { Activity, AlertCircle, BookOpen, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Copy, FileText, Layers, List, Loader2, Map, MapPin, Plus, Save, Sparkles, Trash2, Users, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -216,6 +216,27 @@ function isChapterRefined(chapter: Chapter) {
   ].includes(chapter.status ?? "");
 }
 
+function isAccessibleBeatChapter(chapter: Chapter, chapters: Chapter[]) {
+  const chapterId = chapter.id;
+  if (!chapterId) return false;
+  const refinedIds = new Set(
+    chapters
+      .filter((item) => isChapterRefined(item) && item.id)
+      .map((item) => item.id!),
+  );
+
+  if (refinedIds.size === 0) return true;
+  if (refinedIds.has(chapterId)) return true;
+
+  const chapterIndex = chapters.findIndex((item) => item.id === chapterId);
+  if (chapterIndex === -1) return false;
+
+  return chapters.some((item, index) => {
+    if (!item.id || !refinedIds.has(item.id)) return false;
+    return Math.abs(index - chapterIndex) <= 1;
+  });
+}
+
 export default function StoryWorkflowPlanner({
   chapters: initialChapters,
   storyOutline: initialOutline,
@@ -276,9 +297,8 @@ export default function StoryWorkflowPlanner({
   const [beatEvaluationScope, setBeatEvaluationScope] = useState<"chapter" | "story">("story");
   const [beatEvaluationChapter, setBeatEvaluationChapter] = useState<Chapter | null>(null);
   const [selectedBeatChapterId, setSelectedBeatChapterId] = useState(initialChapters[0]?.id ?? "");
-  const [beatViewMode, setBeatViewMode] = useState<"story" | "chapter">("story");
+  const beatViewMode = "chapter" as const;
   const [expandedChapterIds, setExpandedChapterIds] = useState<Record<string, boolean>>({});
-  const [chapterContentMode, setChapterContentMode] = useState<Record<string, "beats" | "refined">>({});
   const [refiningChapterId, setRefiningChapterId] = useState<string | null>(null);
   const [dirtyChapterContentIds, setDirtyChapterContentIds] = useState<Record<string, boolean>>({});
   const [savingRefinedChapterId, setSavingRefinedChapterId] = useState<string | null>(null);
@@ -287,6 +307,7 @@ export default function StoryWorkflowPlanner({
   const [copiedWorkflowBeatPromptId, setCopiedWorkflowBeatPromptId] = useState<string | null>(null);
   const [isPlannerTocOpen, setIsPlannerTocOpen] = useState(false);
   const [activePlannerTocId, setActivePlannerTocId] = useState<string | null>(null);
+  const isBatchDrafting = batchDraftingChapterId !== null;
 
   const currentSignature = useMemo(
     () => JSON.stringify(chapterSignature(chapters)),
@@ -314,7 +335,31 @@ export default function StoryWorkflowPlanner({
     (hasChaptersWithoutBeats ||
       generation?.status === "failed" ||
       generation?.status === "stale");
-  const selectedBeatChapter = chapters.find((chapter) => chapter.id === selectedBeatChapterId) ?? chapters[0] ?? null;
+  const accessibleBeatChapterIds = useMemo(
+    () =>
+      new Set(
+        chapters
+          .filter((chapter) => isAccessibleBeatChapter(chapter, chapters))
+          .map((chapter) => chapter.id)
+          .filter((chapterId): chapterId is string => Boolean(chapterId)),
+      ),
+    [chapters],
+  );
+  const fallbackBeatChapter = chapters.find((chapter) => chapter.id && accessibleBeatChapterIds.has(chapter.id)) ?? null;
+  const selectedBeatChapter = chapters.find((chapter) => chapter.id === selectedBeatChapterId)
+    ?? fallbackBeatChapter;
+  const selectedBeatChapterIndex = selectedBeatChapter
+    ? chapters.findIndex((chapter) => chapter.id === selectedBeatChapter.id)
+    : -1;
+  const isSelectedBeatChapterRefined = selectedBeatChapter
+    ? isChapterRefined(selectedBeatChapter)
+    : false;
+  const previousBeatChapter = selectedBeatChapterIndex > 0
+    ? chapters[selectedBeatChapterIndex - 1]
+    : null;
+  const nextBeatChapter = selectedBeatChapterIndex >= 0
+    ? chapters[selectedBeatChapterIndex + 1]
+    : null;
 
   const loadWorkflowBeats = useCallback(async () => {
     try {
@@ -358,15 +403,15 @@ export default function StoryWorkflowPlanner({
   };
 
   const navigateToPlannerBeat = (chapterId: string, beatId: string) => {
+    setSelectedBeatChapterId(chapterId);
     setExpandedChapterIds((current) => ({ ...current, [chapterId]: true }));
-    setChapterContentMode((current) => ({ ...current, [chapterId]: "beats" }));
     window.setTimeout(() => scrollToPlannerBeat(beatId), 50);
     setIsPlannerTocOpen(false);
   };
 
   const scrollToPlannerChapter = (chapterId: string) => {
+    setSelectedBeatChapterId(chapterId);
     setExpandedChapterIds((current) => ({ ...current, [chapterId]: true }));
-    setChapterContentMode((current) => ({ ...current, [chapterId]: "beats" }));
     window.setTimeout(() => {
     document.getElementById(`planner-chapter-${chapterId}`)?.scrollIntoView({
       behavior: "smooth",
@@ -404,6 +449,7 @@ export default function StoryWorkflowPlanner({
   };
 
   const copyWorkflowBeatPrompt = async (chapter: Chapter, beat: StoryBeat, index: number) => {
+    if (isChapterRefined(chapter)) return;
     setWorkflowBeatsError(null);
     if (hasUnsavedLocalBeats) {
       setWorkflowBeatsError("Hãy lưu các beat mới trước khi sao chép prompt.");
@@ -439,7 +485,7 @@ export default function StoryWorkflowPlanner({
   };
 
   const draftWorkflowBeat = async (chapter: Chapter, beat: StoryBeat, index: number) => {
-    if (!chapter.id || draftingWorkflowBeatId || batchDraftingChapterId) return;
+    if (!chapter.id || isChapterRefined(chapter) || draftingWorkflowBeatId || batchDraftingChapterId) return;
     if (hasUnsavedLocalBeats) {
       setWorkflowBeatsError("Hãy lưu các beat mới trước khi tiếp tục dùng AI.");
       return;
@@ -476,7 +522,7 @@ export default function StoryWorkflowPlanner({
   };
 
   const batchDraftWorkflowChapter = async (chapter: Chapter, chapterBeats: StoryBeat[]) => {
-    if (!chapter.id || !chapterBeats.length || batchDraftingChapterId || draftingWorkflowBeatId) return;
+    if (!chapter.id || isChapterRefined(chapter) || !chapterBeats.length || batchDraftingChapterId || draftingWorkflowBeatId) return;
     if (hasUnsavedLocalBeats) {
       setWorkflowBeatsError("Hãy lưu các beat mới trước khi tiếp tục dùng AI.");
       return;
@@ -519,9 +565,10 @@ export default function StoryWorkflowPlanner({
     }, { rootMargin: "-15% 0px -65% 0px", threshold: [0, 0.1, 0.5, 1] });
     targets.forEach((target) => observer.observe(target));
     return () => observer.disconnect();
-  }, [activeTab, beatsByChapter, beatViewMode, expandedChapterIds, chapterContentMode]);
+  }, [activeTab, beatsByChapter, beatViewMode, expandedChapterIds]);
 
   const updateWorkflowBeat = (chapterId: string, beatId: string, field: keyof StoryBeat, value: string) => {
+    if (isBatchDrafting) return;
     setBeatsByChapter((current) => ({
       ...current,
       [chapterId]: (current[chapterId] ?? []).map((beat) =>
@@ -542,7 +589,6 @@ export default function StoryWorkflowPlanner({
       delete next[chapterId];
       return next;
     });
-    setChapterContentMode((current) => ({ ...current, [chapterId]: "beats" }));
   };
 
   const updateRefinedChapterContent = (chapterId: string, content: string) => {
@@ -577,7 +623,7 @@ export default function StoryWorkflowPlanner({
   };
 
   const saveWorkflowBeats = async (): Promise<boolean> => {
-    if (savingBeats) return false;
+    if (savingBeats || isBatchDrafting) return false;
     const pending = Object.keys(dirtyBeatIds).filter((beatId) => dirtyBeatIds[beatId]);
     if (pending.length === 0) return true;
     setSavingBeats(true);
@@ -666,7 +712,7 @@ export default function StoryWorkflowPlanner({
   };
 
   const refineChapterBeats = async (chapter: Chapter) => {
-    if (!chapter.id || generation?.status === "running") return;
+    if (!chapter.id || generation?.status === "running" || isBatchDrafting) return;
     setWorkflowBeatsError(null);
     if (hasUnsavedLocalBeats) {
       setWorkflowBeatsError("Hãy lưu các beat mới trước khi refine chapter.");
@@ -685,7 +731,6 @@ export default function StoryWorkflowPlanner({
           ? { ...item, status: "Refined & Ready for Audio", final_content: refinedContent }
           : item,
       ));
-      setChapterContentMode((current) => ({ ...current, [chapter.id!]: "refined" }));
     } catch (requestError) {
       setWorkflowBeatsError(requestError instanceof Error ? requestError.message : "Không thể biên tập nội dung chapter.");
     } finally {
@@ -694,7 +739,7 @@ export default function StoryWorkflowPlanner({
   };
 
   const insertWorkflowBeat = (chapter: Chapter, insertIndex: number) => {
-    if (!chapter.id) return;
+    if (!chapter.id || isChapterRefined(chapter) || isBatchDrafting) return;
     setWorkflowBeatsError(null);
     const beatId = `${LOCAL_BEAT_ID_PREFIX}${createTemporaryId()}`;
     const newBeat: StoryBeat = {
@@ -718,6 +763,8 @@ export default function StoryWorkflowPlanner({
   };
 
   const deleteWorkflowBeat = async (beat: StoryBeat) => {
+    const chapter = chapters.find((item) => item.id === beat.chapter_id);
+    if (isBatchDrafting || (chapter && isChapterRefined(chapter))) return;
     if (isLocalBeat(beat.id)) {
       if (!window.confirm("Xóa beat mới chưa lưu?")) return;
       setBeatsByChapter((current) => ({
@@ -747,6 +794,7 @@ export default function StoryWorkflowPlanner({
   };
 
   const evaluateBeats = async (scope: "chapter" | "story", chapter?: Chapter) => {
+    if (isBatchDrafting) return;
     setBeatEvaluationScope(scope);
     setBeatEvaluationChapter(chapter ?? null);
     setBeatEvaluation(null);
@@ -1064,7 +1112,7 @@ export default function StoryWorkflowPlanner({
   };
 
   return (
-    <main className="min-h-full bg-slate-50 p-4 sm:p-8 xl:pr-64">
+    <main className="min-h-full bg-slate-50 p-[clamp(0.75rem,2vw,2rem)] 2xl:pr-64">
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -1095,11 +1143,11 @@ export default function StoryWorkflowPlanner({
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as WorkflowTab)} className="w-full">
           <TabsList className="grid min-h-12 w-full grid-cols-3 items-stretch gap-1 bg-slate-200 p-1">
-            <TabsTrigger value="chapters" className="!h-auto min-h-10 self-stretch px-2 text-xs sm:text-sm">
+            <TabsTrigger value="chapters" disabled={isBatchDrafting} className="!h-auto min-h-10 self-stretch px-2 text-xs sm:text-sm">
               <BookOpen className="mr-1 h-4 w-4 sm:mr-2" /> <span>1. Chapter</span>
               {chapters.length > 0 && <span className="ml-1 rounded-full bg-white/80 px-1.5 text-[10px]">{chapters.length}</span>}
             </TabsTrigger>
-            <TabsTrigger value="outline" className="!h-auto min-h-10 self-stretch px-2 text-xs sm:text-sm">
+            <TabsTrigger value="outline" disabled={isBatchDrafting} className="!h-auto min-h-10 self-stretch px-2 text-xs sm:text-sm">
               <FileText className="mr-1 h-4 w-4 sm:mr-2" /> <span>2. Dàn ý story</span>
               {outline?.confirmed && outlineMatches && <CheckCircle2 className="ml-1 h-3.5 w-3.5 text-green-600" />}
             </TabsTrigger>
@@ -1448,65 +1496,11 @@ export default function StoryWorkflowPlanner({
                   {workflowBeatsError}
                 </div>
               )}
-              <Card className="border-slate-200 shadow-sm">
-                <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">Không gian beats</p>
-                    <p className="text-xs text-slate-500">Mở beat để xem/chỉnh sửa chi tiết. Nội dung được thu gọn mặc định.</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="inline-flex rounded-full border bg-slate-100 p-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={beatViewMode === "story" ? "default" : "ghost"}
-                        className={`rounded-full px-3 ${beatViewMode === "story" ? "bg-indigo-600 text-white hover:bg-indigo-700" : "text-slate-600"}`}
-                        onClick={() => setBeatViewMode("story")}
-                      >
-                        <Layers className="mr-1.5 h-4 w-4" /> Toàn story
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={beatViewMode === "chapter" ? "default" : "ghost"}
-                        className={`rounded-full px-3 ${beatViewMode === "chapter" ? "bg-indigo-600 text-white hover:bg-indigo-700" : "text-slate-600"}`}
-                        onClick={() => setBeatViewMode("chapter")}
-                      >
-                        <BookOpen className="mr-1.5 h-4 w-4" /> Theo chapter
-                      </Button>
-                    </div>
-                    {beatViewMode === "chapter" && (
-                      <Select
-                        value={selectedBeatChapter?.id ?? ""}
-                        onValueChange={(value) => setSelectedBeatChapterId(value ?? "")}
-                      >
-                        <SelectTrigger className="h-9 min-w-52 rounded-full bg-white" aria-label="Chọn chapter để xem beats">
-                          <SelectValue placeholder="Chọn chapter">
-                              <>
-                                <span className="hidden truncate sm:inline">{selectedBeatChapter?.chapter_number ? `Chương ${selectedBeatChapter.chapter_number}` : "Chọn chapter"}</span>
-                              </>
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent align="end">
-                          {chapters.filter((item) => item.id).map((item) => (
-                            <SelectItem key={item.id} value={item.id!}>
-                              <span>C{item.chapter_number}: {item.title}</span>
-                              {isChapterRefined(item) && (
-                                <CheckCircle2 className="ml-auto h-4 w-4 shrink-0 text-emerald-600" aria-label="Đã refine" />
-                              )}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
               {loadingWorkflowBeats ? (
                 <div className="flex items-center justify-center gap-3 rounded-xl border bg-white py-12 text-sm text-slate-500">
                   <Loader2 className="h-5 w-5 animate-spin text-indigo-600" /> Đang tải beat theo chapter...
                 </div>
-              ) : chapters.filter((chapter) => beatViewMode === "story" || chapter.id === selectedBeatChapter?.id).map((chapter) => {
+              ) : selectedBeatChapter && chapters.filter((chapter) => chapter.id === selectedBeatChapter.id).map((chapter) => {
                 const chapterBeats = chapter.id ? beatsByChapter[chapter.id] ?? [] : [];
                 return (
                   <Card
@@ -1515,102 +1509,118 @@ export default function StoryWorkflowPlanner({
                     key={chapter.id ?? chapter.temp_id}
                     className="scroll-mt-24 overflow-hidden border-slate-200 shadow-sm"
                   >
-                    <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-indigo-50/50 py-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">CHAPTER {chapter.chapter_number}</Badge>
-                            <Badge variant="outline" className="bg-white">{chapterBeats.length} beats</Badge>
-                            <Badge
-                              className={
-                                chapter.status === "Refined & Ready for Audio"
-                                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
-                                  : chapter.status === "Error"
-                                    ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-100"
-                              }
-                            >
-                              {chapterStatusLabel(chapter.status)}
-                            </Badge>
-                          </div>
-                          <CardTitle className="mt-2 text-base text-slate-800">{chapter.title || `Chương ${chapter.chapter_number}`}</CardTitle>
-                          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{chapter.main_event || "Chưa có sự kiện chính."}</p>
+                    <CardHeader className="space-y-3 border-b bg-gradient-to-r from-slate-50 to-indigo-50/50 p-4 sm:p-5">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">CHAPTER {chapter.chapter_number}</Badge>
+                          <Badge variant="outline" className="bg-white">{chapterBeats.length} beats</Badge>
+                          <Badge
+                            className={
+                              chapter.status === "Refined & Ready for Audio"
+                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                                : chapter.status === "Error"
+                                  ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                  : "bg-slate-100 text-slate-700 hover:bg-slate-100"
+                            }
+                          >
+                            {chapterStatusLabel(chapter.status)}
+                          </Badge>
                         </div>
-                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <CardTitle className="mt-3 text-lg text-slate-800">{chapter.title || `Chương ${chapter.chapter_number}`}</CardTitle>
+                        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-500">{chapter.main_event || "Chưa có sự kiện chính."}</p>
+                      </div>
+                      <div className="flex items-center justify-between gap-1 border-y border-slate-200/80 py-2 min-[400px]:gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-11 min-w-11 px-2 transition-all duration-200 hover:-translate-x-0.5 hover:bg-indigo-50 hover:text-indigo-700 active:translate-x-0 disabled:cursor-not-allowed sm:px-3"
+                          aria-label={`Đến chương trước${previousBeatChapter ? `, chương ${previousBeatChapter.chapter_number}` : ""}`}
+                          title="Chương trước"
+                          disabled={isBatchDrafting || !previousBeatChapter?.id}
+                          onClick={() => {
+                            if (previousBeatChapter?.id) setSelectedBeatChapterId(previousBeatChapter.id);
+                          }}
+                        >
+                          <ChevronLeft className="h-5 w-5 sm:mr-1" />
+                          <span className="hidden sm:inline">Trước</span>
+                        </Button>
+                        <span className="min-w-0 truncate text-center text-[clamp(0.7rem,2.4vw,0.875rem)] font-semibold text-slate-600">
+                          Chương {selectedBeatChapterIndex + 1} / {chapters.length}
+                        </span>
+                        {nextBeatChapter ? (
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
-                            onClick={() => setExpandedChapterIds((current) => ({
-                              ...current,
-                              [chapter.id ?? ""]: !current[chapter.id ?? ""],
-                            }))}
-                            className="border-slate-200 text-slate-700 hover:bg-white"
+                            variant="ghost"
+                            className="h-11 min-w-11 px-2 transition-all duration-200 hover:translate-x-0.5 hover:bg-indigo-50 hover:text-indigo-700 active:translate-x-0 disabled:cursor-not-allowed sm:px-3"
+                            aria-label={`Đến chương sau, chương ${nextBeatChapter.chapter_number}`}
+                            title="Chương sau"
+                            disabled={isBatchDrafting || !isSelectedBeatChapterRefined || !nextBeatChapter.id}
+                            onClick={() => {
+                              if (nextBeatChapter.id) setSelectedBeatChapterId(nextBeatChapter.id);
+                            }}
                           >
-                            <ChevronDown className={`mr-1.5 h-4 w-4 transition-transform duration-200 ${expandedChapterIds[chapter.id ?? ""] ? "rotate-180" : ""}`} />
-                            {expandedChapterIds[chapter.id ?? ""] ? "Thu gọn chapter" : "Hiện beats"}
+                            <span className="hidden sm:inline">Sau</span>
+                            <ChevronRight className="h-5 w-5 sm:ml-1" />
                           </Button>
-                          {expandedChapterIds[chapter.id ?? ""] && (
-                            <>
-                            {chapter.final_content && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={chapterContentMode[chapter.id!] === "refined" ? "default" : "outline"}
-                                className={chapterContentMode[chapter.id!] === "refined" ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"}
-                                onClick={() => setChapterContentMode((current) => ({
-                                  ...current,
-                                  [chapter.id!]: current[chapter.id!] === "refined" ? "beats" : "refined",
-                                }))}
-                              >
-                                {chapterContentMode[chapter.id!] === "refined" ? "Xem beats" : "Xem bản refine"}
-                              </Button>
-                            )}
-                            {chapterContentMode[chapter.id!] !== "refined" && beatViewMode === "chapter" && (
-                              <>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={!chapter.id || !chapterBeats.length || generation?.status === "running" || draftingWorkflowBeatId !== null || batchDraftingChapterId !== null || savingBeats}
-                                    onClick={() => void batchDraftWorkflowChapter(chapter, chapterBeats)}
-                                    className="border-violet-200 text-violet-700 hover:bg-violet-50"
-                                  >
-                                    {batchDraftingChapterId === chapter.id
-                                      ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                                      : <Wand2 className="mr-1.5 h-4 w-4" />}
-                                    {batchDraftingChapterId === chapter.id ? "Đang viết toàn chapter..." : "AI viết toàn chapter"}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={!chapter.id || !chapterBeats.length || generation?.status === "running" || refiningChapterId !== null || savingBeats}
-                                  onClick={() => void refineChapterBeats(chapter)}
-                                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                >
-                                  {refiningChapterId === chapter.id
-                                    ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                                    : <Sparkles className="mr-1.5 h-4 w-4" />}
-                                  Refine chapter
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={!chapter.id || generation?.status === "running" || savingBeats}
-                                  onClick={() => void insertWorkflowBeat(chapter, chapterBeats.length)}
-                                >
-                                  <Plus className="mr-1.5 h-4 w-4" /> Thêm beat
-                                </Button>
-                              </>
-                            )}
-                            </>
-                          )}
-                        </div>
+                        ) : selectedBeatChapterIndex === chapters.length - 1 && isSelectedBeatChapterRefined ? (
+                          <Button type="button" size="sm" className="h-11 cursor-pointer px-3 transition-all duration-200 hover:translate-x-0.5 hover:shadow-md disabled:cursor-not-allowed" onClick={onStartWriting} disabled={isBatchDrafting}>
+                            Studio <ChevronRight className="ml-1 h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span aria-hidden="true" className="min-w-11" />
+                        )}
                       </div>
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        {!isChapterRefined(chapter) && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            className={`h-11 min-w-0 flex-[1_1_9rem] text-white ${chapter.status === "Draft Completed" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-violet-600 hover:bg-violet-700"}`}
+                            disabled={
+                              isBatchDrafting ||
+                              chapter.status === "Drafting" ||
+                              !chapter.id ||
+                              generation?.status === "running" ||
+                              refiningChapterId !== null ||
+                              draftingWorkflowBeatId !== null ||
+                              savingBeats ||
+                              !chapterBeats.length
+                            }
+                            onClick={() => {
+                              if (chapter.status === "Draft Completed") {
+                                void refineChapterBeats(chapter);
+                              } else {
+                                void batchDraftWorkflowChapter(chapter, chapterBeats);
+                              }
+                            }}
+                          >
+                            {refiningChapterId === chapter.id ||
+                            batchDraftingChapterId === chapter.id ||
+                            chapter.status === "Drafting"
+                              ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                              : chapter.status === "Draft Completed"
+                                ? <Sparkles className="mr-1.5 h-4 w-4" />
+                                : <Wand2 className="mr-1.5 h-4 w-4" />}
+                            {refiningChapterId === chapter.id
+                              ? "Đang refine..."
+                              : batchDraftingChapterId === chapter.id || chapter.status === "Drafting"
+                                ? "Đang viết toàn chapter..."
+                                : chapter.status === "Draft Completed"
+                                  ? "Refine chapter"
+                                  : "AI viết toàn chapter"}
+                          </Button>
+                        )}
+                      </div>
+                      {batchDraftingChapterId === chapter.id && (
+                        <div role="status" aria-live="polite" className="flex items-center gap-2 border-t border-violet-100 bg-violet-50 px-4 py-3 text-sm font-medium text-violet-800">
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                          AI đang viết toàn bộ chapter. Các thao tác chỉnh sửa đang tạm khóa.
+                        </div>
+                      )}
                     </CardHeader>
-                    {expandedChapterIds[chapter.id ?? ""] && chapterContentMode[chapter.id ?? ""] === "refined" && chapter.final_content && (
+                    {isChapterRefined(chapter) && chapter.final_content && (
                       <CardContent className="p-3 sm:p-5">
                         <section className="overflow-hidden rounded-xl border border-emerald-100 bg-white">
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-emerald-50/70 px-4 py-3">
@@ -1644,7 +1654,14 @@ export default function StoryWorkflowPlanner({
                         </section>
                       </CardContent>
                     )}
-                    {expandedChapterIds[chapter.id ?? ""] && chapterContentMode[chapter.id ?? ""] !== "refined" && (
+                    {isChapterRefined(chapter) && !chapter.final_content && (
+                      <CardContent>
+                        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                          Chapter đã được đánh dấu refine nhưng chưa có nội dung refine để hiển thị.
+                        </p>
+                      </CardContent>
+                    )}
+                    {!isChapterRefined(chapter) && (
                     <CardContent className="space-y-4 bg-gradient-to-b from-white to-slate-50/50 p-3 sm:p-5">
                       {chapterBeats.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
@@ -1673,21 +1690,21 @@ export default function StoryWorkflowPlanner({
                                     <div className="grid gap-3 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 md:grid-cols-3">
                                       <div className="space-y-1.5">
                                         <Label className="flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="h-3.5 w-3.5" /> Địa điểm & không khí</Label>
-                                        <Input value={beat.location ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "location", event.target.value)} disabled={savingBeats} />
+                                        <Input value={beat.location ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "location", event.target.value)} disabled={savingBeats || isBatchDrafting} />
                                       </div>
                                       <div className="space-y-1.5">
                                         <Label className="flex items-center gap-1.5 text-xs text-slate-500"><Users className="h-3.5 w-3.5" /> Nhân vật hiện diện</Label>
-                                        <Input value={beat.characters_present ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "characters_present", event.target.value)} disabled={savingBeats} />
+                                        <Input value={beat.characters_present ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "characters_present", event.target.value)} disabled={savingBeats || isBatchDrafting} />
                                       </div>
                                       <div className="space-y-1.5">
                                         <Label className="text-xs text-slate-500">Mục tiêu / chuyển biến cảm xúc</Label>
-                                        <Textarea className="min-h-20" value={beat.emotional_shift ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "emotional_shift", event.target.value)} disabled={savingBeats} />
+                                        <Textarea className="min-h-20" value={beat.emotional_shift ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "emotional_shift", event.target.value)} disabled={savingBeats || isBatchDrafting} />
                                       </div>
                                     </div>
                                   <div className="space-y-4">
                                     <div className="space-y-1.5">
                                       <Label className="text-xs text-slate-500">Hành động, đạo cụ và thoại</Label>
-                                      <Textarea className="min-h-32" value={beat.action_and_dialogue ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "action_and_dialogue", event.target.value)} disabled={savingBeats} />
+                                      <Textarea className="min-h-32" value={beat.action_and_dialogue ?? ""} onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "action_and_dialogue", event.target.value)} disabled={savingBeats || isBatchDrafting} />
                                     </div>
                                     <details className="group/beat-content w-full overflow-hidden rounded-xl border border-indigo-100 bg-white">
                                       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 bg-indigo-50/60 px-3 py-2.5 text-xs font-semibold text-indigo-800 transition-colors hover:bg-indigo-50 [&::-webkit-details-marker]:hidden">
@@ -1704,7 +1721,7 @@ export default function StoryWorkflowPlanner({
                                             placeholder="Nội dung viết cho beat sẽ hiển thị tại đây..."
                                             value={beat.ai_draft_text ?? ""}
                                             onChange={(event) => updateWorkflowBeat(chapter.id!, beat.id, "ai_draft_text", event.target.value)}
-                                            disabled={savingBeats}
+                                            disabled={savingBeats || isBatchDrafting}
                                           />
                                         </div>
                                       </div>
@@ -1714,6 +1731,7 @@ export default function StoryWorkflowPlanner({
                               </div>
                               </div>
                             </details>
+                            {!isChapterRefined(chapter) && (
                             <div className="flex flex-wrap items-center justify-between gap-1 border-t bg-white px-4 py-2">
                               <Button
                                 type="button"
@@ -1722,32 +1740,30 @@ export default function StoryWorkflowPlanner({
                                 title={`Chèn beat trước ${beat.beat_id}`}
                                 aria-label={`Chèn beat trước ${beat.beat_id}`}
                                 className="h-8 text-xs text-indigo-700 hover:bg-indigo-50"
-                                disabled={generation?.status === "running" || savingBeats}
+                                disabled={isBatchDrafting || generation?.status === "running" || savingBeats}
                                 onClick={() => void insertWorkflowBeat(chapter, index)}
                               >
                                 <Plus className="mr-1 h-3.5 w-3.5" /> Chèn beat trước
                               </Button>
-                              {beatViewMode === "chapter" && chapterContentMode[chapter.id ?? ""] !== "refined" && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 text-xs text-violet-700 hover:bg-violet-50"
-                                  disabled={generation?.status === "running" || draftingWorkflowBeatId !== null || batchDraftingChapterId !== null || savingBeats}
-                                  onClick={() => void draftWorkflowBeat(chapter, beat, index)}
-                                >
-                                  {draftingWorkflowBeatId === beat.id
-                                    ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                                    : <Wand2 className="mr-1 h-3.5 w-3.5" />}
-                                  {draftingWorkflowBeatId === beat.id ? "Đang viết..." : "AI viết beat"}
-                                </Button>
-                              )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 text-xs text-violet-700 hover:bg-violet-50"
+                                disabled={isBatchDrafting || generation?.status === "running" || draftingWorkflowBeatId !== null || savingBeats}
+                                onClick={() => void draftWorkflowBeat(chapter, beat, index)}
+                              >
+                                {draftingWorkflowBeatId === beat.id
+                                  ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                  : <Wand2 className="mr-1 h-3.5 w-3.5" />}
+                                {draftingWorkflowBeatId === beat.id ? "Đang viết..." : "AI viết beat"}
+                              </Button>
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
                                 className="h-8 gap-1.5 text-xs"
-                                disabled={generation?.status === "running" || savingBeats || draftingWorkflowBeatId !== null || batchDraftingChapterId !== null}
+                                disabled={isBatchDrafting || generation?.status === "running" || savingBeats || draftingWorkflowBeatId !== null}
                                 onClick={() => void copyWorkflowBeatPrompt(chapter, beat, index)}
                               >
                                 {copiedWorkflowBeatPromptId === beat.id
@@ -1762,12 +1778,13 @@ export default function StoryWorkflowPlanner({
                                 aria-label={`Xóa ${beat.beat_id}`}
                                 title="Xóa beat"
                                 className="h-8 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600"
-                                disabled={generation?.status === "running" || savingBeats}
+                                disabled={isBatchDrafting || generation?.status === "running" || savingBeats}
                                 onClick={() => void deleteWorkflowBeat(beat)}
                               >
                                 <Trash2 className="mr-1 h-3.5 w-3.5" /> Xóa
                               </Button>
                             </div>
+                            )}
                           </Card>
                         </div>
                       ))}
@@ -1782,15 +1799,15 @@ export default function StoryWorkflowPlanner({
       </div>
       {activeTab === "beats" && chapters.length > 0 && (
         <>
-          <aside className="fixed right-4 top-1/2 z-30 hidden w-56 -translate-y-1/2 xl:block">
+          <aside className="fixed right-4 top-1/2 z-30 hidden w-56 -translate-y-1/2 2xl:block">
             <nav aria-label="Mục lục story beats" className="max-h-[72vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">
               <div className="mb-2 flex items-center gap-2 px-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                 <List className="h-4 w-4 text-indigo-600" />
-                {beatViewMode === "story" ? "Mạch toàn story" : `Chương ${selectedBeatChapter?.chapter_number}`}
+                {`Chương ${selectedBeatChapter?.chapter_number}`}
               </div>
               <div className="space-y-1">
                 {chapters
-                  .filter((chapter) => beatViewMode === "story" || chapter.id === selectedBeatChapter?.id)
+                  .filter((chapter) => chapter.id && accessibleBeatChapterIds.has(chapter.id))
                   .map((chapter) => {
                     const chapterId = chapter.id ?? "";
                     const chapterBeats = beatsByChapter[chapterId] ?? [];
@@ -1798,6 +1815,7 @@ export default function StoryWorkflowPlanner({
                       <div key={`toc-${chapterId}`} className="space-y-0.5">
                         <button
                           type="button"
+                          disabled={isBatchDrafting}
                           onClick={() => scrollToPlannerChapter(chapterId)}
                           className={`w-full truncate rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors ${
                             activePlannerTocId === `chapter-${chapterId}`
@@ -1811,6 +1829,7 @@ export default function StoryWorkflowPlanner({
                         {chapterBeats.map((beat) => (
                           <button
                             type="button"
+                            disabled={isBatchDrafting}
                             key={`toc-beat-${beat.id}`}
                             onClick={() => navigateToPlannerBeat(chapterId, beat.id)}
                             className={`ml-2 block w-[calc(100%-0.5rem)] truncate rounded-md border-l-2 py-1.5 pl-3 text-left text-[11px] transition-colors ${
@@ -1828,16 +1847,16 @@ export default function StoryWorkflowPlanner({
               </div>
             </nav>
           </aside>
-          <div className="fixed right-4 top-1/2 z-30 -translate-y-1/2 xl:hidden">
+          <div className="fixed right-4 top-1/2 z-30 -translate-y-1/2 2xl:hidden">
             {isPlannerTocOpen && (
               <nav aria-label="Mục lục story beats" className="absolute right-12 top-1/2 max-h-[65vh] w-[min(20rem,calc(100vw-5rem))] -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur animate-in slide-in-from-right-2">
                 <div className="mb-2 flex items-center gap-2 px-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                   <List className="h-4 w-4 text-indigo-600" />
-                  {beatViewMode === "story" ? "Mạch toàn story" : `Chương ${selectedBeatChapter?.chapter_number}`}
+                  {`Chương ${selectedBeatChapter?.chapter_number}`}
                 </div>
                 <div className="space-y-1">
                   {chapters
-                    .filter((chapter) => beatViewMode === "story" || chapter.id === selectedBeatChapter?.id)
+                    .filter((chapter) => chapter.id && accessibleBeatChapterIds.has(chapter.id))
                     .map((chapter) => {
                       const chapterId = chapter.id ?? "";
                       const chapterBeats = beatsByChapter[chapterId] ?? [];
@@ -1845,6 +1864,7 @@ export default function StoryWorkflowPlanner({
                         <div key={`mobile-toc-${chapterId}`} className="space-y-0.5">
                           <button
                             type="button"
+                            disabled={isBatchDrafting}
                             onClick={() => {
                               scrollToPlannerChapter(chapterId);
                               setIsPlannerTocOpen(false);
@@ -1857,6 +1877,7 @@ export default function StoryWorkflowPlanner({
                           {chapterBeats.map((beat) => (
                             <button
                               type="button"
+                              disabled={isBatchDrafting}
                               key={`mobile-toc-beat-${beat.id}`}
                               onClick={() => navigateToPlannerBeat(chapterId, beat.id)}
                               className="ml-2 block w-[calc(100%-0.5rem)] truncate rounded-md border-l-2 border-slate-200 py-1.5 pl-3 text-left text-[11px] text-slate-500 hover:border-indigo-300 hover:bg-slate-50 hover:text-indigo-700"
@@ -1873,6 +1894,7 @@ export default function StoryWorkflowPlanner({
             <Button
               type="button"
               size="sm"
+              disabled={isBatchDrafting}
               onClick={() => setIsPlannerTocOpen((current) => !current)}
               className="h-12 w-12 rounded-full bg-white p-0 text-slate-700 shadow-xl ring-1 ring-slate-200 hover:bg-indigo-50"
               aria-label={isPlannerTocOpen ? "Ẩn mục lục" : "Mở mục lục"}
@@ -1939,69 +1961,63 @@ export default function StoryWorkflowPlanner({
       )}
       {activeTab === "beats" && (
         <>
-          {dirtyBeatCount > 0 && (
-            <div className="fixed bottom-6 left-1/2 z-40 w-[calc(100%-2rem)] -translate-x-1/2 animate-in slide-in-from-bottom-5 sm:w-auto">
-              <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-2xl sm:gap-4 sm:rounded-full sm:px-6">
-                <span className="text-center text-sm font-medium">{dirtyBeatCount} thay đổi beats chưa lưu.</span>
+          <div className="fixed inset-x-2 bottom-2 z-40 grid grid-cols-2 items-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur md:inset-x-auto md:bottom-6 md:right-8 md:flex md:gap-3 md:rounded-full md:p-3 md:pb-3">
+            {dirtyBeatCount > 0 && (
+              <div className="col-span-2 flex min-w-0 items-center gap-2 md:col-auto md:flex-initial">
+                <span className="hidden text-sm font-medium text-slate-700 md:inline">
+                  {dirtyBeatCount} thay đổi beats chưa lưu
+                </span>
                 <Button
                   size="sm"
-                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="h-11 min-w-0 flex-1 bg-indigo-600 text-white hover:bg-indigo-700 md:flex-initial"
                   onClick={() => void saveWorkflowBeats()}
-                  disabled={savingBeats}
+                  disabled={savingBeats || isBatchDrafting}
                 >
                   {savingBeats ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
-                  Lưu thay đổi
+                  <span className="truncate md:hidden">Lưu ({dirtyBeatCount})</span>
+                  <span className="hidden md:inline">Lưu thay đổi</span>
                 </Button>
               </div>
-            </div>
-          )}
-          <div className="fixed bottom-24 right-4 z-40 flex flex-col items-end gap-3 sm:right-8">
+            )}
             {shouldShowBeatGeneration && (
               <Button
                 type="button"
                 aria-label={generation?.status === "failed" ? "Tiếp tục sinh beats" : "Sinh beats cho tất cả chapter"}
                 title={generation?.status === "failed" ? "Tiếp tục sinh beats" : "Sinh beats cho tất cả chapter"}
-                disabled={!outline?.confirmed || !outlineMatches || chaptersDirty || outlineDirty || startingBeats || generation?.status === "running"}
+                disabled={isBatchDrafting || !outline?.confirmed || !outlineMatches || chaptersDirty || outlineDirty || startingBeats || generation?.status === "running"}
                 onClick={startBeatGeneration}
-                className="h-14 w-fit gap-2 rounded-full border-0 bg-indigo-600 px-5 text-white shadow-lg transition-[background-color,box-shadow] duration-300 ease-out hover:bg-indigo-700 hover:shadow-xl focus-visible:ring-indigo-300 disabled:cursor-not-allowed"
+                className="h-11 w-full shrink-0 gap-1.5 rounded-full border-0 bg-indigo-600 px-3 text-white shadow transition-colors hover:bg-indigo-700 focus-visible:ring-indigo-300 disabled:cursor-not-allowed md:w-auto md:px-4"
               >
                 {startingBeats || generation?.status === "running"
-                  ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
-                  : <Wand2 className="h-5 w-5 shrink-0" />}
-                <span className="text-sm font-semibold">
+                  ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  : <Wand2 className="h-4 w-4 shrink-0" />}
+                <span className="text-xs font-semibold md:text-sm">
                   {generation?.status === "failed" ? "Tiếp tục" : "Sinh beats"}
                 </span>
               </Button>
             )}
-            <div className="group/floating-beat-score">
-              <Button
-                type="button"
-                aria-label={beatViewMode === "story" ? "AI chấm điểm toàn story" : "AI chấm điểm chapter"}
-                title={beatViewMode === "story" ? "AI chấm điểm toàn story" : "AI chấm điểm chapter"}
-                disabled={
-                  evaluatingBeats ||
-                  loadingWorkflowBeats ||
-                  (beatViewMode === "story"
-                    ? chapters.every((chapter) => !(chapter.id && beatsByChapter[chapter.id]?.length))
-                    : !selectedBeatChapter?.id || !beatsByChapter[selectedBeatChapter.id]?.length)
-                }
-                onClick={() => void (
-                  beatViewMode === "story"
-                    ? evaluateBeats("story")
-                    : selectedBeatChapter && evaluateBeats("chapter", selectedBeatChapter)
-                )}
-                className="h-14 w-14 cursor-pointer overflow-hidden rounded-full border-0 bg-amber-500 p-0 text-white shadow-lg transition-[width,background-color,box-shadow] duration-300 ease-out hover:w-44 hover:bg-amber-600 hover:shadow-xl focus-visible:w-44 focus-visible:ring-amber-300 disabled:cursor-not-allowed"
-              >
-                {evaluatingBeats ? (
-                  <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
-                ) : (
-                  <Activity className="h-5 w-5 shrink-0" />
-                )}
-                <span className="max-w-0 overflow-hidden text-sm font-semibold opacity-0 transition-[max-width,opacity,transform] duration-300 group-hover/floating-beat-score:ml-2 group-hover/floating-beat-score:max-w-28 group-hover/floating-beat-score:translate-x-0 group-hover/floating-beat-score:opacity-100 group-focus-visible/floating-beat-score:ml-2 group-focus-visible/floating-beat-score:max-w-28 group-focus-visible/floating-beat-score:translate-x-0 group-focus-visible/floating-beat-score:opacity-100">
-                  AI chấm điểm
-                </span>
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              aria-label="AI chấm điểm chapter"
+              title="AI chấm điểm chapter"
+              disabled={
+                isBatchDrafting ||
+                evaluatingBeats ||
+                loadingWorkflowBeats ||
+                !selectedBeatChapter?.id ||
+                !beatsByChapter[selectedBeatChapter.id]?.length
+              }
+              onClick={() => void (selectedBeatChapter && evaluateBeats("chapter", selectedBeatChapter))}
+              className={`h-11 w-full shrink-0 gap-1.5 rounded-full bg-amber-500 px-3 text-white hover:bg-amber-600 md:w-auto md:px-4 ${shouldShowBeatGeneration ? "" : "col-span-2"}`}
+            >
+              {evaluatingBeats ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Activity className="h-4 w-4 shrink-0" />
+              )}
+              <span className="text-xs font-semibold md:text-sm">Chấm điểm</span>
+            </Button>
           </div>
         </>
       )}
