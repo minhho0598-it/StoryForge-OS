@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from routers.beats import router as beats_router
 from routers.chapters import router as chapters_router
 from routers.projects import router as projects_router

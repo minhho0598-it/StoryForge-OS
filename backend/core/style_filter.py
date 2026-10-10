@@ -4,7 +4,6 @@ from pathlib import Path
 
 FORBIDDEN_PHRASES_PATH = (
     Path(__file__).resolve().parent.parent
-    / "prompts"
     / "forbidden_phrases.json"
 )
 
