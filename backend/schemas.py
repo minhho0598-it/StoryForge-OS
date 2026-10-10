@@ -113,6 +113,7 @@ class UpdateRenderConfigRequest(BaseModel):
 
 
 class RenderConfigPayload(BaseModel):
+    literary_style: Literal["literary_book", "audio_story"] = "literary_book"
     voice_id: str
     render_mode: Literal["full", "simple"]
     auto_split_parts: bool

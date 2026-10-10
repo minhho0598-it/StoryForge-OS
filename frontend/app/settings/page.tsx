@@ -183,7 +183,7 @@ export default function SettingsPage() {
                         {prompt.title}
                       </summary>
                       <div className="space-y-4 border-t p-4">
-                        {(Object.entries(prompt.versions) as [StoryStyle, StoryPromptCatalogItem["versions"][StoryStyle]][]).map(
+                        {(Object.entries(prompt.versions ?? {}) as [StoryStyle, StoryPromptCatalogItem["versions"][StoryStyle]][]).map(
                           ([style, version]) => (
                             <section key={style} className="space-y-3 rounded-md border border-indigo-100 p-4">
                               <h4 className="font-semibold text-indigo-800">{version.label} · {prompt.system}</h4>
