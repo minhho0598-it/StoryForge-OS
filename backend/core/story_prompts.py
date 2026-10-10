@@ -16,6 +16,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "ideation_system.md",
         "user": "ideation_user.md",
         "audio_system": "style_variants/audio_story/ideation_system.md",
+        "literary_system": "style_variants/literary_book/ideation_system.md",
     },
     {
         "id": "story-bible",
@@ -24,6 +25,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "story_bible_system.md",
         "user": "story_bible_user.md",
         "audio_system": "style_variants/audio_story/story_bible_system.md",
+        "literary_system": "style_variants/literary_book/story_bible_system.md",
     },
     {
         "id": "character",
@@ -32,6 +34,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "add_character_system.md",
         "user": "add_character_user.md",
         "audio_system": "style_variants/audio_story/add_character_system.md",
+        "literary_system": "style_variants/literary_book/add_character_system.md",
     },
     {
         "id": "point-of-view",
@@ -40,6 +43,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "regenerate_pov_system.md",
         "user": "regenerate_pov_user.md",
         "audio_system": "style_variants/audio_story/regenerate_pov_system.md",
+        "literary_system": "style_variants/literary_book/regenerate_pov_system.md",
     },
     {
         "id": "relationship",
@@ -48,6 +52,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "add_relationship_system.md",
         "user": "add_relationship_user.md",
         "audio_system": "style_variants/audio_story/add_relationship_system.md",
+        "literary_system": "style_variants/literary_book/add_relationship_system.md",
     },
     {
         "id": "pacing",
@@ -56,6 +61,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "pacing_system.md",
         "user": "pacing_user.md",
         "audio_system": "style_variants/audio_story/pacing_system.md",
+        "literary_system": "style_variants/literary_book/pacing_system.md",
     },
     {
         "id": "evaluate-pacing",
@@ -64,6 +70,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "evaluate_pacing_system.md",
         "user": "evaluate_pacing_user.md",
         "audio_system": "style_variants/audio_story/evaluate_pacing_system.md",
+        "literary_system": "style_variants/literary_book/evaluate_pacing_system.md",
     },
     {
         "id": "chapter-idea",
@@ -72,6 +79,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "analyze_chapter_idea_system.md",
         "user": "analyze_chapter_idea_user.md",
         "audio_system": "style_variants/audio_story/analyze_chapter_idea_system.md",
+        "literary_system": "style_variants/literary_book/analyze_chapter_idea_system.md",
     },
     {
         "id": "dynamic-chapters",
@@ -80,6 +88,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "single_chapter_system.md",
         "user": "single_chapter_user.md",
         "audio_system": "style_variants/audio_story/single_chapter_system.md",
+        "literary_system": "style_variants/literary_book/single_chapter_system.md",
     },
     {
         "id": "story-outline",
@@ -88,6 +97,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "story_outline_system.md",
         "user": "story_outline_user.md",
         "audio_system": "style_variants/audio_story/story_outline_system.md",
+        "literary_system": "style_variants/literary_book/story_outline_system.md",
     },
     {
         "id": "beat-breakdown",
@@ -96,6 +106,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "beat_system.md",
         "user": "beat_user.md",
         "audio_system": "style_variants/audio_story/beat_system.md",
+        "literary_system": "style_variants/literary_book/beat_system.md",
     },
     {
         "id": "evaluate-beats",
@@ -104,6 +115,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "evaluate_beats_system.md",
         "user": "evaluate_beats_user.md",
         "audio_system": "style_variants/audio_story/evaluate_beats_system.md",
+        "literary_system": "style_variants/literary_book/evaluate_beats_system.md",
     },
     {
         "id": "draft",
@@ -112,6 +124,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "draft_system.md",
         "user": "draft_user.md",
         "audio_system": "style_variants/audio_story/draft_system.md",
+        "literary_system": "style_variants/literary_book/draft_system.md",
     },
     {
         "id": "memory",
@@ -120,6 +133,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "memory_system.md",
         "user": "memory_user.md",
         "audio_system": "style_variants/audio_story/memory_system.md",
+        "literary_system": "style_variants/literary_book/memory_system.md",
     },
     {
         "id": "analyze-beat-text",
@@ -128,6 +142,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "analyze_beat_text_system.md",
         "user": "analyze_beat_text_user.md",
         "audio_system": "style_variants/audio_story/analyze_beat_text_system.md",
+        "literary_system": "style_variants/literary_book/analyze_beat_text_system.md",
     },
     {
         "id": "edit-beat-text",
@@ -136,6 +151,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "edit_beat_text_system.md",
         "user": "edit_beat_text_user.md",
         "audio_system": "style_variants/audio_story/edit_beat_text_system.md",
+        "literary_system": "style_variants/literary_book/edit_beat_text_system.md",
     },
     {
         "id": "refine",
@@ -144,6 +160,7 @@ CREATIVE_PROMPT_CATALOG = [
         "system": "refine_system.md",
         "user": "refine_user.md",
         "audio_system": "style_variants/audio_story/refine_system.md",
+        "literary_system": "style_variants/literary_book/refine_system.md",
     },
 ]
 
