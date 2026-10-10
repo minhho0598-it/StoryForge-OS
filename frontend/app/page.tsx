@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FolderOpen, Clock, ArrowRight } from "lucide-react";
+import { Plus, FolderOpen, Clock, ArrowRight, Settings } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 
 interface ProjectListItem {
@@ -69,9 +69,14 @@ export default function DashboardPage() {
             <p className="mt-1 text-slate-500">Danh sách dự án và thống kê nhanh về tiến độ sáng tác.</p>
           </div>
 
-          <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => router.push("/new")}>
-            <Plus className="mr-2 h-5 w-5" /> Dự án mới
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="lg" onClick={() => router.push("/settings")}>
+              <Settings className="mr-2 h-5 w-5" /> Cài đặt
+            </Button>
+            <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => router.push("/new")}>
+              <Plus className="mr-2 h-5 w-5" /> Dự án mới
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

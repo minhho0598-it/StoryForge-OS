@@ -1,4 +1,5 @@
 export type RenderConfig = {
+  literary_style: "literary_book" | "audio_story";
   voice_id: string;
   render_mode: "full" | "simple";
   auto_split_parts: boolean;
@@ -18,6 +19,7 @@ export type RenderConfig = {
 };
 
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
+  literary_style: "literary_book",
   voice_id: "Nguyệt Nga",
   render_mode: "full",
   auto_split_parts: false,
