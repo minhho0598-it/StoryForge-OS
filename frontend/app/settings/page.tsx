@@ -22,7 +22,7 @@ type StoryPromptCatalogItem = {
   title: string;
   system: string;
   user: string;
-  versions: Record<StoryStyle, { label: string; system_content: string; user_content: string }>;
+  versions: Record<StoryStyle, { label: string; system: string; system_content: string; user_content: string }>;
 };
 
 export default function SettingsPage() {
@@ -186,7 +186,7 @@ export default function SettingsPage() {
                         {(Object.entries(prompt.versions ?? {}) as [StoryStyle, StoryPromptCatalogItem["versions"][StoryStyle]][]).map(
                           ([style, version]) => (
                             <section key={style} className="space-y-3 rounded-md border border-indigo-100 p-4">
-                              <h4 className="font-semibold text-indigo-800">{version.label} · {prompt.system}</h4>
+                              <h4 className="font-semibold text-indigo-800">{version.label} · {version.system}</h4>
                               <div className="space-y-2">
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                   Phiên bản system prompt đầy đủ
