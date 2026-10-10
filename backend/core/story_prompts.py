@@ -174,7 +174,7 @@ def normalize_story_style(style: Any) -> str:
 def _system_prompt_filename(entry: dict[str, Any], style: str) -> str:
     if style == "audio_story":
         return entry.get("audio_system", entry["system"])
-    return entry["system"]
+    return entry.get("literary_system", entry["system"])
 
 
 def load_story_system_prompt(filename: str, literary_style: Any = "literary_book", **kwargs: Any) -> str:
