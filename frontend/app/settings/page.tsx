@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,19 +14,33 @@ import { apiClient, ApiError } from "@/lib/api-client";
 import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
 import { VoiceSelect } from "@/components/voice-select";
 
+type StoryStyle = "literary_book" | "audio_story";
+
+type StoryPromptCatalogItem = {
+  id: string;
+  stage: string;
+  title: string;
+  system: string;
+  user: string;
+  versions: Record<StoryStyle, { label: string; system: string; system_content: string; user_content: string }>;
+};
+
 export default function SettingsPage() {
+  const router = useRouter();
   const [defaultConfig, setDefaultConfig] = useState<RenderConfig>(DEFAULT_RENDER_CONFIG);
+  const [storyPrompts, setStoryPrompts] = useState<StoryPromptCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPrompts, setLoadingPrompts] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [promptLoadError, setPromptLoadError] = useState<string | null>(null);
   const [savingDefaults, setSavingDefaults] = useState(false);
   const [defaultsSaved, setDefaultsSaved] = useState(false);
-  const [returnHref, setReturnHref] = useState("/");
   const renderConfig = defaultConfig;
-
-  useEffect(() => {
-    const projectId = localStorage.getItem("story-maker-last-project-id");
-    setReturnHref(projectId ? `/project/${encodeURIComponent(projectId)}/overview` : "/");
-  }, []);
+  const activePromptStyle = renderConfig.literary_style;
+  const promptsByStage = storyPrompts.reduce<Record<string, StoryPromptCatalogItem[]>>((groups, prompt) => {
+    (groups[prompt.stage] ||= []).push(prompt);
+    return groups;
+  }, {});
 
   useEffect(() => {
     apiClient
@@ -36,6 +50,19 @@ export default function SettingsPage() {
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "Không tải được cấu hình chung."))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    apiClient
+      .get("/api/settings/story-prompts")
+      .then((response) => {
+        if (!Array.isArray(response.prompts)) {
+          throw new ApiError("Backend trả về danh mục prompt không hợp lệ.");
+        }
+        setStoryPrompts(response.prompts);
+      })
+      .catch((err) => setPromptLoadError(err instanceof ApiError ? err.message : "Không tải được danh mục prompt."))
+      .finally(() => setLoadingPrompts(false));
   }, []);
 
   const updateRenderConfig = <K extends keyof RenderConfig>(key: K, value: RenderConfig[K]) => {
@@ -80,10 +107,22 @@ export default function SettingsPage() {
             </div>
             <p className="mt-2 text-slate-500">Cấu hình mặc định được áp dụng cho các project mới.</p>
           </div>
-          <Link href={returnHref} className={buttonVariants({ variant: "outline" })}>
-            <ArrowLeft aria-hidden="true" />
-            Về Dashboard
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={saveDefaultSettings} disabled={savingDefaults} className="bg-indigo-600 hover:bg-indigo-700">
+              {savingDefaults ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : defaultsSaved ? (
+                <Check className="mr-2 h-4 w-4" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {defaultsSaved ? "Đã lưu" : "Lưu cài đặt chung"}
+            </Button>
+            <Button variant="outline" onClick={() => router.back()}>
+              <ArrowLeft aria-hidden="true" />
+              Trở về
+            </Button>
+          </div>
         </div>
 
         {loadError && (
@@ -91,26 +130,108 @@ export default function SettingsPage() {
         )}
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="border-b bg-white">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <SlidersHorizontal className="h-5 w-5 text-indigo-600" /> Cấu hình render chung
-                </CardTitle>
-                <CardDescription>
-                  Làm mặc định cho các project mới. Cấu hình riêng của từng project được quản lý trong Studio.
-                </CardDescription>
-              </div>
-              <Button onClick={saveDefaultSettings} disabled={savingDefaults} className="bg-indigo-600 hover:bg-indigo-700">
-                {savingDefaults ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : defaultsSaved ? (
-                  <Check className="mr-2 h-4 w-4" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                {defaultsSaved ? "Đã lưu" : "Lưu cấu hình chung"}
-              </Button>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Settings2 className="h-5 w-5 text-indigo-600" /> Cấu hình sáng tạo story
+            </CardTitle>
+            <CardDescription>
+              Thiết lập phong cách mặc định cho các project mới.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="bg-white p-6">
+            <div className="max-w-md space-y-2">
+              <Label>Phong cách văn chương</Label>
+              <Select
+                value={renderConfig.literary_style}
+                onValueChange={(value) => {
+                  if (value === "literary_book" || value === "audio_story") {
+                    updateRenderConfig("literary_style", value);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="literary_book">Sách văn chương</SelectItem>
+                  <SelectItem value="audio_story">Truyện audio</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="border-b bg-white">
+            <CardTitle className="text-lg">Danh mục prompt sáng tạo story</CardTitle>
+            <CardDescription>
+              Hiển thị phiên bản prompt đang áp dụng cho {activePromptStyle === "literary_book" ? "Sách văn chương" : "Truyện audio"}. Prompt đầu vào được dùng chung giữa các phong cách.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 bg-white p-6">
+            {promptLoadError && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {promptLoadError}
+              </div>
+            )}
+            {loadingPrompts ? (
+              <div className="text-sm text-slate-500">Đang tải danh mục prompt...</div>
+            ) : (
+              Object.entries(promptsByStage).map(([stage, prompts]) => (
+                <section key={stage} className="space-y-3">
+                  <h3 className="font-semibold text-slate-800">{stage}</h3>
+                  {prompts.map((prompt) => {
+                    const promptVersions = prompt.versions ?? {};
+                    const selectedVersion =
+                      promptVersions[activePromptStyle] ??
+                      (Object.values(promptVersions)[0] ?? {
+                        label: activePromptStyle === "literary_book" ? "Sách văn chương" : "Truyện audio",
+                        system: prompt.system,
+                        system_content: "",
+                        user_content: "",
+                      });
+
+                    return (
+                      <details key={prompt.id} className="rounded-md border border-slate-200">
+                        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-800">
+                          {prompt.title}
+                          <span className="ml-2 text-xs font-normal text-slate-500">({selectedVersion.label})</span>
+                        </summary>
+                        <div className="space-y-4 border-t p-4">
+                          <section className="space-y-3 rounded-md border border-indigo-100 p-4">
+                            <h4 className="font-semibold text-indigo-800">{selectedVersion.label} · {selectedVersion.system}</h4>
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Phiên bản system prompt đầy đủ
+                              </p>
+                              <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+                                {selectedVersion.system_content}
+                              </pre>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                User prompt · {prompt.user}
+                              </p>
+                              <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+                                {selectedVersion.user_content}
+                              </pre>
+                            </div>
+                          </section>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </section>
+              ))
+            )}
+          </CardContent>
+        </Card>
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader className="border-b bg-white">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <SlidersHorizontal className="h-5 w-5 text-indigo-600" /> Cấu hình render chung
+            </CardTitle>
+            <CardDescription>
+              Làm mặc định cho các project mới. Cấu hình riêng của từng project được quản lý trong Studio.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 bg-white p-6">
             <div className="grid gap-6 md:grid-cols-2">

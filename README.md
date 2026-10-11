@@ -6,8 +6,9 @@ Dự án áp dụng triết lý **Human-in-the-loop** (Người và máy đồng
 
 ## 🌟 Tính năng Cốt lõi
 
-- **Môi trường Viết Văn Chuyên Nghiệp (The Writer's Room):** Giao diện chia nhịp truyện (Beats) thông minh. AI tự động nháp từng cảnh, người dùng tự do sửa đổi và AI Editor sẽ gọt giũa lại (Polish) thành bản thảo hoàn chỉnh.
+- **Môi trường Viết Văn Chuyên Nghiệp (The Writer's Room):** Tạo/chỉnh danh sách chapter, sinh và duyệt dàn ý story tổng thể, sau đó sinh beats tuần tự xuyên suốt các chapter để giữ mạch sự kiện trước khi viết văn xuôi. Tab Sinh beats hỗ trợ xem toàn story hoặc theo chapter, theo dõi status, chuyển giữa beats và bản refine, điều hướng bằng mục lục nổi, thu gọn danh sách chapter, chèn/sửa/xóa beats, chấm điểm AI theo phạm vi, viết nháp AI cho từng beat hoặc toàn bộ beats của chapter, và refine nội dung chapter trực tiếp. Chi tiết beat và nội dung chapter được thu gọn mặc định để dễ theo dõi. Người dùng có thể sửa bản nháp và dùng AI Editor gọt giũa (Polish) thành bản thảo hoàn chỉnh.
 - **Story Memory Keeper:** Hệ thống AI tự động ghi nhớ diễn biến, đồ vật, vị trí của nhân vật sau mỗi cảnh viết để đảm bảo mạch truyện không bao giờ bị logic thủng (Plot hole).
+- **Từ/cụm từ cần tránh khi draft beat:** Cấu hình danh sách tại `backend/prompts/forbidden_phrases.json`; prompt draft beat đơn và draft theo chapter dùng chung danh sách này.
 - **Trình xuất Video Đa luồng (The Render Studio):** 
   - Gọi API Local Text-to-Speech với thuật toán chèn Dấu câu (Pacing) siêu tự nhiên.
   - Render Video không lưu file rác (Single-pass FFmpeg).
@@ -26,7 +27,7 @@ Dự án áp dụng triết lý **Human-in-the-loop** (Người và máy đồng
 
 ### 1. Chuẩn bị Cơ sở dữ liệu (Supabase)
 Tạo Project trên [Supabase](https://supabase.com), vào SQL Editor và chạy các lệnh tạo bảng `projects`, `chapters`, `beats` (Tham khảo cấu trúc trong code).
-Sau đó chạy `backend/migrations/001_app_settings.sql` để tạo cấu hình render mặc định dùng chung cho các project mới.
+Chạy lần lượt các migration trong `backend/migrations/`, gồm `001_app_settings.sql` và `002_story_workflow.sql`. Migration thứ hai bổ sung nơi lưu dàn ý story đã duyệt và trạng thái sinh beats tuần tự.
 
 ### 2. Cấu hình Backend (Python)
 ```bash

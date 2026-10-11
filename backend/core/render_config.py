@@ -5,6 +5,7 @@ from typing import Any, Mapping
 GLOBAL_RENDER_CONFIG_KEY = "default_render_config"
 
 DEFAULT_RENDER_CONFIG: dict[str, Any] = {
+    "literary_style": "literary_book",
     "voice_id": "Nguyệt Nga",
     "render_mode": "full",
     "auto_split_parts": False,
@@ -26,6 +27,12 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
 
 def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
     normalized = {**DEFAULT_RENDER_CONFIG, **(config or {})}
+    normalized["literary_style"] = (
+        normalized["literary_style"]
+        if isinstance(normalized["literary_style"], str)
+        and normalized["literary_style"] in {"literary_book", "audio_story"}
+        else DEFAULT_RENDER_CONFIG["literary_style"]
+    )
     normalized["story_intro_enabled"] = bool(normalized["story_intro_enabled"])
     try:
         background_audio_volume = float(normalized["background_audio_volume"])

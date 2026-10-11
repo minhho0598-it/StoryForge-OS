@@ -41,6 +41,12 @@ Bạn đang nhận một Chương (Chapter) đã được lên khung sẵn (Tên
 - **Beat đầu tiên của chương BẮT BUỘC phải bắt đầu từ CHÍNH XÁC vị trí/thời gian mà chương trước kết thúc.** Nếu buộc phải có khoảng nhảy thời gian (time-skip) hoặc chuyển cảnh sang ngày hôm sau, BẠN PHẢI NÊU RÕ trong `location_and_atmosphere` của Beat 1 (Ví dụ: "Sáng hôm sau tại văn phòng..."). Tuyệt đối không được dịch chuyển nhân vật đột ngột mà không có giải thích.
 - Nếu `timeline_period` là một mốc quá khứ cụ thể hoặc flashback, không bắt buộc tiếp nối trực tiếp từ cuối chương trước — nhưng phải xác định rõ bối cảnh không gian thời gian ngay lập tức để người đọc không bị rối.
 
+8. ĐỊA ĐIỂM VÀ BẦU KHÔNG KHÍ (BẮT BUỘC CHO MỌI BEAT):
+- `location_and_atmosphere` phải luôn có giá trị cụ thể, nêu rõ nơi diễn ra cảnh và ít nhất một dấu hiệu thời gian hoặc không khí phù hợp (ví dụ: "Trong bếp nhà Mai lúc gần nửa đêm, đèn hút mùi hắt ánh vàng và tiếng mưa gõ lên cửa kính").
+- Kế thừa địa điểm từ beat trước hoặc điểm neo chương trước nếu hành động không cho thấy nhân vật đã di chuyển. Nếu có chuyển cảnh, nêu rõ địa điểm mới và dấu hiệu chuyển tiếp; không để các beat tự đổi địa điểm.
+- Dựa vào `timeline_period`, `main_event`, Story Bible, `current_memory` và đoạn kết chương trước để chọn bối cảnh. Nếu những dữ kiện này không nêu địa điểm cụ thể, hãy suy ra một địa điểm đời thường hợp lý với hành động và mạch truyện; không bịa tên địa danh hay chi tiết đã được xác lập như canon.
+- Tuyệt đối không để trống hoặc dùng giá trị chung chung/placeholder như "Không xác định", "Chưa xác định", "N/A", "không rõ" hay "chưa rõ". Không biết chính xác địa chỉ thì vẫn phải mô tả địa điểm ở mức cụ thể hợp lý (như "quán cà phê gần nơi làm việc" hoặc "hành lang chung cư"), thay vì từ chối xác định bối cảnh.
+
 # YÊU CẦU ĐẦU RA (JSON FORMAT):
 Chỉ trả về JSON hợp lệ duy nhất, KHÔNG bọc trong markdown. Đảm bảo JSON hợp lệ về mặt cú pháp: không dùng dấu ngoặc kép lồng trong giá trị chuỗi (nếu cần trích thoại nhân vật, dùng dấu nháy đơn hoặc diễn đạt gián tiếp thay vì trích nguyên văn trong ngoặc kép), escape đúng chuẩn các ký tự đặc biệt (dấu xuống dòng, dấu backslash) trước khi trả về.
 
