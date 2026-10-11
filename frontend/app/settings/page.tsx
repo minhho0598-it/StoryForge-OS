@@ -36,6 +36,7 @@ export default function SettingsPage() {
   const [savingDefaults, setSavingDefaults] = useState(false);
   const [defaultsSaved, setDefaultsSaved] = useState(false);
   const renderConfig = defaultConfig;
+  const activePromptStyle = renderConfig.literary_style;
   const promptsByStage = storyPrompts.reduce<Record<string, StoryPromptCatalogItem[]>>((groups, prompt) => {
     (groups[prompt.stage] ||= []).push(prompt);
     return groups;
@@ -162,7 +163,7 @@ export default function SettingsPage() {
           <CardHeader className="border-b bg-white">
             <CardTitle className="text-lg">Danh mục prompt sáng tạo story</CardTitle>
             <CardDescription>
-              Mỗi prompt có một phiên bản đầy đủ cho Sách văn chương và một phiên bản đầy đủ cho Truyện audio. Prompt đầu vào được dùng chung giữa hai phiên bản.
+              Hiển thị phiên bản prompt đang áp dụng cho {activePromptStyle === "literary_book" ? "Sách văn chương" : "Truyện audio"}. Prompt đầu vào được dùng chung giữa các phong cách.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 bg-white p-6">
@@ -177,38 +178,47 @@ export default function SettingsPage() {
               Object.entries(promptsByStage).map(([stage, prompts]) => (
                 <section key={stage} className="space-y-3">
                   <h3 className="font-semibold text-slate-800">{stage}</h3>
-                  {prompts.map((prompt) => (
-                    <details key={prompt.id} className="rounded-md border border-slate-200">
-                      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-800">
-                        {prompt.title}
-                      </summary>
-                      <div className="space-y-4 border-t p-4">
-                        {(Object.entries(prompt.versions ?? {}) as [StoryStyle, StoryPromptCatalogItem["versions"][StoryStyle]][]).map(
-                          ([style, version]) => (
-                            <section key={style} className="space-y-3 rounded-md border border-indigo-100 p-4">
-                              <h4 className="font-semibold text-indigo-800">{version.label} · {version.system}</h4>
-                              <div className="space-y-2">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                  Phiên bản system prompt đầy đủ
-                                </p>
-                                <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
-                                  {version.system_content}
-                                </pre>
-                              </div>
-                              <div className="space-y-2">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                  User prompt · {prompt.user}
-                                </p>
-                                <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
-                                  {version.user_content}
-                                </pre>
-                              </div>
-                            </section>
-                          ),
-                        )}
-                      </div>
-                    </details>
-                  ))}
+                  {prompts.map((prompt) => {
+                    const promptVersions = prompt.versions ?? {};
+                    const selectedVersion =
+                      promptVersions[activePromptStyle] ??
+                      (Object.values(promptVersions)[0] ?? {
+                        label: activePromptStyle === "literary_book" ? "Sách văn chương" : "Truyện audio",
+                        system: prompt.system,
+                        system_content: "",
+                        user_content: "",
+                      });
+
+                    return (
+                      <details key={prompt.id} className="rounded-md border border-slate-200">
+                        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-800">
+                          {prompt.title}
+                          <span className="ml-2 text-xs font-normal text-slate-500">({selectedVersion.label})</span>
+                        </summary>
+                        <div className="space-y-4 border-t p-4">
+                          <section className="space-y-3 rounded-md border border-indigo-100 p-4">
+                            <h4 className="font-semibold text-indigo-800">{selectedVersion.label} · {selectedVersion.system}</h4>
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Phiên bản system prompt đầy đủ
+                              </p>
+                              <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+                                {selectedVersion.system_content}
+                              </pre>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                User prompt · {prompt.user}
+                              </p>
+                              <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+                                {selectedVersion.user_content}
+                              </pre>
+                            </div>
+                          </section>
+                        </div>
+                      </details>
+                    );
+                  })}
                 </section>
               ))
             )}
