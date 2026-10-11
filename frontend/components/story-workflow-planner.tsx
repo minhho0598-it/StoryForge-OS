@@ -313,6 +313,11 @@ export default function StoryWorkflowPlanner({
     () => JSON.stringify(chapterSignature(chapters)),
     [chapters],
   );
+  const chapterIdSignature = chapters.map((chapter) => chapter.id ?? "").join("\0");
+  const chapterIds = useMemo(
+    () => chapterIdSignature.split("\0").filter(Boolean),
+    [chapterIdSignature],
+  );
   const outlineMatches = Boolean(
     outline &&
     bibleSignatureCurrent &&
@@ -365,7 +370,7 @@ export default function StoryWorkflowPlanner({
     try {
       const result = await apiClient.get<StoryBeat[]>(`/api/projects/${projectId}/beats`);
       const beatsByChapterResult: Record<string, StoryBeat[]> = Object.fromEntries(
-        chapters.flatMap((chapter) => chapter.id ? [[chapter.id, [] as StoryBeat[]]] : []),
+        chapterIds.map((chapterId) => [chapterId, [] as StoryBeat[]]),
       );
       for (const beat of result.data ?? []) {
         (beatsByChapterResult[beat.chapter_id] ??= []).push(beat);
@@ -379,16 +384,16 @@ export default function StoryWorkflowPlanner({
     } finally {
       setLoadingWorkflowBeats(false);
     }
-  }, [chapters, projectId]);
+  }, [chapterIds, projectId]);
 
   useEffect(() => {
-    if (activeTab !== "beats" || chapters.length === 0) return;
+    if (activeTab !== "beats" || chapterIds.length === 0) return;
     const timer = window.setTimeout(() => {
       setLoadingWorkflowBeats(true);
       void loadWorkflowBeats();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [activeTab, chapters.length, generation?.status, loadWorkflowBeats]);
+  }, [activeTab, chapterIdSignature, generation?.status, loadWorkflowBeats, chapterIds.length]);
 
   const refreshWorkflowBeats = async () => {
     setLoadingWorkflowBeats(true);
@@ -649,9 +654,13 @@ export default function StoryWorkflowPlanner({
         });
       }
 
-      new Set(existingBeats.map((beat) => beat.chapter_id)).forEach((chapterId) =>
-        markChapterDraftStale(chapterId),
-      );
+      new Set(existingBeats.map((beat) => beat.chapter_id)).forEach((chapterId) => {
+        const chapter = chapters.find((item) => item.id === chapterId);
+        markChapterDraftStale(
+          chapterId,
+          chapter?.status === "Draft Completed" ? "Draft Completed" : "Beats Generated",
+        );
+      });
       setDirtyBeatIds((current) => {
         const next = { ...current };
         existingBeats.forEach((beat) => delete next[beat.id]);
@@ -1620,7 +1629,7 @@ export default function StoryWorkflowPlanner({
                         </div>
                       )}
                     </CardHeader>
-                    {isChapterRefined(chapter) && chapter.final_content && (
+                    {isChapterRefined(chapter) && chapter.final_content != null && (
                       <CardContent className="p-3 sm:p-5">
                         <section className="overflow-hidden rounded-xl border border-emerald-100 bg-white">
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-emerald-50/70 px-4 py-3">
@@ -1654,7 +1663,7 @@ export default function StoryWorkflowPlanner({
                         </section>
                       </CardContent>
                     )}
-                    {isChapterRefined(chapter) && !chapter.final_content && (
+                    {isChapterRefined(chapter) && chapter.final_content == null && (
                       <CardContent>
                         <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                           Chapter đã được đánh dấu refine nhưng chưa có nội dung refine để hiển thị.

@@ -477,6 +477,15 @@ async def update_beat_text(
         if not beat_result.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy beat.")
         saved_beat = beat_result.data[0]
+        chapter_result = (
+            supabase.table("chapters")
+            .select("project_id, status")
+            .eq("id", saved_beat["chapter_id"])
+            .execute()
+        )
+        if not chapter_result.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy chapter của beat.")
+        saved_chapter = chapter_result.data[0]
         draft_text_changed = (
             draft_text_changed
             and updates.get("ai_draft_text") != saved_beat.get("ai_draft_text")
@@ -484,19 +493,15 @@ async def update_beat_text(
         supabase.table("beats").update(updates).eq("id", beat_id).execute()
         chapter_id = saved_beat["chapter_id"]
         supabase.table("chapters").update({
-            "status": "Beats Generated",
+            "status": (
+                "Draft Completed"
+                if saved_chapter.get("status") == "Draft Completed"
+                else "Beats Generated"
+            ),
             "final_content": None,
         }).eq("id", chapter_id).execute()
         if draft_text_changed:
-            chapter_result = (
-                supabase.table("chapters")
-                .select("project_id")
-                .eq("id", chapter_id)
-                .execute()
-            )
-            if not chapter_result.data:
-                raise HTTPException(status_code=404, detail="Không tìm thấy chapter của beat.")
-            project_id = chapter_result.data[0]["project_id"]
+            project_id = saved_chapter["project_id"]
             project_result = (
                 supabase.table("projects")
                 .select("current_memory")
