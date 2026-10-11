@@ -109,15 +109,6 @@ CREATIVE_PROMPT_CATALOG = [
         "literary_system": "style_variants/literary_book/beat_system.md",
     },
     {
-        "id": "evaluate-beats",
-        "stage": "Beat",
-        "title": "Đánh giá cấu trúc beats",
-        "system": "evaluate_beats_system.md",
-        "user": "evaluate_beats_user.md",
-        "audio_system": "style_variants/audio_story/evaluate_beats_system.md",
-        "literary_system": "style_variants/literary_book/evaluate_beats_system.md",
-    },
-    {
         "id": "draft",
         "stage": "Viết bản nháp",
         "title": "Viết beat",

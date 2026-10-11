@@ -82,10 +82,6 @@ class BeatInsertRequest(BaseModel):
     draft_text: str | None = None
 
 
-class BeatEvaluationRequest(BaseModel):
-    scope: Literal["chapter", "story"]
-    chapter_id: str | None = None
-
 class ChapterUpdateRequest(BaseModel):
     final_content: str
 

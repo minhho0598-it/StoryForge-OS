@@ -123,19 +123,6 @@ async function copyTextToClipboard(text: string) {
   }
 }
 
-type BeatEvaluation = {
-  overall_score: number | string;
-  summary: string;
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: {
-    chapter_number?: number | string;
-    beat_id?: string;
-    issue: string;
-    fix: string;
-  }[];
-};
-
 type WorkflowTab = "chapters" | "outline" | "beats";
 
 const PRIMARY_FUNCTIONS = [
@@ -290,12 +277,6 @@ export default function StoryWorkflowPlanner({
   const [workflowBeatsError, setWorkflowBeatsError] = useState<string | null>(null);
   const [dirtyBeatIds, setDirtyBeatIds] = useState<Record<string, boolean>>({});
   const [savingBeats, setSavingBeats] = useState(false);
-  const [evaluatingBeats, setEvaluatingBeats] = useState(false);
-  const [beatEvaluationOpen, setBeatEvaluationOpen] = useState(false);
-  const [beatEvaluationError, setBeatEvaluationError] = useState<string | null>(null);
-  const [beatEvaluation, setBeatEvaluation] = useState<BeatEvaluation | null>(null);
-  const [beatEvaluationScope, setBeatEvaluationScope] = useState<"chapter" | "story">("story");
-  const [beatEvaluationChapter, setBeatEvaluationChapter] = useState<Chapter | null>(null);
   const [selectedBeatChapterId, setSelectedBeatChapterId] = useState(initialChapters[0]?.id ?? "");
   const beatViewMode = "chapter" as const;
   const [expandedChapterIds, setExpandedChapterIds] = useState<Record<string, boolean>>({});
@@ -799,33 +780,6 @@ export default function StoryWorkflowPlanner({
       await refreshWorkflowBeats();
     } catch (requestError) {
       setWorkflowBeatsError(requestError instanceof Error ? requestError.message : "Không thể xóa beat.");
-    }
-  };
-
-  const evaluateBeats = async (scope: "chapter" | "story", chapter?: Chapter) => {
-    if (isBatchDrafting) return;
-    setBeatEvaluationScope(scope);
-    setBeatEvaluationChapter(chapter ?? null);
-    setBeatEvaluation(null);
-    setBeatEvaluationError(null);
-    setBeatEvaluationOpen(true);
-    if (dirtyBeatCount > 0) {
-      setBeatEvaluationError("Bạn có beats chưa lưu. Hãy lưu trước khi chấm điểm để AI đánh giá đúng dữ liệu mới nhất.");
-      return;
-    }
-    setEvaluatingBeats(true);
-    try {
-      const result = await apiClient.post<BeatEvaluation>(`/api/projects/${projectId}/evaluate-beats`, {
-        scope,
-        chapter_id: chapter?.id,
-      });
-      setBeatEvaluation(result.data);
-    } catch (requestError) {
-      setBeatEvaluationError(
-        requestError instanceof Error ? requestError.message : "Không thể đánh giá beats.",
-      );
-    } finally {
-      setEvaluatingBeats(false);
     }
   };
 
@@ -2005,28 +1959,6 @@ export default function StoryWorkflowPlanner({
                 </span>
               </Button>
             )}
-            <Button
-              type="button"
-              size="sm"
-              aria-label="AI chấm điểm chapter"
-              title="AI chấm điểm chapter"
-              disabled={
-                isBatchDrafting ||
-                evaluatingBeats ||
-                loadingWorkflowBeats ||
-                !selectedBeatChapter?.id ||
-                !beatsByChapter[selectedBeatChapter.id]?.length
-              }
-              onClick={() => void (selectedBeatChapter && evaluateBeats("chapter", selectedBeatChapter))}
-              className={`h-11 w-full shrink-0 gap-1.5 rounded-full bg-amber-500 px-3 text-white hover:bg-amber-600 md:w-auto md:px-4 ${shouldShowBeatGeneration ? "" : "col-span-2"}`}
-            >
-              {evaluatingBeats ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-              ) : (
-                <Activity className="h-4 w-4 shrink-0" />
-              )}
-              <span className="text-xs font-semibold md:text-sm">Chấm điểm</span>
-            </Button>
           </div>
         </>
       )}
@@ -2293,77 +2225,6 @@ export default function StoryWorkflowPlanner({
                       <p className="font-bold text-indigo-700">Chương {suggestion.chapter_number}</p>
                       <p className="text-red-700"><span className="font-semibold">Vấn đề:</span> {suggestion.issue}</p>
                       <p className="text-green-800"><span className="font-semibold">Cách sửa:</span> {suggestion.fix}</p>
-                    </article>
-                  ))}
-                </section>
-              )}
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={beatEvaluationOpen} onOpenChange={setBeatEvaluationOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[680px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-amber-600" />
-              {beatEvaluationScope === "story"
-                ? "AI chấm điểm nhịp beat toàn story"
-                : `AI chấm điểm beat · Chương ${beatEvaluationChapter?.chapter_number}`}
-            </DialogTitle>
-          </DialogHeader>
-          {evaluatingBeats ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-500" aria-live="polite">
-              <Loader2 className="mb-4 h-10 w-10 animate-spin text-amber-500" />
-              <p className="animate-pulse">AI đang đối chiếu beats với mạch truyện...</p>
-            </div>
-          ) : beatEvaluationError ? (
-            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              {beatEvaluationError}
-            </div>
-          ) : beatEvaluation ? (
-            <div className="space-y-6 py-2">
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4">
-                <div>
-                  <Badge className="mb-2 bg-amber-100 text-amber-800 hover:bg-amber-100">
-                    {beatEvaluationScope === "story" ? "TOÀN STORY" : `CHAPTER ${beatEvaluationChapter?.chapter_number}`}
-                  </Badge>
-                  <p className="text-sm font-medium leading-relaxed text-amber-950">{beatEvaluation.summary}</p>
-                </div>
-                <div className="shrink-0 rounded-xl bg-white px-4 py-2 text-center shadow-sm">
-                  <p className="text-3xl font-black text-amber-600">{beatEvaluation.overall_score}<span className="text-base">/10</span></p>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Điểm nhịp</p>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <section className="rounded-lg border border-green-100 bg-green-50/50 p-4">
-                  <h3 className="mb-2 text-sm font-bold text-green-700">Điểm mạnh</h3>
-                  {beatEvaluation.strengths.length ? (
-                    <ul className="list-disc space-y-1.5 pl-4 text-sm text-slate-700">
-                      {beatEvaluation.strengths.map((item, index) => <li key={index}>{item}</li>)}
-                    </ul>
-                  ) : <p className="text-sm text-slate-500">Chưa có nhận xét.</p>}
-                </section>
-                <section className="rounded-lg border border-rose-100 bg-rose-50/50 p-4">
-                  <h3 className="mb-2 text-sm font-bold text-rose-700">Điểm cần cải thiện</h3>
-                  {beatEvaluation.weaknesses.length ? (
-                    <ul className="list-disc space-y-1.5 pl-4 text-sm text-slate-700">
-                      {beatEvaluation.weaknesses.map((item, index) => <li key={index}>{item}</li>)}
-                    </ul>
-                  ) : <p className="text-sm text-slate-500">Không phát hiện vấn đề cụ thể.</p>}
-                </section>
-              </div>
-              {beatEvaluation.suggestions.length > 0 && (
-                <section className="space-y-3">
-                  <h3 className="border-b pb-2 text-sm font-bold text-slate-800">Đề xuất chỉnh sửa</h3>
-                  {beatEvaluation.suggestions.map((item, index) => (
-                    <article key={`${item.beat_id ?? item.chapter_number}-${index}`} className="rounded-lg border bg-slate-50 p-3 text-sm">
-                      <p className="mb-1 font-bold text-indigo-700">
-                        {item.beat_id ? `${item.beat_id} · ` : ""}
-                        {item.chapter_number ? `Chương ${item.chapter_number}` : "Mạch beats"}
-                      </p>
-                      <p className="text-rose-700"><span className="font-semibold">Vấn đề:</span> {item.issue}</p>
-                      <p className="mt-1 text-green-800"><span className="font-semibold">Đề xuất:</span> {item.fix}</p>
                     </article>
                   ))}
                 </section>

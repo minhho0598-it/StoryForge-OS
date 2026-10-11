@@ -7,7 +7,6 @@ from core.render_config import get_global_render_config
 from core.story_prompts import load_story_system_prompt
 from schemas import (
     AnalyzeChapterIdeaRequest,
-    BeatEvaluationRequest,
     GenerateCharacterRequest,
     GeneratePovRecommendationRequest,
     GenerateRelationshipRequest,
@@ -416,71 +415,6 @@ async def evaluate_pacing(project_id: str):
         result_json = await generate_json(system_prompt, user_prompt)
         return {"success": True, "data": result_json}
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/api/projects/{project_id}/evaluate-beats")
-async def evaluate_beats(project_id: str, request: BeatEvaluationRequest):
-    try:
-        project_result = (
-            supabase.table("projects")
-            .select("id, story_bible, story_outline")
-            .eq("id", project_id)
-            .execute()
-        )
-        if not project_result.data:
-            raise HTTPException(status_code=404, detail="Không tìm thấy dự án.")
-
-        chapter_query = (
-            supabase.table("chapters")
-            .select(
-                "id, chapter_number, title, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note"
-            )
-            .eq("project_id", project_id)
-        )
-        if request.scope == "chapter":
-            if not request.chapter_id:
-                raise HTTPException(status_code=400, detail="Cần chapter_id để đánh giá trong phạm vi chapter.")
-            chapter_query = chapter_query.eq("id", request.chapter_id)
-        chapters = chapter_query.order("chapter_number").execute().data or []
-        if not chapters:
-            raise HTTPException(status_code=400, detail="Không có chapter để đánh giá.")
-        if request.scope == "chapter" and chapters[0]["id"] != request.chapter_id:
-            raise HTTPException(status_code=404, detail="Chapter không thuộc dự án này.")
-
-        evaluated_chapters = []
-        for chapter in chapters:
-            beat_result = (
-                supabase.table("beats")
-                .select("beat_id, beat_order, location, characters_present, action_and_dialogue, emotional_shift")
-                .eq("chapter_id", chapter["id"])
-                .order("beat_order")
-                .execute()
-            )
-            evaluated_chapters.append({
-                **{key: value for key, value in chapter.items() if key != "id"},
-                "beats": beat_result.data or [],
-            })
-        if not any(chapter["beats"] for chapter in evaluated_chapters):
-            raise HTTPException(status_code=400, detail="Chưa có beat để đánh giá.")
-
-        project = project_result.data[0]
-        optimized_bible = get_optimized_bible(project.get("story_bible"), task="pacing")
-        system_prompt = load_story_system_prompt(
-            "evaluate_beats_system.md",
-            _project_literary_style(project),
-        )
-        user_prompt = prompt_manager.load_prompt(
-            "evaluate_beats_user.md",
-            scope="toàn story" if request.scope == "story" else "chapter",
-            story_bible=json.dumps(optimized_bible, ensure_ascii=False),
-            story_outline=(project.get("story_outline") or {}).get("content", ""),
-            chapters=json.dumps(evaluated_chapters, ensure_ascii=False),
-        )
-        result_json = await generate_json(system_prompt, user_prompt)
-        return {"success": True, "data": result_json}
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
