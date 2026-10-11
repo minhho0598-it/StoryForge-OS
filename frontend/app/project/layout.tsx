@@ -12,7 +12,7 @@ type ProjectOption = {
   title: string;
 };
 
-const projectSections = ["architecture", "overview", "metadata", "studio", "writer-room"] as const;
+const projectSections = ["architecture", "overview", "metadata", "settings", "studio", "writer-room"] as const;
 
 export default function ProjectLayout({
   children,
@@ -156,7 +156,7 @@ export default function ProjectLayout({
 
           <div className="border-t border-slate-800 p-3 transition-all duration-300 ease-out">
             <Link
-              href="/settings"
+              href={`/project/${projectId}/settings`}
               title="Cài Đặt"
               className={`flex items-center rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center w-full h-8" : "gap-3 px-3 py-3 w-full"} ${isActive('/settings') ? 'bg-slate-700 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
