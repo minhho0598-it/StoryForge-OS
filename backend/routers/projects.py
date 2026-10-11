@@ -403,7 +403,10 @@ async def evaluate_pacing(project_id: str):
             
         optimized_bible = get_optimized_bible(proj_res.data[0].get("story_bible"), task="pacing")
         
-        system_prompt = prompt_manager.load_prompt("evaluate_pacing_system.md")
+        system_prompt = load_story_system_prompt(
+            "evaluate_pacing_system.md",
+            _project_literary_style(proj_res.data[0]),
+        )
         user_prompt = prompt_manager.load_prompt(
             "evaluate_pacing_user.md",
             story_bible=json.dumps(optimized_bible, ensure_ascii=False),
@@ -463,7 +466,10 @@ async def evaluate_beats(project_id: str, request: BeatEvaluationRequest):
 
         project = project_result.data[0]
         optimized_bible = get_optimized_bible(project.get("story_bible"), task="pacing")
-        system_prompt = prompt_manager.load_prompt("evaluate_beats_system.md")
+        system_prompt = load_story_system_prompt(
+            "evaluate_beats_system.md",
+            _project_literary_style(project),
+        )
         user_prompt = prompt_manager.load_prompt(
             "evaluate_beats_user.md",
             scope="toàn story" if request.scope == "story" else "chapter",

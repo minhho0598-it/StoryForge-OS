@@ -3,6 +3,8 @@ import os
 import subprocess
 import tempfile
 
+from .common import _project_literary_style
+from core.story_prompts import load_story_system_prompt
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
@@ -59,7 +61,7 @@ async def update_render_config(project_id: str, request: UpdateRenderConfigReque
 @router.post("/api/projects/{project_id}/generate-metadata")
 async def generate_video_metadata(project_id: str, request: MetadataGenerateRequest):
     try:
-        res = supabase.table("projects").select("id, title, vibe, logline, situational_irony, micro_conflict, story_bible, video_metadata").eq("id", project_id).execute()
+        res = supabase.table("projects").select("id, title, vibe, logline, situational_irony, micro_conflict, story_bible, video_metadata, render_config").eq("id", project_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy dự án")
         project = res.data[0]
@@ -75,7 +77,10 @@ async def generate_video_metadata(project_id: str, request: MetadataGenerateRequ
         }
 
         if request.target_type == "thumbnail_prompt":
-            art_director_system_prompt = prompt_manager.load_prompt("art_director_system.md")
+            art_director_system_prompt = load_story_system_prompt(
+                "art_director_system.md",
+                _project_literary_style(project),
+            )
             art_director_user_prompt = prompt_manager.load_prompt(
                 "art_director_user.md",
                 title=story_context["title"],
@@ -106,7 +111,10 @@ async def generate_video_metadata(project_id: str, request: MetadataGenerateRequ
                 negativeSpace=negative_space,
             )]
         else:
-            system_prompt = prompt_manager.load_prompt("metadata_system.md")
+            system_prompt = load_story_system_prompt(
+                "metadata_system.md",
+                _project_literary_style(project),
+            )
             user_prompt = prompt_manager.load_prompt(
                 "metadata_user.md",
                 **story_context,
@@ -156,7 +164,7 @@ async def background_batch_render(project_id: str, config: dict, target_chapter_
             raise Exception("Không tìm thấy chương hợp lệ để render.")
         total_chaps = len(valid_chapters)
 
-        project_res = supabase.table("projects").select("video_metadata").eq("id", project_id).execute()
+        project_res = supabase.table("projects").select("render_config, video_metadata").eq("id", project_id).execute()
         project_metadata = (project_res.data or [{}])[0].get("video_metadata") or {}
         story_intro_text = str(project_metadata.get("story_intro") or "").strip()
         use_story_intro = config["story_intro_enabled"] and bool(story_intro_text)
@@ -268,7 +276,10 @@ async def background_batch_render(project_id: str, config: dict, target_chapter_
                 supabase.table("chapters").update({"status": "Preparing Text"}).eq("id", chapter_id).execute()
                 print(f"[Batch Render] Chuẩn hóa Text Chương {chap_num}...")
                         
-                system_prompt = prompt_manager.load_prompt("visual_script_system.md")
+                system_prompt = load_story_system_prompt(
+                    "visual_script_system.md",
+                    _project_literary_style(project_res.data[0]),
+                )
                 user_prompt = prompt_manager.load_prompt("visual_script_user.md", final_content=chapter.get("final_content", ""))
                 script_result = await generate_json(system_prompt, user_prompt)
                 clean_script = script_result.get("edited_text", chapter.get("final_content", "")).replace("*", "").replace("_", "")
