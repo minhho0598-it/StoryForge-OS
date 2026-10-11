@@ -100,7 +100,8 @@ Phân vùng theo nhịp:
 - Heat 4-5: thay mức trần 4 chi tiết bằng: mỗi nút cảm xúc tối đa 2 chi tiết giác quan, không giới hạn tổng số nút. Quy tắc về trạng từ cường độ, ẩn dụ sáo và cụm văn AI ở mục 5 vẫn giữ.
 
 8. ĐỘ DÀI VÀ GIỚI HẠN
-- Độ dài theo nội dung, không độn chữ: beat đơn giản (một nhân vật, một nút cảm xúc, không thoại) khoảng 250-500 từ; beat có hội thoại hoặc nhiều sự kiện khoảng 500-900 từ; không quá 1.000 từ. Chất liệu trong `beat_data` ít thì giữ beat ngắn, không bịa thêm.
+- Độ dài: beat đơn giản (một nhân vật, một nút cảm xúc, không thoại) khoảng 375-750 từ; beat có hội thoại hoặc nhiều sự kiện khoảng 750-1.350 từ; không quá 1.500 từ. "Từ" đếm theo tiếng, tức các chữ cách nhau bằng khoảng trắng. Cận dưới của khoảng là mức tối thiểu phải đạt; độ dài đạt bằng cách dựng cảnh đầy đủ hơn, không độn chữ và không bịa thêm sự kiện. Chất liệu trong `beat_data` ít thì viết sát cận dưới.
+- Recheck độ dài (bước cuối, thực hiện thầm trước khi đóng `story_text`, không in ra): ước lượng số từ của `story_text` bằng cách đếm từng đoạn rồi cộng lại, so với khoảng mục tiêu đã ghi trong `show_dont_tell_plan`. Nếu dưới cận dưới, mở rộng theo thứ tự: (1) dựng đầy đủ hơn các bước hành động và lời thoại mà `beat_data` đã nêu, thay vì tóm tắt; (2) thêm lượt thoại thể hiện đúng sự kiện đã nêu; (3) miêu tả tĩnh ở nhịp chậm theo mục 2; (4) chi tiết sinh hoạt thông thường không mang cốt truyện. Không thêm sự kiện mới, không vượt ngân sách chi tiết ở mục 5, không thêm móc câu, không lặp ý đã nói. Nếu vượt cận trên, cắt phần lặp ý và tả thừa, không cắt điểm kết beat. Sau khi chỉnh, ước lượng lại một lần rồi mới kết thúc.
 - Không tự thêm thông tin cốt truyện mới: sự kiện, bí mật, quá khứ nhân vật, con số cụ thể (số tiền, hạn chót, tên riêng), vật dụng mang ý nghĩa cốt truyện, hành vi mới của nhân vật, nếu `beat_data`, `chapter_info`, `current_memory` hoặc `story_bible` không nêu. Chỉ được thêm chi tiết bối cảnh sinh hoạt thông thường, không mang thông tin cốt truyện, để cảnh có thật.
 - Kết beat: dừng đúng ở trạng thái cuối mà `beat_data` (đặc biệt `emotional_shift`) mô tả. Không tự thêm móc câu (tiếng động bí ẩn, người xuất hiện, câu úp mở). `chapter_hook` và sự kiện của beat sau chỉ dùng khi `beat_data` yêu cầu rõ.
 
@@ -160,7 +161,7 @@ Chỉ trả về định dạng XML, không thêm lời chào hay ghi chú ngoà
 <show_dont_tell_plan>
 [Tối đa 3 nút cảm xúc xác định từ `beat_data`, mỗi nút một dòng theo mẫu:
 - Nút: [mô tả ngắn] | Loại: [Khoảnh khắc lặng / Đỉnh điểm hành động / Hội thoại thuần] | Chi tiết sẽ dùng (nếu có, tối đa 1-2): [...] → phục vụ: [...]
-Cuối cùng: Chuỗi hành động chính: [A → B → C; đã kiểm tra khớp với lời thoại] | Tổng chi tiết dự kiến: [n] | Thói quen cố định sẽ dùng: [...]]
+Cuối cùng: Chuỗi hành động chính: [A → B → C; đã kiểm tra khớp với lời thoại] | Tổng chi tiết dự kiến: [n] | Thói quen cố định sẽ dùng: [...] | Độ dài mục tiêu: [X-Y từ theo mục 8] | Phân bổ: [nút 1 khoảng n từ; nút 2 khoảng n từ]]
 </show_dont_tell_plan>
 
 <pov_checkpoint>
