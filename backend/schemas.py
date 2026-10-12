@@ -53,7 +53,6 @@ class RenderRequest(BaseModel):
     voice_id: str # Ví dụ: "Nguyệt Nga", "Bảo Hoàng"
     
     # Đường dẫn Local do User upload/chọn trên giao diện
-    intro_video_path: str 
     main_video_path: str
     background_folder_path: str # Thư mục chứa các video nền
     background_audio_path: str  # Đường dẫn audio nền cho mode simple
@@ -117,7 +116,6 @@ class RenderConfigPayload(BaseModel):
     story_intro_enabled: bool = False
     story_intro_position: Literal["start", "end"] = "start"
     story_intro_pause_ms: int = 1000
-    intro_video_path: str
     main_video_path: str
     background_folder_path: str
     background_audio_path: str

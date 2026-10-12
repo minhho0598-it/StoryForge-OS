@@ -12,7 +12,6 @@ VALUES (
         "render_mode": "full",
         "auto_split_parts": false,
         "use_background_audio": false,
-        "intro_video_path": "./data/sample_assets/intro.mp4",
         "main_video_path": "./data/sample_assets/main.mp4",
         "background_folder_path": "./data/sample_assets/backgrounds",
         "background_audio_path": "",

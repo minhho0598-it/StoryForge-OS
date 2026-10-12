@@ -60,7 +60,7 @@ export function RenderConfigEditor({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="full">Bình thường (Intro + Overlay)</SelectItem>
+                <SelectItem value="full">Bình thường (Video chính + Overlay)</SelectItem>
                 <SelectItem value="simple">Đơn giản (Nền + Audio)</SelectItem>
               </SelectContent>
             </Select>
@@ -179,24 +179,14 @@ export function RenderConfigEditor({
             </p>
           </div>
           {config.render_mode === "full" && (
-            <>
-              <div className="space-y-2">
-                <Label>File video intro</Label>
-                <Input
-                  value={config.intro_video_path}
-                  onChange={(event) => onChange("intro_video_path", event.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>File video chính</Label>
-                <Input
-                  value={config.main_video_path}
-                  onChange={(event) => onChange("main_video_path", event.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-            </>
+            <div className="space-y-2">
+              <Label>File video chính</Label>
+              <Input
+                value={config.main_video_path}
+                onChange={(event) => onChange("main_video_path", event.target.value)}
+                className="font-mono text-sm"
+              />
+            </div>
           )}
         </div>
         {config.render_mode === "full" && (
