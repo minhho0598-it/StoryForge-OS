@@ -203,6 +203,10 @@ function isChapterRefined(chapter: Chapter) {
   ].includes(chapter.status ?? "");
 }
 
+function isChapterComplete(chapter: Chapter) {
+  return chapter.status === "Refined & Ready for Audio";
+}
+
 function isAccessibleBeatChapter(chapter: Chapter, chapters: Chapter[]) {
   const chapterId = chapter.id;
   if (!chapterId) return false;
@@ -277,7 +281,9 @@ export default function StoryWorkflowPlanner({
   const [workflowBeatsError, setWorkflowBeatsError] = useState<string | null>(null);
   const [dirtyBeatIds, setDirtyBeatIds] = useState<Record<string, boolean>>({});
   const [savingBeats, setSavingBeats] = useState(false);
-  const [selectedBeatChapterId, setSelectedBeatChapterId] = useState(initialChapters[0]?.id ?? "");
+  const [selectedBeatChapterId, setSelectedBeatChapterId] = useState(
+    (initialChapters.find((chapter) => !isChapterComplete(chapter)) ?? initialChapters[0])?.id ?? "",
+  );
   const beatViewMode = "chapter" as const;
   const [expandedChapterIds, setExpandedChapterIds] = useState<Record<string, boolean>>({});
   const [refiningChapterId, setRefiningChapterId] = useState<string | null>(null);
@@ -331,6 +337,7 @@ export default function StoryWorkflowPlanner({
       ),
     [chapters],
   );
+  const completedChapterCount = chapters.filter(isChapterComplete).length;
   const fallbackBeatChapter = chapters.find((chapter) => chapter.id && accessibleBeatChapterIds.has(chapter.id)) ?? null;
   const selectedBeatChapter = chapters.find((chapter) => chapter.id === selectedBeatChapterId)
     ?? fallbackBeatChapter;
@@ -346,6 +353,18 @@ export default function StoryWorkflowPlanner({
   const nextBeatChapter = selectedBeatChapterIndex >= 0
     ? chapters[selectedBeatChapterIndex + 1]
     : null;
+
+  const selectWorkflowTab = (tab: WorkflowTab) => {
+    if (tab === "beats") {
+      const firstIncompleteChapter = chapters.find(
+        (chapter) => chapter.id && !isChapterComplete(chapter),
+      );
+      if (firstIncompleteChapter?.id) {
+        setSelectedBeatChapterId(firstIncompleteChapter.id);
+      }
+    }
+    setActiveTab(tab);
+  };
 
   const loadWorkflowBeats = useCallback(async () => {
     try {
@@ -721,6 +740,10 @@ export default function StoryWorkflowPlanner({
           ? { ...item, status: "Refined & Ready for Audio", final_content: refinedContent }
           : item,
       ));
+      const nextIncompleteChapter = chapters.find(
+        (item) => item.id !== chapter.id && !isChapterComplete(item),
+      );
+      setSelectedBeatChapterId(nextIncompleteChapter?.id ?? chapter.id);
     } catch (requestError) {
       setWorkflowBeatsError(requestError instanceof Error ? requestError.message : "Không thể biên tập nội dung chapter.");
     } finally {
@@ -1012,7 +1035,7 @@ export default function StoryWorkflowPlanner({
       setOutline(result.data);
       setBibleSignatureCurrent(true);
       setOutlineDirty(false);
-      setActiveTab("outline");
+      selectWorkflowTab("outline");
       setGeneration((current) =>
         current && current.status !== "running" && current.completed > 0
           ? { ...current, status: "stale" }
@@ -1039,7 +1062,7 @@ export default function StoryWorkflowPlanner({
       setOutline(result.data);
       setBibleSignatureCurrent(true);
       setOutlineDirty(false);
-      if (confirmed) setActiveTab("beats");
+      if (confirmed) selectWorkflowTab("beats");
       if (outlineDirty && generation && generation.status !== "running" && generation.completed > 0) {
         setGeneration({ status: "stale", completed: 0, total: chapters.length });
       }
@@ -1066,7 +1089,7 @@ export default function StoryWorkflowPlanner({
         { reset_existing: resetExisting },
       );
       setGeneration(result.data);
-      setActiveTab("beats");
+      selectWorkflowTab("beats");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Không thể bắt đầu sinh beats.");
     } finally {
@@ -1104,7 +1127,7 @@ export default function StoryWorkflowPlanner({
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as WorkflowTab)} className="w-full">
+        <Tabs value={activeTab} onValueChange={(value) => selectWorkflowTab(value as WorkflowTab)} className="w-full">
           <TabsList className="grid min-h-12 w-full grid-cols-3 items-stretch gap-1 bg-slate-200 p-1">
             <TabsTrigger value="chapters" disabled={isBatchDrafting} className="!h-auto min-h-10 self-stretch px-2 text-xs sm:text-sm">
               <BookOpen className="mr-1 h-4 w-4 sm:mr-2" /> <span>1. Chapter</span>
@@ -1137,7 +1160,7 @@ export default function StoryWorkflowPlanner({
                     variant="outline"
                     className="border-amber-200 text-amber-700 hover:bg-amber-50"
                     disabled={chapters.length === 0 || chaptersDirty || savingChapters}
-                    onClick={() => setActiveTab("outline")}
+                    onClick={() => selectWorkflowTab("outline")}
                   >
                     <Activity className="mr-2 h-4 w-4" /> Sang dàn ý story
                   </Button>
@@ -1434,6 +1457,26 @@ export default function StoryWorkflowPlanner({
           </TabsContent>
           <TabsContent value="beats" className="mt-4">
             <div className="space-y-5 pb-28 pt-2">
+            <section
+              aria-label="Tiến độ hoàn thành chapter"
+              className="space-y-2 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-2 font-medium text-slate-700">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Chapter đã hoàn thành
+                </span>
+                <span className="shrink-0 font-semibold text-emerald-700">
+                  {completedChapterCount} / {chapters.length}
+                </span>
+              </div>
+              <progress
+                className="h-2 w-full accent-emerald-600"
+                value={completedChapterCount}
+                max={chapters.length || 1}
+                aria-label="Chapter đã hoàn thành"
+              />
+            </section>
             {generation?.status === "running" && (
               <div className="space-y-2 rounded-xl border border-indigo-100 bg-white p-4 shadow-sm" aria-live="polite">
                 <div className="flex items-center gap-2 text-sm font-medium text-indigo-700">
@@ -1780,8 +1823,9 @@ export default function StoryWorkflowPlanner({
                           type="button"
                           disabled={isBatchDrafting}
                           onClick={() => scrollToPlannerChapter(chapterId)}
+                          aria-current={selectedBeatChapter?.id === chapterId ? "location" : undefined}
                           className={`w-full truncate rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors ${
-                            activePlannerTocId === `chapter-${chapterId}`
+                            selectedBeatChapter?.id === chapterId
                               ? "bg-indigo-100 text-indigo-800"
                               : "text-slate-600 hover:bg-slate-100"
                           }`}
@@ -1832,7 +1876,12 @@ export default function StoryWorkflowPlanner({
                               scrollToPlannerChapter(chapterId);
                               setIsPlannerTocOpen(false);
                             }}
-                            className="w-full truncate rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                            aria-current={selectedBeatChapter?.id === chapterId ? "location" : undefined}
+                            className={`w-full truncate rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors ${
+                              selectedBeatChapter?.id === chapterId
+                                ? "bg-indigo-100 text-indigo-800"
+                                : "text-slate-700 hover:bg-slate-100"
+                            }`}
                           >
                             Ch. {chapter.chapter_number} · {chapter.title || `Chương ${chapter.chapter_number}`}
                             <span className="ml-1 text-[10px] font-normal text-slate-400">({chapterBeats.length})</span>
