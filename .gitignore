@@ -1,7 +1,6 @@
 # ========================
 # BACKEND (Python)
 # ========================
-backend/__pycache__/
 backend/*.py[cod]
 backend/*$py.class
 backend/venv/
@@ -30,3 +29,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .DS_Store
+
+PROJECT_DOCS.md
+**/__pycache__/
+*.py[cod]
+PROJECT_SPEC.md
+frontend/package-lock.json

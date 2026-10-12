@@ -14,6 +14,17 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, PlayCircle, Settings2, CheckCircle2, Clock, FileWarning, Wand2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { apiClient } from "@/lib/api-client";
+import { DEFAULT_RENDER_CONFIG, normalizeRenderConfig, type RenderConfig } from "@/lib/render-config";
+import { VoiceSelect } from "@/components/voice-select";
+
+type RenderStatusResponse = {
+  success: boolean;
+  project_status: string;
+  project_progress?: number;
+  task_msg?: string;
+  chapters: any[];
+};
 
 export default function RenderStudioPage() {
   const params = useParams();
@@ -30,30 +41,10 @@ export default function RenderStudioPage() {
   
   // === TÍNH NĂNG MỚI: CHỌN CHAPTER MUỐN RENDER ===
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
+  const [hasSavedStoryIntro, setHasSavedStoryIntro] = useState(false);
 
   // === TÍNH NĂNG MỚI: CẤU HÌNH PROFILE ===
-  const [config, setConfig] = useState({
-    voice_id: "Nguyệt Nga",
-    render_mode: "full",
-    auto_split_parts: false,
-    intro_video_path: "./data/sample_assets/intro.mp4",
-    main_video_path: "./data/sample_assets/main.mp4",
-    background_folder_path: "./data/sample_assets/backgrounds",
-    silence_audio_path: "./data/sample_assets/empty.wav",
-    overlay_x: 1110, overlay_y: 10, overlay_w: 601, overlay_h: 1060
-  });
-
-  const [metadata, setMetadata] = useState({
-    title: "",
-    hook: "",
-    overlay: "",
-    description: "",
-    type: ""
-  });
-  
-  const [loadingMeta, setLoadingMeta] = useState<Record<string, boolean>>({
-    title: false, hook: false, overlay: false, description: false, type: false
-  });
+  const [config, setConfig] = useState<RenderConfig>(DEFAULT_RENDER_CONFIG);
 
   const forceRenderRef = useRef(false);
   const hasInitializedSelection = useRef(false);
@@ -61,14 +52,10 @@ export default function RenderStudioPage() {
   // 1. HÀM FETCH INITIAL (Đọc Profile Config từ DB nếu có)
   const fetchInitialData = async () => {
     try {
-      const [chapRes, projRes, videoMetaRes] = await Promise.all([
-        fetch(`http://localhost:8765/api/projects/${projectId}/chapters`),
-        fetch(`http://localhost:8765/api/projects/${projectId}`),
-        fetch(`http://localhost:8765/api/projects/${projectId}/video-metadata`)
+      const [chapData, projData] = await Promise.all([
+        apiClient.get<any[]>(`/api/projects/${projectId}/chapters`),
+        apiClient.get<any>(`/api/projects/${projectId}`)
       ]);
-      const chapData = await chapRes.json();
-      const projData = await projRes.json();
-      const videoMetaData = await videoMetaRes.json();
       
       if (chapData.success) {
         setChapters(chapData.data);
@@ -86,20 +73,13 @@ export default function RenderStudioPage() {
       if (projData.success) {
         setProjectStatus(projData.data.status);
         setRenderProgress(projData.data.render_progress || 0);
+        setHasSavedStoryIntro(Boolean(projData.data.video_metadata?.story_intro?.trim()));
         
         // Đọc Profile đã lưu
         if (projData.data.render_config) {
             const dbConfig = projData.data.render_config;
-            setConfig({
-                ...dbConfig, // Lấy các cấu hình cũ từ DB
-                // ÉP KIỂU AN TOÀN CHO 2 BIẾN MỚI THÊM:
-                render_mode: dbConfig.render_mode || "full",
-                auto_split_parts: dbConfig.auto_split_parts ?? false, // Dùng ?? để ép về false nếu dbConfig.auto_split_parts là undefined hoặc null
-            });
+            setConfig(normalizeRenderConfig(dbConfig));
         }
-      }
-      if (videoMetaData.success) {
-        setMetadata(videoMetaData.data);
       }
     } catch (err) { console.error(err); }
   };
@@ -107,8 +87,7 @@ export default function RenderStudioPage() {
   // 2. HÀM POLLING CHI TIẾT
   const pollLightweightStatus = async () => {
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/status-only`);
-      const data = await res.json();
+      const data = (await apiClient.get<any>(`/api/projects/${projectId}/status-only`)) as unknown as RenderStatusResponse;
       
       if (data.success) {
         // [CẬP NHẬT MỚI Ở ĐÂY]
@@ -190,15 +169,10 @@ export default function RenderStudioPage() {
     setIsPolling(true); 
 
     try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/batch-render`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+      const data = await apiClient.post<any>(`/api/projects/${projectId}/batch-render`, {
             config: config, 
             target_chapter_ids: selectedChapterIds // Chuyển danh sách ID xuống Backend
-        }),
-      });
-      const data = await res.json();
+        });
       if (!data.success) {
         alert("Lỗi Backend.");
         forceRenderRef.current = false;
@@ -212,45 +186,9 @@ export default function RenderStudioPage() {
   // 5. HÀM LƯU PROFILE CONFIG VÀO DATABASE
   const handleSaveProfile = async () => {
     try {
-      await fetch(`http://localhost:8765/api/projects/${projectId}/update-render-config`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          render_config: config,
-          video_metadata: metadata
-        }),
-      });
+      await apiClient.put(`/api/projects/${projectId}/update-render-config`, { render_config: config });
       alert("Đã lưu Cấu hình (Profile) thành công!");
     } catch (e) { alert("Lỗi khi lưu cấu hình."); }
-  };
-  
-  const generateMetadataItem = async (type: 'title' | 'hook' | 'overlay' | 'description' | 'type') => {
-    // Bật hiệu ứng loading riêng cho đúng cái nút vừa được bấm
-    setLoadingMeta(prev => ({ ...prev, [type]: true }));
-    
-    try {
-      const res = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-metadata`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_type: type })
-      });
-      
-      const data = await res.json();
-      
-      if (data.success) {
-        // Cập nhật kết quả AI trả về vào State hiển thị trên các ô Input/Textarea
-        setMetadata(prev => ({ ...prev, [type]: data.data }));
-      } else {
-        alert("Lỗi từ server: " + data.detail);
-      }
-      
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi kết nối Backend. Không thể tạo " + type);
-    } finally {
-      // Tắt hiệu ứng loading
-      setLoadingMeta(prev => ({ ...prev, [type]: false }));
-    }
   };
 
   // 6. HÀM SELECT ALL READY CHAPTERS
@@ -407,15 +345,11 @@ export default function RenderStudioPage() {
               <CardContent className="space-y-6 p-6 bg-slate-50">      
                 <div className="space-y-2">
                   <Label>Giọng đọc AI (TTS Voice)</Label>
-                  <Select value={config.voice_id} onValueChange={(val) => setConfig({...config, voice_id: val || ""})}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Chọn giọng đọc" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Nguyệt Nga">Nguyệt Nga (Nữ - Truyện cảm)</SelectItem>
-                      <SelectItem value="Bảo Hoàng">Bảo Hoàng (Nam - Trầm ấm)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <VoiceSelect
+                    value={config.voice_id}
+                    onValueChange={(voiceId) => setConfig({ ...config, voice_id: voiceId })}
+                    className="bg-white"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Chế độ Render (Render Mode)</Label>
@@ -424,10 +358,57 @@ export default function RenderStudioPage() {
                       <SelectValue placeholder="Chọn chế độ" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="full">Mode Bình Thường (Intro + Main Overlay + Nền)</SelectItem>
+                      <SelectItem value="full">Mode Bình Thường (Video chính + Overlay + Nền)</SelectItem>
                       <SelectItem value="simple">Mode Đơn Giản (Chỉ Nền + Audio)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-4 rounded-md border bg-white p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="story-intro-enabled" className="font-semibold text-slate-800">
+                      Chèn lời giới thiệu câu chuyện
+                    </Label>
+                    <Switch
+                      id="story-intro-enabled"
+                      checked={config.story_intro_enabled}
+                      disabled={!hasSavedStoryIntro}
+                      onCheckedChange={value => setConfig({...config, story_intro_enabled: value})}
+                    />
+                  </div>
+                  {!hasSavedStoryIntro && (
+                    <p className="text-xs text-slate-500">Tạo và lưu lời giới thiệu ở màn hình Metadata trước khi bật.</p>
+                  )}
+                  {config.story_intro_enabled && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Vị trí lời giới thiệu</Label>
+                        <Select
+                          value={config.story_intro_position}
+                          onValueChange={value => value && setConfig({...config, story_intro_position: value as "start" | "end"})}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="start">Trước câu chuyện</SelectItem>
+                            <SelectItem value="end">Sau câu chuyện</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="story-intro-pause">Khoảng nghỉ với nội dung truyện (ms)</Label>
+                        <Input
+                          id="story-intro-pause"
+                          type="number"
+                          min={0}
+                          step={100}
+                          className="bg-white"
+                          value={config.story_intro_pause_ms}
+                          onChange={event => setConfig({...config, story_intro_pause_ms: Math.max(0, Math.trunc(Number(event.target.value) || 0))})}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {config.render_mode === "simple" && (
                     <div className="flex items-center space-x-2">
@@ -449,19 +430,46 @@ export default function RenderStudioPage() {
                     <Label>Thư mục Background Video (Bắt buộc cho cả 2 mode)</Label>
                     <Input className="bg-white font-mono text-sm" value={config.background_folder_path} onChange={e => setConfig({...config, background_folder_path: e.target.value})} />
                   </div>
+                  {config.render_mode === "simple" && (
+                    <div className="space-y-3 md:col-span-2">
+                      <div className="flex items-center justify-between rounded-md border bg-slate-50 p-3">
+                        <Label htmlFor="use-background-audio" className="font-semibold text-indigo-900">
+                          Chèn nhạc nền
+                        </Label>
+                        <Switch
+                          id="use-background-audio"
+                          checked={!!config.use_background_audio}
+                          onCheckedChange={value => setConfig({...config, use_background_audio: value})}
+                        />
+                      </div>
+                      <Input className="bg-white font-mono text-sm" value={config.background_audio_path} onChange={e => setConfig({...config, background_audio_path: e.target.value})} placeholder="Để trống nếu chỉ dùng giọng đọc" />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="background-audio-volume">Âm lượng nhạc nền</Label>
+                          <span className="text-sm tabular-nums text-slate-600">{Math.round(config.background_audio_volume * 100)}%</span>
+                        </div>
+                        <input
+                          id="background-audio-volume"
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={Math.round(config.background_audio_volume * 100)}
+                          onChange={e => setConfig({...config, background_audio_volume: Number(e.target.value) / 100})}
+                          className="h-2 w-full cursor-pointer accent-indigo-600"
+                          aria-label="Âm lượng nhạc nền"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500">Bật công tắc để lặp và trộn file này phía sau giọng đọc ở mode Đơn giản.</p>
+                    </div>
+                  )}
                   
-                  {/* Chỉ hiện Intro và Main nếu là Mode Full */}
+                  {/* Chỉ hiện video chính nếu là Mode Full */}
                   {config.render_mode === "full" && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>File Video Intro</Label>
-                        <Input className="bg-white font-mono text-sm" value={config.intro_video_path} onChange={e => setConfig({...config, intro_video_path: e.target.value})} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>File Video Main (Loop nền)</Label>
-                        <Input className="bg-white font-mono text-sm" value={config.main_video_path} onChange={e => setConfig({...config, main_video_path: e.target.value})} />
-                      </div>
-                    </>
+                    <div className="space-y-2">
+                      <Label>File Video Main (Loop nền)</Label>
+                      <Input className="bg-white font-mono text-sm" value={config.main_video_path} onChange={e => setConfig({...config, main_video_path: e.target.value})} />
+                    </div>
                   )}
                 </div>
 
@@ -516,71 +524,6 @@ export default function RenderStudioPage() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="shadow-sm border-slate-200 mt-6 xl:col-span-2">
-              <CardHeader className="bg-white border-b">
-                <CardTitle className="flex items-center gap-2">
-                  Youtube Metadata (SEO)
-                </CardTitle>
-                <CardDescription>
-                  Tạo tiêu đề, câu hook và mô tả cuốn hút để đăng Youtube/TikTok.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6 bg-slate-50">
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Tên truyện chính thức (≤ 60 ký tự)</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('title')} disabled={loadingMeta.title} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.title ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.title} onChange={e => setMetadata({...metadata, title: e.target.value})} className="bg-white font-medium" placeholder="Bấm 'Tạo lại' để AI sinh tên truyện..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Tiêu đề Video / Câu Hook (≤ 60 ký tự)</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('hook')} disabled={loadingMeta.hook} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.hook ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.hook} onChange={e => setMetadata({...metadata, hook: e.target.value})} className="bg-white font-medium" placeholder="VD: Trót yêu bạn thân 10 năm và cái kết đắng..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Chữ Overlay trên Thumbnail</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('overlay')} disabled={loadingMeta.overlay} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.overlay ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.overlay} onChange={e => setMetadata({...metadata, overlay: e.target.value})} className="bg-white font-medium" placeholder="Câu thả thính hoặc dấu chấm hỏi lớn..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Thể loại</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('type')} disabled={loadingMeta.type} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.type ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Input value={metadata.type} onChange={e => setMetadata({...metadata, type: e.target.value})} className="bg-white font-medium" placeholder="Thể loại video..." />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <Label>Mô tả (Không Spoil)</Label>
-                    <Button variant="ghost" size="sm" onClick={() => generateMetadataItem('description')} disabled={loadingMeta.description} className="h-7 text-xs text-indigo-600">
-                      {loadingMeta.description ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Tạo lại
-                    </Button>
-                  </div>
-                  <Textarea value={metadata.description} onChange={e => setMetadata({...metadata, description: e.target.value})} className="bg-white h-24 resize-none" placeholder="Tóm tắt nội dung để người xem hiểu bối cảnh..." />
-                </div>
-
-              </CardContent>
-            </Card>
-
           </div>
         </div>
       </div>

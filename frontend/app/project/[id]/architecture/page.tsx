@@ -1,17 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Layers, ArrowRight, Save, X } from "lucide-react";
+import { Loader2, Layers, Save, X, Wand2, Map, Sparkles, Activity, ChevronDown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiClient } from "@/lib/api-client";
+import { createTemporaryId } from "@/lib/utils";
+import StoryBibleVisual from "@/components/story-bible-visual";
 
 
 /* ------------------------------------------------------------------ */
@@ -29,11 +34,11 @@ function setDeep(obj: any, path: (string | number)[], value: any): any {
   return clone;
 }
 
-function TextField({ label, value, onChange, type = "text", placeholder }: any) {
+function TextField({ label, value, onChange, type = "text", placeholder, disabled }: any) {
   return (
     <div className="space-y-1">
       <Label>{label}</Label>
-      <Input type={type} value={value ?? ""} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <Input type={type} value={value ?? ""} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -102,30 +107,88 @@ const emptyRelationship = {
   physical_intimacy_arc: "",
 };
 
+const PRIMARY_FUNCTIONS = [
+  "Setup (Thiết lập cơ bản)",
+  "Inciting Incident (Biến cố kích hoạt)",
+  "Character Development (Phát triển nhân vật)",
+  "Relationship Development (Phát triển quan hệ)",
+  "Rising Action (Leo thang xung đột)",
+  "Turning Point (Bước ngoặt)",
+  "Midpoint (Điểm giữa)",
+  "Climax (Cao trào)",
+  "Falling Action (Hạ nhiệt)",
+  "Resolution (Giải quyết)",
+  "Lore (Hé lộ thông tin thế giới/bí mật)",
+  "Khác (Chức năng phụ trợ)"
+];
+
 export default function ArchitecturePage() {
   const params = useParams();
-  const router = useRouter();
   const projectId = params.id as string;
 
   // States
   const [bibleLoading, setBibleLoading] = useState(false);
   const [bibleData, setBibleData] = useState<any>(null);
   const [bibleStatus, setBibleStatus] = useState<"pending" | "done">("pending");
+  const [bibleView, setBibleView] = useState<"visual" | "edit">("visual");
   
   const [pacingLoading, setPacingLoading] = useState(false);
   const [chapters, setChapters] = useState<any[]>([]);
   const [pacingStatus, setPacingStatus] = useState<"pending" | "done">("pending");
 
+  // === THÊM STATE CHO CHARACTER ===
+  const [isAiCharModalOpen, setIsAiCharModalOpen] = useState(false);
+  const [aiCharPrompt, setAiCharPrompt] = useState("");
+  const [isGeneratingChar, setIsGeneratingChar] = useState(false);
+
+  // === THÊM STATE CHO RELATIONSHIP ===
+  const [isAiRelModalOpen, setIsAiRelModalOpen] = useState(false);
+  const [aiRelMode, setAiRelMode] = useState<"manual" | "automatic">("manual");
+  const [aiRelPrompt, setAiRelPrompt] = useState("");
+  const [aiRelCharacterAIndex, setAiRelCharacterAIndex] = useState("");
+  const [aiRelCharacterBIndex, setAiRelCharacterBIndex] = useState("");
+  const [aiRelCharacterADescription, setAiRelCharacterADescription] = useState("");
+  const [aiRelCharacterBDescription, setAiRelCharacterBDescription] = useState("");
+  const [isGeneratingRel, setIsGeneratingRel] = useState(false);
+  const [visualSelectedRelationshipIndex, setVisualSelectedRelationshipIndex] = useState<number | null>(null);
+
   // STATE THEO DÕI THAY ĐỔI CHƯA LƯU (IS DIRTY)
   const [isBibleDirty, setIsBibleDirty] = useState(false);
   const [isPacingDirty, setIsPacingDirty] = useState(false);
 
+  // === THÊM STATE CHO AI CHAPTER ===
+  const [isAiChapModalOpen, setIsAiChapModalOpen] = useState(false);
+  const [aiChapStep, setAiChapStep] = useState<1 | 2>(1); // 1: Input ý tưởng, 2: Nhận phản biện
+  const [aiChapAction, setAiChapAction] = useState<"insert" | "edit">("insert");
+  const [targetChapIndex, setTargetChapIndex] = useState(0);
+  const [aiChapPrompt, setAiChapPrompt] = useState("");
+  const [isGeneratingAiChap, setIsGeneratingAiChap] = useState(false);
+
+  const [userOriginalPrompt, setUserOriginalPrompt] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiAnalysisData, setAiAnalysisData] = useState<any>(null); // Chứa critique và suggested_prompt
+
   const [isSavingBibleChanges, setIsSavingBibleChanges] = useState(false);
   const [isSavingPacingChanges, setIsSavingPacingChanges] = useState(false);
+  const [isRegeneratingPovRecommendation, setIsRegeneratingPovRecommendation] = useState(false);
 
+  // Thêm state cho modal đánh giá
+  const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [evalData, setEvalData] = useState<any>(null);
+
+  const fetchChapters = async () => {
+    apiClient.get<any[]>(`/api/projects/${projectId}/chapters`)
+      .then((data) => {
+        if (data.success && data.data.length > 0) {
+          setChapters(data.data);
+          setPacingStatus("done");
+        }
+      });
+  };
+  
   useEffect(() => {
-    fetch(`http://localhost:8765/api/projects/${projectId}`)
-      .then((res) => res.json())
+    apiClient.get<any>(`/api/projects/${projectId}`)
       .then((data) => {
         if (data.success) {
           if (data.data.story_bible) {
@@ -137,50 +200,87 @@ export default function ArchitecturePage() {
     fetchChapters();
   }, [projectId]);
 
-  const fetchChapters = async () => {
-    fetch(`http://localhost:8765/api/projects/${projectId}/chapters`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.data.length > 0) {
-          setChapters(data.data);
-          setPacingStatus("done");
-        }
-      });
-  };
-
   // 1. HÀM LƯU RIÊNG CHO STORY BIBLE
-  const handleSaveBible = async () => {
+  const handleSaveBible = async (dataToSave = bibleData) => {
     setIsSavingBibleChanges(true);
     try {
-      await fetch(`http://localhost:8765/api/projects/${projectId}/update-bible`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ story_bible: bibleData }),
-      });
+      await apiClient.put(`/api/projects/${projectId}/update-bible`, { story_bible: dataToSave });
       setIsBibleDirty(false); // Tắt cờ
     } catch (e) {
-      alert("Lỗi khi lưu Story Bible.");
+      alert("Lỗi khi lưu Story Bible");
     } finally {
       setIsSavingBibleChanges(false);
     }
   };
 
-  // 2. HÀM LƯU RIÊNG CHO PACING (CHỈ CẦN LƯU NHỮNG CHAPTER ĐÃ BỊ SỬA)
+  // THÊM CHƯƠNG MỚI (Tại vị trí index)
+  const addChapterAt = (index: number) => {
+    const newChaps = [...chapters];
+    // Chèn 1 object rỗng (chưa có ID) vào vị trí index
+    newChaps.splice(index, 0, {
+      temp_id: createTemporaryId(),
+      chapter_number: 0, // Sẽ được đánh số lại ở hàm recalculate
+      title: "Chương mới",
+      timeline_period: "Hiện tại",
+      pov_character: "Chưa xác định",
+      main_event: "",
+      primary_function: "Setup (Thiết lập cơ bản)" // Thay đổi mặc định cho chuẩn với hệ thống mới
+    });
+    
+    // Đánh lại số thứ tự
+    const renumberedChaps = newChaps.map((c, i) => ({ ...c, chapter_number: i + 1 }));
+    
+    setChapters(renumberedChaps);
+    setIsPacingDirty(true);
+  };
+
+  // XÓA CHƯƠNG
+  const removeChapter = (index: number) => {
+    const confirm = window.confirm("Bạn có chắc muốn xóa chương này không? Dữ liệu bản nháp (nếu có) sẽ bị mất.");
+    if (!confirm) return;
+    
+    const newChaps = [...chapters];
+    newChaps.splice(index, 1);
+    
+    // Đánh lại số thứ tự
+    const renumberedChaps = newChaps.map((c, i) => ({ ...c, chapter_number: i + 1 }));
+    
+    setChapters(renumberedChaps);
+    setIsPacingDirty(true);
+  };
+
+  // CẬP NHẬT TRƯỜNG DỮ LIỆU CỦA CHƯƠNG
+  const updateChapterField = (index: number, field: string, value: string) => {
+    const newChaps = [...chapters];
+    newChaps[index][field] = value;
+    setChapters(newChaps);
+    setIsPacingDirty(true);
+  };
+
+  // HÀM SAVE PACING MỚI (Gửi nguyên mảng)
   const handleSavePacing = async () => {
     setIsSavingPacingChanges(true);
     try {
-      // Chạy vòng lặp lưu từng Chapter. 
-      // Tối ưu nhất là gọi 1 API Bulk Update bên Backend, nhưng tạm dùng loop cho dễ hiểu
-      await Promise.all(
-        chapters.map(chap => 
-          fetch(`http://localhost:8765/api/chapters/${chap.id}/goal`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ goal: chap.goal })
-          })
-        )
-      );
-      setIsPacingDirty(false); // Tắt cờ
+      const chaptersToSave = chapters.map((chapter) => ({
+        id: chapter.id ?? null,
+        chapter_number: chapter.chapter_number,
+        title: chapter.title ?? "",
+        timeline_period: chapter.timeline_period ?? "",
+        pov_character: Array.isArray(chapter.pov_character)
+          ? chapter.pov_character.join(", ")
+          : chapter.pov_character ?? "",
+        main_event: chapter.main_event ?? "",
+        primary_function: chapter.primary_function ?? "",
+        emotional_beat: chapter.emotional_beat ?? "",
+        relationship_beat: chapter.relationship_beat ?? "",
+        chapter_hook: chapter.chapter_hook ?? "",
+        continuity_note: chapter.continuity_note ?? "",
+      }));
+      await apiClient.put(`/api/projects/${projectId}/bulk-update-chapters`, { chapters: chaptersToSave });
+      setEvalData(null);
+      setIsPacingDirty(false);
+      // Tải lại danh sách để lấy ID mới do Supabase cấp cho các chương vừa tạo
+      fetchChapters(); 
     } catch (e) {
       alert("Lỗi khi lưu Pacing.");
     } finally {
@@ -192,10 +292,7 @@ export default function ArchitecturePage() {
   const generateBible = async () => {
     setBibleLoading(true);
     try {
-      const response = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-bible`, {
-        method: "POST",
-      });
-      const result = await response.json();
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-bible`);
 
       if (result.success) {
         setBibleData(result.data);
@@ -215,10 +312,7 @@ export default function ArchitecturePage() {
   const generatePacing = async () => {
     setPacingLoading(true);
     try {
-      const response = await fetch(`http://localhost:8765/api/projects/${projectId}/generate-pacing`, {
-        method: "POST",
-      });
-      const result = await response.json();
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-pacing`);
 
       if (result.success) {
         alert(result.message);
@@ -241,6 +335,57 @@ export default function ArchitecturePage() {
     setIsBibleDirty(true); // Chỉ bật cờ Bible
   };
 
+  const updatePovInstruction = (value: string) => {
+    setBibleData((prev: any) => {
+      const withRecommendation = setDeep(
+        prev ?? {},
+        ["narrative_rules", "pov_recommendation", "system_instruction_string"],
+        value
+      );
+      return setDeep(withRecommendation, ["pov_instruction"], value);
+    });
+    setIsBibleDirty(true);
+  };
+
+  const regeneratePovRecommendation = async () => {
+    const suggestedType = bibleData?.narrative_rules?.pov_recommendation?.suggested_type?.trim();
+    if (!suggestedType) return alert("Vui lòng nhập loại ngôi kể trước.");
+
+    setIsRegeneratingPovRecommendation(true);
+    try {
+      const result = await apiClient.post<any>(
+        `/api/projects/${projectId}/regenerate-pov-recommendation`,
+        { current_bible: bibleData, suggested_type: suggestedType }
+      );
+      const { reasoning, system_instruction_string: systemInstruction } = result.data || {};
+      if (
+        typeof reasoning !== "string" || !reasoning.trim() ||
+        typeof systemInstruction !== "string" || !systemInstruction.trim()
+      ) {
+        throw new Error("AI không trả về đủ thông tin ngôi kể.");
+      }
+
+      setBibleData((prev: any) => ({
+        ...prev,
+        narrative_rules: {
+          ...(prev?.narrative_rules || {}),
+          pov_recommendation: {
+            ...(prev?.narrative_rules?.pov_recommendation || {}),
+            reasoning: reasoning.trim(),
+            system_instruction_string: systemInstruction.trim(),
+          },
+        },
+        pov_instruction: systemInstruction.trim(),
+      }));
+      setIsBibleDirty(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Lỗi tạo lại đề xuất ngôi kể.");
+    } finally {
+      setIsRegeneratingPovRecommendation(false);
+    }
+  };
+
+  // Cập nhật mục tiêu chương (goal)
   const updateChapterGoal = (index: number, newGoal: string) => {
     const newChaps = [...chapters];
     newChaps[index].goal = newGoal;
@@ -248,40 +393,261 @@ export default function ArchitecturePage() {
     setIsPacingDirty(true); // Chỉ bật cờ Pacing
   };
 
+  // 4. THÊM / XÓA NHÂN VẬT & QUAN HỆ
   const addCharacter = () => {
     const newData = {
       ...bibleData,
       characters: [...(bibleData?.characters || []), { ...emptyCharacter }],
     };
     setBibleData(newData);
-    handleSaveBible();
+    setIsBibleDirty(true);
   };
 
+  // XÓA NHÂN VẬT
   const removeCharacter = (index: number) => {
     const newChars = [...(bibleData?.characters || [])];
     newChars.splice(index, 1);
     const newData = { ...bibleData, characters: newChars };
     setBibleData(newData);
-    handleSaveBible();
+    setIsBibleDirty(true);
   };
 
+  // THÊM QUAN HỆ
   const addRelationship = () => {
     const newData = {
       ...bibleData,
       relationship_dynamics: [...(bibleData?.relationship_dynamics || []), { ...emptyRelationship }],
     };
     setBibleData(newData);
-    handleSaveBible();
+    setIsBibleDirty(true);
   };
 
+  // XÓA QUAN HỆ
   const removeRelationship = (index: number) => {
     const newRels = [...(bibleData?.relationship_dynamics || [])];
     newRels.splice(index, 1);
     const newData = { ...bibleData, relationship_dynamics: newRels };
     setBibleData(newData);
-    handleSaveBible();
+    setIsBibleDirty(true);
   };
 
+  // 5. HÀM GỌI API TẠO NHÂN VẬT & QUAN HỆ BẰNG AI
+  const generateAiCharacter = async () => {
+    if (!aiCharPrompt.trim()) return alert("Vui lòng nhập mô tả nhân vật!");
+    
+    setIsGeneratingChar(true);
+    try {
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-character`, {
+          user_prompt: aiCharPrompt,
+          current_bible: bibleData // Đưa Bible hiện tại lên làm context
+        });
+      
+      if (result.success) {
+        // Chèn nhân vật mới vào list và tự động Bật cờ Dirty
+        const newData = {
+          ...bibleData,
+          characters: [...(bibleData?.characters || []), result.data],
+        };
+        setBibleData(newData);
+        setIsBibleDirty(true);
+        
+        // Đóng modal và reset
+        setIsAiCharModalOpen(false);
+        setAiCharPrompt("");
+      } else {
+        alert("Lỗi tạo nhân vật: " + result.detail);
+      }
+    } catch (e) {
+      alert("Mất kết nối Backend.");
+    } finally {
+      setIsGeneratingChar(false);
+    }
+  };
+
+  // 6. HÀM GỌI API TẠO QUAN HỆ BẰNG AI
+  const generateAiRelationship = async () => {
+    if (aiRelMode === "manual" && !aiRelPrompt.trim()) {
+      return alert("Vui lòng nhập mô tả mối quan hệ!");
+    }
+
+    const characterAIndex = Number(aiRelCharacterAIndex);
+    const characterBIndex = Number(aiRelCharacterBIndex);
+    if (
+      aiRelMode === "automatic" &&
+      (!aiRelCharacterAIndex || !aiRelCharacterBIndex || characterAIndex === characterBIndex)
+    ) {
+      return alert("Vui lòng chọn hai nhân vật khác nhau!");
+    }
+    
+    setIsGeneratingRel(true);
+    try {
+      const requestData = aiRelMode === "manual"
+        ? {
+            mode: "manual",
+            user_prompt: aiRelPrompt.trim(),
+            current_bible: bibleData,
+          }
+        : {
+            mode: "automatic",
+            user_prompt: "",
+            current_bible: bibleData,
+            character_a_index: characterAIndex,
+            character_b_index: characterBIndex,
+            character_a_description: aiRelCharacterADescription.trim(),
+            character_b_description: aiRelCharacterBDescription.trim(),
+          };
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-relationship`, {
+        ...requestData,
+      });
+      
+      if (result.success) {
+        // Chèn vào list và bật cờ Dirty
+        const generatedRelationship = aiRelMode === "automatic"
+          ? {
+              ...result.data,
+              between: [
+                bibleData?.characters?.[characterAIndex]?.name || result.data.between?.[0] || "",
+                bibleData?.characters?.[characterBIndex]?.name || result.data.between?.[1] || "",
+              ],
+            }
+          : result.data;
+        const nextRelationships = [...(bibleData?.relationship_dynamics || []), generatedRelationship];
+        const newData = {
+          ...bibleData,
+          relationship_dynamics: nextRelationships,
+        };
+        setBibleData(newData);
+        setIsBibleDirty(true);
+        setVisualSelectedRelationshipIndex(nextRelationships.length - 1);
+        
+        // Đóng modal và reset
+        setIsAiRelModalOpen(false);
+        setAiRelMode("manual");
+        setAiRelPrompt("");
+        setAiRelCharacterAIndex("");
+        setAiRelCharacterBIndex("");
+        setAiRelCharacterADescription("");
+        setAiRelCharacterBDescription("");
+      } else {
+        alert("Lỗi tạo quan hệ: " + result.detail);
+      }
+    } catch (e) {
+      alert("Mất kết nối Backend.");
+    } finally {
+      setIsGeneratingRel(false);
+    }
+  };
+
+  const openAiRelationshipModal = (characterAIndex?: number, characterBIndex?: number) => {
+    const hasCharacterPair = characterAIndex !== undefined && characterBIndex !== undefined;
+    setAiRelMode(hasCharacterPair ? "automatic" : "manual");
+    setAiRelPrompt("");
+    setAiRelCharacterAIndex(hasCharacterPair ? String(characterAIndex) : "");
+    setAiRelCharacterBIndex(hasCharacterPair ? String(characterBIndex) : "");
+    setAiRelCharacterADescription("");
+    setAiRelCharacterBDescription("");
+    setVisualSelectedRelationshipIndex(null);
+    setIsAiRelModalOpen(true);
+  };
+
+  // 7. HÀM MỞ MODAL AI CHAPTER (DÙNG CHO CẢ INSERT VÀ EDIT)
+  const openAiChapModal = (action: "insert" | "edit", index: number) => {
+    setAiChapAction(action);
+    setTargetChapIndex(index);
+    setUserOriginalPrompt("");
+    setAiChapStep(1);
+    setAiAnalysisData(null);
+    setIsAiChapModalOpen(true);
+  };
+
+  // 8. HÀM GỌI API PHÂN TÍCH Ý TƯỞNG CHƯƠNG (BƯỚC 1)
+  const analyzeAiChapterIdea = async () => {
+    if (!userOriginalPrompt.trim()) return alert("Vui lòng nhập ý tưởng!");
+    setIsAnalyzing(true);
+    try {
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/analyze-chapter-idea`, {
+          action_type: aiChapAction,
+          target_index: targetChapIndex,
+          user_prompt: userOriginalPrompt,
+          current_chapters: chapters
+        });
+      if (result.success) {
+        setAiAnalysisData(result.data);
+        setAiChapStep(2); // Chuyển sang màn Review
+      } else alert("Lỗi phân tích: " + result.detail);
+    } catch (e) { alert("Mất kết nối Backend."); } 
+    finally { setIsAnalyzing(false); }
+  };
+
+  // 9. HÀM GỌI API TẠO CHƯƠNG CUỐI CÙNG (BƯỚC 2)
+  const generateFinalAiChapters = async (finalPromptToUse: string) => {
+    if (!finalPromptToUse || finalPromptToUse.trim() === "") {
+      return;
+    }
+
+    setIsGeneratingAiChap(true);
+    try {
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/generate-dynamic-chapters`, {
+          action_type: aiChapAction,
+          target_index: targetChapIndex,
+          user_prompt: finalPromptToUse,
+          current_chapters: chapters
+        });
+      
+      if (result.success) {
+        // Nhận về một MẢNG chứa 1 hoặc nhiều chapters
+        const newGeneratedChapters = result.data.map((c: any) => ({
+          ...c,
+          temp_id: createTemporaryId(),
+          status: "Drafting Pending"
+        }));
+        
+        const newChaps = [...chapters];
+        
+        if (aiChapAction === "insert") {
+          // Nếu chèn, xả mảng vào vị trí đó
+          newChaps.splice(targetChapIndex, 0, ...newGeneratedChapters);
+        } else {
+          // Nếu edit, thay thế 1 chương cũ bằng 1 (hoặc N) chương mới
+          // Giữ lại id thật của DB cho phần tử đầu tiên (nếu có) để không bị mất kết nối
+          const originalId = newChaps[targetChapIndex].id;
+          if (originalId) newGeneratedChapters[0].id = originalId;
+          
+          newChaps.splice(targetChapIndex, 1, ...newGeneratedChapters);
+        }
+        
+        // Đánh lại số thứ tự
+        const renumberedChaps = newChaps.map((c, i) => ({ ...c, chapter_number: i + 1 }));
+        setChapters(renumberedChaps);
+        setIsPacingDirty(true);
+        setIsAiChapModalOpen(false);
+      } else alert("Lỗi tạo chương: " + result.detail);
+    } catch (e) { alert("Mất kết nối Backend."); } 
+    finally { setIsGeneratingAiChap(false); }
+  };
+
+  // 10. HÀM GỌI API ĐÁNH GIÁ PACING (AI EVALUATE)
+  const evaluatePacing = async () => {
+    // Ý TƯỞNG 1: CACHING & BẮT LỖI DIRTY
+    if (isPacingDirty) {
+      alert("Bạn có thay đổi chưa lưu! Vui lòng ấn nút [Lưu Pacing] ở góc dưới màn hình trước để AI phân tích trên cấu trúc mới nhất nhé.");
+      return;
+    }
+    
+    setIsEvalModalOpen(true); // Luôn mở modal
+    if (evalData) return;     // Nếu đã có cache thì DỪNG LẠI, không gọi API nữa (Chống spam)
+
+    setIsEvaluating(true);
+    try {
+      const result = await apiClient.post<any>(`/api/projects/${projectId}/evaluate-pacing`);
+      if (result.success) setEvalData(result.data);
+    } catch (e) {
+      alert("Lỗi kết nối AI Đánh giá.");
+      setIsEvalModalOpen(false);
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
 
   return (
     <div className="bg-slate-50 p-6 pb-24 relative"> 
@@ -290,40 +656,50 @@ export default function ArchitecturePage() {
         {/* HEADER */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Thiết kế Cấu trúc Truyện</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Story Bible & DNA Truyện</h1>
             <p className="text-slate-500">ID Dự án: <span className="font-mono text-xs">{projectId}</span></p>
           </div>
-          {pacingStatus === "done" && !isPacingDirty && !isBibleDirty && (
-            <Button size="lg" className="bg-green-600 hover:bg-green-700 shadow-md" onClick={() => router.push(`/project/${projectId}/writer-room`)}>
-              Vào Lò Luyện Chữ <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          )}
         </div>
 
-        {/* THIẾT KẾ TABS (THAY THẾ CHIA CỘT) */}
+        {/* Story Bible */}
         <Tabs defaultValue="bible" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-slate-200">
-            <TabsTrigger value="bible" className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <BookOpen className="h-4 w-4 mr-2" /> DNA Câu Chuyện
-            </TabsTrigger>
-            <TabsTrigger value="pacing" disabled={bibleStatus === "pending"} className="text-base data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <Layers className="h-4 w-4 mr-2" /> Khung Chương (Pacing)
-            </TabsTrigger>
-          </TabsList>
-
-          {/* TAB 1: STORY BIBLE */}
           <TabsContent value="bible">
             <Card className="border-slate-200 shadow-sm">
               <CardHeader className="bg-white border-b pb-4 flex flex-row items-center justify-between">
                 <CardTitle>Hồ Sơ Thế Giới & Nhân Vật</CardTitle>
-                {bibleStatus === "pending" && (
-                  <Button onClick={generateBible} disabled={bibleLoading}>
-                    {bibleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "AI Sinh Story Bible"}
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {bibleStatus === "pending" && (
+                    <Button onClick={generateBible} disabled={bibleLoading}>
+                      {bibleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "AI Sinh Story Bible"}
+                    </Button>
+                  )}
+                  <div className="flex rounded-md border border-slate-200 bg-slate-100 p-1" aria-label="Chế độ hiển thị Story Bible">
+                    <Button size="sm" variant={bibleView === "visual" ? "default" : "ghost"} onClick={() => setBibleView("visual")}>
+                      Graph
+                    </Button>
+                    <Button size="sm" variant={bibleView === "edit" ? "default" : "ghost"} onClick={() => setBibleView("edit")}>
+                      Chỉnh sửa
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               
               <CardContent className="p-0">
+                {bibleView === "visual" ? (
+                  <StoryBibleVisual
+                    bibleData={bibleData || {}}
+                    onChange={updateBible}
+                    selectedRelationshipIndex={visualSelectedRelationshipIndex}
+                    onCreateRelationship={(sourceIndex, targetIndex) => {
+                      openAiRelationshipModal(sourceIndex, targetIndex);
+                    }}
+                    onDeleteRelationship={(index) => {
+                      const nextRelationships = [...(bibleData?.relationship_dynamics || [])];
+                      nextRelationships.splice(index, 1);
+                      updateBible(["relationship_dynamics"], nextRelationships);
+                    }}
+                  />
+                ) : (
                 <Accordion multiple={true} className="w-full">
                   {/* 1. NHẬN DIỆN & CỐT LÕI */}
                   <AccordionItem value="item-1" className="px-6">
@@ -359,6 +735,11 @@ export default function ArchitecturePage() {
                         onChange={(v: any) => updateBible(["story_identity", "central_theme"], v)}
                         rows={2}
                       />
+                      <ArrayTextareaField
+                        label="Chủ đề phụ (Sub Themes)"
+                        value={bibleData?.story_identity?.sub_themes}
+                        onChange={(v: any) => updateBible(["story_identity", "sub_themes"], v)}
+                      />
                       <TextAreaField
                         label="Cảm xúc hứa hẹn (Emotional Promise)"
                         value={bibleData?.story_identity?.emotional_promise}
@@ -369,6 +750,12 @@ export default function ArchitecturePage() {
                         label="Cấu trúc Thời gian (Timeline Structure)"
                         value={bibleData?.story_identity?.timeline_structure}
                         onChange={(v: any) => updateBible(["story_identity", "timeline_structure"], v)}
+                      />
+                      <TextAreaField
+                        label="Câu hỏi cảm xúc mà câu chuyện muốn đặt ra (Thematic Question)"
+                        value={bibleData?.story_identity?.thematic_question}
+                        onChange={(v: any) => updateBible(["story_identity", "thematic_question"], v)}
+                        rows={2}
                       />
                     </AccordionContent>
                   </AccordionItem>
@@ -398,10 +785,9 @@ export default function ArchitecturePage() {
                                 onChange={(v: any) => updateBible(["characters", index, "name"], v)}
                               />
                             </div>
-                            <div className="w-24">
+                            <div className="w-56">
                               <TextField
                                 label="Tuổi"
-                                type="number"
                                 value={char.age}
                                 onChange={(v: any) => updateBible(["characters", index, "age"], v)}
                               />
@@ -559,9 +945,17 @@ export default function ArchitecturePage() {
                         </div>
                       ))}
 
-                      <Button variant="outline" className="w-full" onClick={addCharacter}>
-                        + Thêm nhân vật
-                      </Button>
+                      <div className="flex gap-4">
+                        <Button variant="outline" className="flex-1" onClick={addCharacter}>
+                          + Thêm thủ công
+                        </Button>
+                        <Button 
+                          className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200" 
+                          onClick={() => setIsAiCharModalOpen(true)}
+                        >
+                          <Wand2 className="h-4 w-4 mr-2" /> AI Sinh Nhân Vật
+                        </Button>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -682,6 +1076,49 @@ export default function ArchitecturePage() {
                         onChange={(v: any) => updateBible(["narrative_rules", "dialogue_style"], v)}
                         rows={2}
                       />
+                      <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                          <div className="flex-1">
+                            <TextField
+                              label="Ngôi kể đề xuất (Suggested Type)"
+                              value={bibleData?.narrative_rules?.pov_recommendation?.suggested_type}
+                              onChange={(v: string) => updateBible(["narrative_rules", "pov_recommendation", "suggested_type"], v)}
+                              placeholder="Ví dụ: Ngôi thứ nhất (Single POV)"
+                              disabled={isRegeneratingPovRecommendation}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={regeneratePovRecommendation}
+                            disabled={
+                              isRegeneratingPovRecommendation ||
+                              !bibleData?.narrative_rules?.pov_recommendation?.suggested_type?.trim()
+                            }
+                          >
+                            {isRegeneratingPovRecommendation
+                              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              : <Wand2 className="mr-2 h-4 w-4" />}
+                            Làm mới bằng AI
+                          </Button>
+                        </div>
+                        <TextAreaField
+                          label="Lý do đề xuất (Reasoning)"
+                          value={bibleData?.narrative_rules?.pov_recommendation?.reasoning}
+                          onChange={(v: string) => updateBible(["narrative_rules", "pov_recommendation", "reasoning"], v)}
+                          rows={3}
+                        />
+                        <TextAreaField
+                          label="Chỉ thị ngôi kể (System Instruction)"
+                          placeholder="Ví dụ: Ngôi thứ nhất. Nhân vật Hoàng Nam xưng Tôi."
+                          value={
+                            bibleData?.narrative_rules?.pov_recommendation?.system_instruction_string ??
+                            bibleData?.pov_instruction
+                          }
+                          onChange={updatePovInstruction}
+                          rows={2}
+                        />
+                      </div>
                       <ArrayTextareaField
                         label="Quy tắc hiện thực (Realism Rules)"
                         value={bibleData?.narrative_rules?.realism_rules}
@@ -756,7 +1193,7 @@ export default function ArchitecturePage() {
                               e.target.checked
                             );
                             setBibleData(newData);
-                            handleSaveBible();
+                            handleSaveBible(newData);
                           }}
                           className="h-4 w-4 rounded border-slate-300"
                         />
@@ -900,9 +1337,17 @@ export default function ArchitecturePage() {
                         </div>
                       ))}
 
-                      <Button variant="outline" className="w-full" onClick={addRelationship}>
-                        + Thêm mối quan hệ
-                      </Button>
+                      <div className="flex gap-4">
+                        <Button variant="outline" className="flex-1" onClick={addRelationship}>
+                          + Thêm thủ công
+                        </Button>
+                        <Button 
+                          className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200" 
+                          onClick={() => openAiRelationshipModal()}
+                        >
+                          <Wand2 className="h-4 w-4 mr-2" /> AI Sinh Quan Hệ
+                        </Button>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -943,50 +1388,239 @@ export default function ArchitecturePage() {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* TAB 2: PACING */}
+          {/* TAB 2: PACING (TIMELINE EDITOR) */}
           <TabsContent value="pacing">
-            <Card className="relative border-slate-200 shadow-sm opacity-100">
-              <CardHeader className="bg-white border-b pb-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Phân Bổ Tuyến Truyện</CardTitle>
-                  <CardDescription>Danh sách các chương và sự kiện chính.</CardDescription>
-                </div>
-                <Button onClick={generatePacing} disabled={pacingLoading} variant="secondary">
-                  {pacingLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "AI Tạo Cấu Trúc"}
-                </Button>
-              </CardHeader>
-
-              <CardContent className="p-6 bg-slate-50">
-                <div className="space-y-4 pb-10">
-                  {chapters.map((chap, idx) => (
-                    <div key={chap.id} className="bg-white border border-slate-200 p-5 rounded-lg shadow-sm">
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="text-lg font-bold text-slate-800">Chương {chap.chapter_number}</div>
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] uppercase tracking-wider">
-                            {chap.timeline_period || "Hiện tại"}
-                          </Badge>
-                        </div>
-                        <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">
-                          POV: {chap.pov_character || "Không rõ"}
-                        </span>
+            <Card className="border-slate-200 shadow-sm min-h-[50vh] flex flex-col">
+              
+              <CardHeader className="rounded-t-lg border-b pb-4 flex flex-row items-center justify-between">
+                {/* ========================================================== */}
+                {/* FLOATING ACTION BUTTONS (DÀNH RIÊNG CHO TAB PACING) */}
+                {/* ========================================================== */}
+                {pacingStatus === "done" && !isPacingDirty && !isBibleDirty && (
+                  // Thêm items-end để khi nút dài ra, nó sẽ đẩy về bên trái và giữ cố định lề phải
+                  <div className="fixed bottom-6 right-8 flex flex-col items-end gap-3 z-40 animate-in fade-in slide-in-from-bottom-5">
+                    
+                    {/* Nút Đánh giá */}
+                    <Button 
+                      onClick={evaluatePacing} 
+                      className="group relative flex items-center justify-start rounded-full shadow-lg p-0 h-12 w-12 hover:w-[190px] bg-white border border-amber-200 text-amber-600 hover:bg-amber-50 font-bold transition-all duration-300 overflow-hidden"
+                    >
+                      {/* Vùng chứa Icon luôn cố định 48px ở đầu */}
+                      <div className="flex items-center justify-center min-w-[3rem] h-full">
+                        <Activity className="h-5 w-5" /> 
                       </div>
+                      {/* Vùng chữ (Mặc định ẩn, hiện ra khi hover) */}
+                      <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                        Đánh giá Pacing
+                      </span>
+                    </Button>
+
+                    {/* Nút AI Tạo Cấu Trúc */}
+                    <Button 
+                      onClick={generatePacing} 
+                      disabled={pacingLoading} 
+                      className="group relative flex items-center justify-start rounded-full shadow-lg p-0 h-12 w-12 hover:w-[210px] bg-indigo-600 text-white hover:bg-indigo-700 font-bold transition-all duration-300 overflow-hidden"
+                    >
+                      <div className="flex items-center justify-center min-w-[3rem] h-full">
+                        {pacingLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
+                      </div>
+                      <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                        {chapters.length > 0 ? "AI Tạo cấu trúc khác" : "AI Tạo cấu trúc"}
+                      </span>
+                    </Button>
+
+                  </div>
+                )}
+              </CardHeader>
+              
+              <CardContent className="flex-1 p-6 bg-slate-50 relative">
+                
+                {/* TRẠNG THÁI 1: ĐANG LOADING (Gọi AI) */}
+                {pacingLoading && (
+                  <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center text-indigo-600 backdrop-blur-sm rounded-b-lg">
+                    <Loader2 className="h-10 w-10 animate-spin mb-4" />
+                    <p className="font-medium animate-pulse">Trí tuệ nhân tạo đang phân bổ cấu trúc truyện...</p>
+                  </div>
+                )}
+
+                {/* TRẠNG THÁI 2: TRỐNG TRƠN (Chưa có chương nào) */}
+                {!pacingLoading && chapters.length === 0 ? (
+                  <div className="h-full min-h-[40vh] flex flex-col items-center justify-center text-slate-400 space-y-4">
+                    <Layers className="h-16 w-16 text-slate-200" />
+                    <p>Dự án chưa có khung chương nào.</p>
+                    <div className="flex gap-4">
+                      <Button variant="outline" onClick={() => addChapterAt(0)}>
+                        + Tự viết chương đầu tiên
+                      </Button>
+                      <Button onClick={generatePacing} className="bg-indigo-600 hover:bg-indigo-700">
+                        <Wand2 className="mr-2 h-4 w-4" /> Nhờ AI chẻ chương
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+
+                /* TRẠNG THÁI 3: HIỂN THỊ DANH SÁCH EDITOR */
+                <div className="space-y-6 pb-10">
+
+                  {/* ====== TÓM TẮT MẠCH TRUYỆN (MINIMAP) ====== */}
+                  {chapters.length > 0 && (
+                    <div className="mb-8 p-5 bg-white border border-slate-200 rounded-xl shadow-sm">
+                      <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center uppercase tracking-wider">
+                        <Map className="w-4 h-4 mr-2 text-indigo-500"/> Toàn cảnh mạch truyện
+                      </h3>
+                      <div className="flex gap-3 overflow-x-auto pb-3 pt-1 px-1 scrollbar-thin scrollbar-thumb-slate-300">
+                        {chapters.map((c, i) => (
+                          <div key={c.id || c.temp_id} className="min-w-[220px] max-w-[220px] border border-slate-150 rounded-lg p-3 bg-slate-50 flex-shrink-0 hover:border-indigo-300 transition-colors cursor-default relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-400 opacity-70"></div>
+                            <p className="text-[10px] font-black text-indigo-600 mb-1">CHƯƠNG {c.chapter_number}</p>
+                            <p className="font-bold text-sm text-slate-800 line-clamp-1">{c.title || "Chưa có tên"}</p>
+                            <p className="text-xs text-slate-500 mt-1 truncate">{c.pov_character}</p>
+                            <Badge variant="outline" className="mt-2 text-[9px] bg-white text-slate-600 border-slate-200">
+                              {c.primary_function ? c.primary_function.split('(')[0].trim() : "Chưa phân loại"}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nút thêm chương ở đỉnh */}
+                  <div className="flex justify-center gap-3 -mb-2">
+                      <Button variant="outline" size="sm" className="rounded-full h-8 px-4 mb-6 text-xs text-slate-600 hover:bg-slate-100 shadow-sm" onClick={() => addChapterAt(0)}>
+                        + Chèn thủ công
+                      </Button>
+                      <Button variant="default" size="sm" className="rounded-full h-8 px-4 mb-6 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 shadow-sm" onClick={() => openAiChapModal("insert", 0)}>
+                        <Sparkles className="w-3 h-3 mr-1" /> AI Chèn Mở Đầu
+                      </Button>
+                  </div>
+
+                  {chapters.map((chap, idx) => (
+                    <div key={chap.id || chap.temp_id}  className="relative">
                       
-                      <div className="space-y-2">
-                        <Label className="text-slate-500">Mục tiêu / Sự kiện chính</Label>
-                        <Textarea 
-                          className="resize-y min-h-[80px] text-base"
-                          value={chap.goal || ""}
-                          onChange={(e) => updateChapterGoal(idx, e.target.value)}
-                        />
+                      {/* THE CARD */}
+                      <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm flex flex-col gap-4 hover:border-indigo-300 transition-colors group">
+                        
+                        {/* THANH CÔNG CỤ HOVER (Nằm góc trên phải) */}
+                        <div className="absolute -top-3 -right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <Button variant="secondary" size="sm" className="h-8 rounded-full shadow-md bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50" onClick={() => openAiChapModal("edit", idx)}>
+                            <Sparkles className="h-3 w-3 mr-1" /> AI Sửa
+                          </Button>
+                          <Button variant="destructive" size="icon" className="h-8 w-8 rounded-full shadow-md" onClick={() => removeChapter(idx)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* HEADER CHƯƠNG */}
+                        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                          <div className="flex items-end gap-3">
+                            <div className="font-black text-slate-800 text-xl whitespace-nowrap bg-slate-100 px-3 py-1 rounded-md">
+                              Chương {chap.chapter_number}
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-slate-400 uppercase tracking-widest ml-1">Tiêu đề</Label>
+                              <Input 
+                                className="h-9 font-bold text-slate-700 w-[200px] sm:w-[250px] border-slate-200 focus-visible:ring-indigo-500" 
+                                value={chap.title || ""} 
+                                onChange={(e) => updateChapterField(idx, "title", e.target.value)}
+                                placeholder="Nhập tiêu đề..."
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 w-full md:w-auto bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-amber-600 uppercase tracking-widest ml-1">Mốc thời gian</Label>
+                              <Input 
+                                className="h-8 text-xs font-semibold text-amber-800 bg-amber-50/50 border-amber-200 w-[130px]" 
+                                value={chap.timeline_period || ""} 
+                                onChange={(e) => updateChapterField(idx, "timeline_period", e.target.value)}
+                                placeholder="Ví dụ: Hiện tại"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-indigo-600 uppercase tracking-widest ml-1">Góc nhìn (POV)</Label>
+                              <Input 
+                                className="h-8 text-xs font-semibold text-indigo-800 bg-indigo-50/50 border-indigo-200 w-[130px]" 
+                                value={Array.isArray(chap.pov_character) ? chap.pov_character.join(", ") : chap.pov_character || ""} 
+                                onChange={(e) => updateChapterField(idx, "pov_character", e.target.value)}
+                                placeholder="Nhân vật..."
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <Separator className="bg-slate-100" />
+
+                        {/* NỘI DUNG CHƯƠNG */}
+                        <div className="flex flex-col gap-5">
+                          <div className="space-y-2 w-full md:w-[350px]">
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">🎯 Chức năng (Primary Function)</Label>
+                            <Select value={chap.primary_function || ""} onValueChange={(v) => updateChapterField(idx, "primary_function", v)}>
+                              <SelectTrigger className="h-10 bg-slate-50 border-slate-200 focus:ring-indigo-500 font-medium text-slate-700"><SelectValue placeholder="Chọn chức năng..." /></SelectTrigger>
+                              <SelectContent className="max-h-[350px] min-w-[300px]">
+                                {PRIMARY_FUNCTIONS.map((func) => <SelectItem key={func} value={func} className="py-2.5">{func}</SelectItem>)}
+                                {chap.primary_function && !PRIMARY_FUNCTIONS.includes(chap.primary_function) && (
+                                  <SelectItem value={chap.primary_function} className="italic text-amber-600 py-2.5">{chap.primary_function} (Cũ)</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">🎬 Sự kiện chính (Main Event)</Label>
+                            <Textarea className="resize-y min-h-[90px] text-sm leading-relaxed bg-white" value={chap.main_event || ""} onChange={(e) => updateChapterField(idx, "main_event", e.target.value)} placeholder="Mô tả sự kiện cụ thể diễn ra..." />
+                          </div>
+
+                          {/* ACCORDION THÔNG TIN MỞ RỘNG (4 TRƯỜNG MỚI) */}
+                          <Accordion multiple={false} className="w-full border rounded-lg bg-slate-50">
+                            <AccordionItem value="advanced" className="border-none">
+                              <AccordionTrigger className="px-4 py-3 text-xs font-semibold text-slate-600 hover:no-underline hover:text-indigo-600">
+                                Hiển thị Cấu trúc Mở rộng (Cảm xúc, Hook, Ghi chú...)
+                              </AccordionTrigger>
+                              <AccordionContent className="px-4 pb-4 pt-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-indigo-500 font-bold">Biến chuyển Cảm xúc</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.emotional_beat || ""} onChange={(e) => updateChapterField(idx, "emotional_beat", e.target.value)} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-pink-500 font-bold">Biến chuyển Quan hệ</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.relationship_beat || ""} onChange={(e) => updateChapterField(idx, "relationship_beat", e.target.value)} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-amber-500 font-bold">Điểm neo (Chapter Hook)</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.chapter_hook || ""} onChange={(e) => updateChapterField(idx, "chapter_hook", e.target.value)} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase text-slate-500 font-bold">Lưu ý cho chương sau</Label>
+                                    <Textarea className="text-xs min-h-[60px]" value={chap.continuity_note || ""} onChange={(e) => updateChapterField(idx, "continuity_note", e.target.value)} />
+                                  </div>
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        </div>
+                      </div>
+
+                      {/* Nút thêm chương chèn ở giữa */}
+                      <div className="flex justify-center gap-3 -mb-3 mt-5 opacity-0 hover:opacity-100 transition-opacity">
+                          <Button variant="outline" size="sm" className="rounded-full h-8 px-4 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 shadow-sm z-10 relative" onClick={() => addChapterAt(idx + 1)}>
+                            + Chèn thủ công
+                          </Button>
+                          <Button variant="default" size="sm" className="rounded-full h-8 px-4 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 shadow-sm z-10 relative" onClick={() => openAiChapModal("insert", idx + 1)}>
+                            <Sparkles className="w-3 h-3 mr-1" /> AI Chèn Vào Đây
+                          </Button>
                       </div>
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1013,7 +1647,7 @@ export default function ArchitecturePage() {
 
               {/* Nút lưu Bible */}
               {isBibleDirty && (
-                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white" onClick={handleSaveBible} disabled={isSavingBibleChanges}>
+                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white" onClick={() => handleSaveBible()} disabled={isSavingBibleChanges}>
                   {isSavingBibleChanges ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
                   Lưu Bible
                 </Button>
@@ -1030,6 +1664,279 @@ export default function ArchitecturePage() {
           </div>
         </div>
       )}
+
+      {/* MODAL AI SINH NHÂN VẬT */}
+      <Dialog open={isAiCharModalOpen} onOpenChange={setIsAiCharModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>AI Sinh Nhân Vật Mới</DialogTitle>
+            <DialogDescription>
+              Hãy miêu tả sơ bộ về nhân vật bạn muốn thêm (vai trò, tính cách...). AI sẽ tự động điền 20 trường thông tin phù hợp với cốt truyện.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea 
+              placeholder="VD: Một ông chủ quán cà phê trầm tính, từng trải, luôn cho nam chính những lời khuyên hữu ích..."
+              value={aiCharPrompt}
+              onChange={(e) => setAiCharPrompt(e.target.value)}
+              className="resize-none h-32"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAiCharModalOpen(false)}>Hủy</Button>
+            <Button onClick={generateAiCharacter} disabled={isGeneratingChar || !aiCharPrompt} className="bg-indigo-600 hover:bg-indigo-700">
+              {isGeneratingChar ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
+              Tạo Nhân Vật
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL AI SINH MỐI QUAN HỆ */}
+      <Dialog open={isAiRelModalOpen} onOpenChange={setIsAiRelModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>AI Sinh Mối Quan Hệ</DialogTitle>
+            <DialogDescription>
+              Chọn cách tạo: mô tả quan hệ mong muốn hoặc để AI suy luận từ hồ sơ hai nhân vật và Story Bible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 rounded-md border bg-slate-100 p-1" aria-label="Chế độ tạo mối quan hệ">
+              <Button
+                type="button"
+                size="sm"
+                variant={aiRelMode === "manual" ? "default" : "ghost"}
+                onClick={() => setAiRelMode("manual")}
+              >
+                Mô tả quan hệ
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={aiRelMode === "automatic" ? "default" : "ghost"}
+                onClick={() => setAiRelMode("automatic")}
+              >
+                Tự động
+              </Button>
+            </div>
+
+            {aiRelMode === "manual" ? (
+              <Textarea
+                placeholder="VD: Quan hệ giữa Minh và ông chủ quán. Minh coi ông như người cha, nhưng ông chủ lại giấu một bí mật liên quan đến gia đình Minh..."
+                value={aiRelPrompt}
+                onChange={(e) => setAiRelPrompt(e.target.value)}
+                className="resize-none h-32"
+              />
+            ) : (
+              <div className="grid gap-4">
+                {(bibleData?.characters || []).length < 2 ? (
+                  <p className="text-sm text-amber-700">
+                    Cần có ít nhất hai nhân vật trong Story Bible để tạo quan hệ tự động.
+                  </p>
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="relationship-character-a">Nhân vật A</Label>
+                    <Select value={aiRelCharacterAIndex} onValueChange={(value) => setAiRelCharacterAIndex(value ?? "")}>
+                      <SelectTrigger id="relationship-character-a" className="w-full">
+                        <SelectValue placeholder="Chọn nhân vật">
+                          {aiRelCharacterAIndex === ""
+                            ? undefined
+                            : bibleData?.characters?.[Number(aiRelCharacterAIndex)]?.name?.trim() || `Nhân vật ${Number(aiRelCharacterAIndex) + 1}`}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(bibleData?.characters || []).map((character: { name?: string }, index: number) => (
+                          <SelectItem key={index} value={String(index)} disabled={String(index) === aiRelCharacterBIndex}>
+                            {character.name?.trim() || `Nhân vật ${index + 1}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="relationship-character-b">Nhân vật B</Label>
+                    <Select value={aiRelCharacterBIndex} onValueChange={(value) => setAiRelCharacterBIndex(value ?? "")}>
+                      <SelectTrigger id="relationship-character-b" className="w-full">
+                        <SelectValue placeholder="Chọn nhân vật">
+                          {aiRelCharacterBIndex === ""
+                            ? undefined
+                            : bibleData?.characters?.[Number(aiRelCharacterBIndex)]?.name?.trim() || `Nhân vật ${Number(aiRelCharacterBIndex) + 1}`}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(bibleData?.characters || []).map((character: { name?: string }, index: number) => (
+                          <SelectItem key={index} value={String(index)} disabled={String(index) === aiRelCharacterAIndex}>
+                            {character.name?.trim() || `Nhân vật ${index + 1}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <TextAreaField
+                  label="Mô tả bổ sung cho nhân vật A (không bắt buộc)"
+                  value={aiRelCharacterADescription}
+                  onChange={setAiRelCharacterADescription}
+                  rows={2}
+                  placeholder="Góc nhìn hoặc thông tin chưa có trong hồ sơ..."
+                />
+                <TextAreaField
+                  label="Mô tả bổ sung cho nhân vật B (không bắt buộc)"
+                  value={aiRelCharacterBDescription}
+                  onChange={setAiRelCharacterBDescription}
+                  rows={2}
+                  placeholder="Góc nhìn hoặc thông tin chưa có trong hồ sơ..."
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAiRelModalOpen(false)}>Hủy</Button>
+            <Button
+              onClick={generateAiRelationship}
+              disabled={
+                isGeneratingRel ||
+                (aiRelMode === "manual" && !aiRelPrompt.trim()) ||
+                (aiRelMode === "automatic" && (
+                  !aiRelCharacterAIndex ||
+                  !aiRelCharacterBIndex ||
+                  aiRelCharacterAIndex === aiRelCharacterBIndex ||
+                  (bibleData?.characters || []).length < 2
+                ))
+              }
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {isGeneratingRel ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Wand2 className="h-4 w-4 mr-2"/>}
+              {aiRelMode === "manual" ? "Tạo từ mô tả" : "Sinh tự động"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL AI CHÈN/SỬA CHƯƠNG (2-STEP WIZARD) */}
+      <Dialog open={isAiChapModalOpen} onOpenChange={setIsAiChapModalOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-indigo-600" />
+              {aiChapAction === "insert" 
+                ? `AI Tạo Chương Mới (Vị trí ${targetChapIndex + 1})` 
+                : `AI Sửa Chương ${targetChapIndex + 1}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          {aiChapStep === 1 ? (
+            // BƯỚC 1: NHẬP Ý TƯỞNG
+            <div className="grid gap-4 py-4">
+              <p className="text-sm text-slate-500">
+                Hãy viết một ý tưởng bất kỳ. Đừng lo về Logic, AI Script Doctor sẽ đánh giá và điều chỉnh giúp bạn.
+              </p>
+              <Textarea 
+                placeholder="VD: Hai người đi du lịch, bị kẹt vì mưa bão, phải ngủ chung một phòng..."
+                value={userOriginalPrompt}
+                onChange={(e) => setUserOriginalPrompt(e.target.value)}
+                className="resize-none h-32"
+              />
+              <div className="flex justify-end mt-2">
+                <Button onClick={analyzeAiChapterIdea} disabled={isAnalyzing || !userOriginalPrompt} className="bg-indigo-600 hover:bg-indigo-700">
+                  {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Activity className="h-4 w-4 mr-2"/>}
+                  Phân Tích Khả Thi
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // BƯỚC 2: PHẢN BIỆN & CHỌN LỰA
+            <div className="py-2 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">Điểm Logic: {aiAnalysisData?.feasibility_score}</Badge>
+                  <span className="font-bold text-sm text-amber-800">Góp ý từ Cố vấn AI:</span>
+                </div>
+                <p className="text-sm text-slate-700 italic">"{aiAnalysisData?.critique}"</p>
+              </div>
+
+              <div className="space-y-3 mt-4">
+                <p className="text-sm font-semibold text-slate-800">Bạn muốn dùng phương án nào để sinh kịch bản?</p>
+                
+                {/* Lựa chọn 1: Dùng prompt xịn của AI */}
+                <div className="border border-indigo-200 bg-indigo-50/30 p-3 rounded-lg hover:bg-indigo-50 cursor-pointer" onClick={() => generateFinalAiChapters(aiAnalysisData?.suggested_prompt)}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold text-indigo-700 uppercase">✨ Đề xuất của AI (Khuyên dùng)</span>
+                  </div>
+                  <p className="text-xs text-slate-600">{aiAnalysisData?.suggested_prompt}</p>
+                </div>
+
+                {/* Lựa chọn 2: Cố chấp dùng prompt gốc */}
+                <div className="border border-slate-200 p-3 rounded-lg hover:bg-slate-50 cursor-pointer" onClick={() => generateFinalAiChapters(userOriginalPrompt)}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Ý tưởng gốc của bạn</span>
+                  </div>
+                  <p className="text-xs text-slate-400">{userOriginalPrompt}</p>
+                </div>
+              </div>
+              
+              {isGeneratingAiChap && (
+                <div className="flex items-center justify-center text-indigo-600 mt-4 text-sm font-medium">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2"/> Đang vung bút vẽ kịch bản...
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL ĐÁNH GIÁ PACING */}
+      <Dialog open={isEvalModalOpen} onOpenChange={setIsEvalModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-amber-600"/> Báo cáo Đánh giá Cấu trúc (Pacing)</DialogTitle>
+          </DialogHeader>
+          
+          {isEvaluating ? (
+            <div className="py-12 flex flex-col items-center justify-center text-slate-500">
+              <Loader2 className="h-10 w-10 animate-spin mb-4 text-amber-500" />
+              <p className="animate-pulse">AI Script Doctor đang đọc và phân tích kịch bản...</p>
+            </div>
+          ) : evalData ? (
+            <div className="space-y-6 py-4">
+              <div className="flex items-center justify-between bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <div className="text-sm font-medium text-amber-800">{evalData.summary}</div>
+                <div className="text-3xl font-black text-amber-600 ml-4">{evalData.overall_score}/10</div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-green-600">✅ Điểm sáng</h4>
+                  <ul className="text-xs space-y-1 list-disc pl-4 text-slate-600">
+                    {evalData.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-red-500">⚠️ Điểm yếu / Lỗ hổng</h4>
+                  <ul className="text-xs space-y-1 list-disc pl-4 text-slate-600">
+                    {evalData.weaknesses.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                  </ul>
+                </div>
+              </div>
+
+              {evalData.suggestions.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-slate-800 border-b pb-2">Đề xuất sửa chữa</h4>
+                  {evalData.suggestions.map((s: any, i: number) => (
+                    <div key={i} className="bg-slate-50 p-3 rounded border text-sm">
+                      <p className="font-bold text-indigo-600">{s.chapter}</p>
+                      <p className="text-red-600 mt-1"><span className="font-semibold">Vấn đề:</span> {s.issue}</p>
+                      <p className="text-green-700 mt-1"><span className="font-semibold">Cách sửa:</span> {s.fix}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
       
     </div>
   );

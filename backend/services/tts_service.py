@@ -2,9 +2,36 @@ import os
 import re
 import subprocess
 import uuid
+from urllib.parse import urlsplit
 
 import httpx
 from core.config import settings
+
+
+async def fetch_tts_voices() -> list[dict[str, str]]:
+    tts_api_url = settings.TTS_API_URL.strip()
+    if not tts_api_url:
+        raise RuntimeError("TTS_API_URL chưa được cấu hình.")
+
+    parsed_url = urlsplit(tts_api_url)
+    if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+        raise RuntimeError("TTS_API_URL phải là URL HTTP hoặc HTTPS hợp lệ.")
+
+    voices_url = f"{parsed_url.scheme}://{parsed_url.netloc}/voices"
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+        response = await client.get(voices_url)
+        response.raise_for_status()
+        voices = response.json()
+
+    if not isinstance(voices, list) or any(
+        not isinstance(voice, dict)
+        or not isinstance(voice.get("id"), str)
+        or not isinstance(voice.get("label"), str)
+        for voice in voices
+    ):
+        raise ValueError("TTS /voices phải trả về mảng gồm các trường id và label.")
+
+    return voices
 
 
 # Helper: Convert số giây (vd 65.5) sang chuẩn ASS timecode (0:01:05.50)
