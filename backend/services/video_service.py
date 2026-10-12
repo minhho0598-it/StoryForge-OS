@@ -1,5 +1,6 @@
 import asyncio
 import bisect
+import math
 import os
 import random
 import shutil
@@ -10,13 +11,16 @@ import ffmpeg  # type: ignore
 
 REQUIRED_CONFIG_KEYS = (
     "background_folder_path",
-    "intro_video_path",
+)
+FULL_RENDER_CONFIG_KEYS = (
     "main_video_path",
     "overlay_w",
     "overlay_h",
     "overlay_x",
     "overlay_y",
 )
+
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".avi")
 
 
 def get_media_duration(file_path: str) -> float:
@@ -31,6 +35,91 @@ def get_media_duration(file_path: str) -> float:
     except Exception as e:
         print(f"[get_media_duration] Không đọc được duration của '{file_path}': {e}")
         return 0.0
+
+
+def _probe_media_file(file_path: str) -> tuple[list[dict], float]:
+    try:
+        probe = ffmpeg.probe(file_path)
+    except (ffmpeg.Error, OSError) as exc:
+        raise ValueError(f"Không thể đọc file media '{file_path}': {exc}") from exc
+
+    streams = probe.get("streams", [])
+    duration_value = probe.get("format", {}).get("duration")
+    if duration_value is None:
+        duration_value = next(
+            (stream["duration"] for stream in streams if stream.get("duration") is not None),
+            0,
+        )
+    try:
+        duration = float(duration_value)
+    except (TypeError, ValueError):
+        duration = 0.0
+    if not math.isfinite(duration):
+        duration = 0.0
+    return streams, duration
+
+
+def _get_background_inventory(background_folder_path: str) -> list[dict]:
+    background_folder_path = str(background_folder_path or "").strip()
+    if not background_folder_path or not os.path.isdir(background_folder_path):
+        raise ValueError(f"Không tìm thấy thư mục video nền: '{background_folder_path}'.")
+
+    try:
+        filenames = os.listdir(background_folder_path)
+    except OSError as exc:
+        raise ValueError(f"Không thể đọc thư mục video nền '{background_folder_path}': {exc}") from exc
+
+    inventory = []
+    rejected_files = []
+    for filename in filenames:
+        if not filename.lower().endswith(VIDEO_EXTENSIONS):
+            continue
+        file_path = os.path.join(background_folder_path, filename)
+        try:
+            streams, duration = _probe_media_file(file_path)
+        except ValueError as exc:
+            rejected_files.append(f"{filename}: {exc}")
+            continue
+        if duration > 0.5 and any(stream.get("codec_type") == "video" for stream in streams):
+            inventory.append({"path": file_path, "duration": duration})
+        else:
+            rejected_files.append(f"{filename}: không có video hợp lệ hoặc thời lượng quá ngắn")
+
+    if not inventory:
+        details = f" Chi tiết: {'; '.join(rejected_files[:3])}" if rejected_files else ""
+        raise ValueError(
+            f"Không tìm thấy video nền hợp lệ (duration > 0.5s) trong "
+            f"'{background_folder_path}'.{details}"
+        )
+    return inventory
+
+
+def validate_render_inputs(config: dict) -> list[dict]:
+    render_mode = config.get("render_mode", "full")
+    if not isinstance(render_mode, str) or render_mode not in {"full", "simple"}:
+        raise ValueError(f"Chế độ render không hợp lệ: '{render_mode}'.")
+
+    background_inventory = _get_background_inventory(config.get("background_folder_path", ""))
+
+    if render_mode == "full":
+        main_video_path = str(config.get("main_video_path") or "").strip()
+        if not os.path.isfile(main_video_path):
+            raise ValueError(f"Không tìm thấy file video chính: '{main_video_path}'.")
+        streams, duration = _probe_media_file(main_video_path)
+        if duration <= 0.5 or not any(stream.get("codec_type") == "video" for stream in streams):
+            raise ValueError(f"File video chính không có video hợp lệ: '{main_video_path}'.")
+
+    if render_mode == "simple" and config.get("use_background_audio", False):
+        background_audio_path = str(config.get("background_audio_path") or "").strip()
+        if not background_audio_path:
+            raise ValueError("Đã bật chèn nhạc nền nhưng chưa cấu hình file background audio.")
+        if not os.path.isfile(background_audio_path):
+            raise ValueError(f"Không tìm thấy file background audio: '{background_audio_path}'.")
+        streams, _ = _probe_media_file(background_audio_path)
+        if not any(stream.get("codec_type") == "audio" for stream in streams):
+            raise ValueError(f"File nhạc nền không có audio hợp lệ: '{background_audio_path}'.")
+
+    return background_inventory
 
 
 def _resolve_temp_base(config: dict) -> str:
@@ -96,7 +185,15 @@ def compute_cut_points(chapter_segments: list, min_dur: float, max_dur: float) -
     return cut_points
 
 
-async def process_full_project_video(project_id: str, final_audio_path: str, audio_duration: float, config: dict, ass_sub_path: str = None, chapter_segments: list = None) -> str:
+async def process_full_project_video(
+    project_id: str,
+    final_audio_path: str,
+    audio_duration: float,
+    config: dict,
+    ass_sub_path: str = None,
+    chapter_segments: list = None,
+    background_inventory: list[dict] | None = None,
+) -> str:
     """
     SINGLE-PASS RENDER:
     Không tạo file video trung gian. Dùng Filter Complex stream mọi thứ trong RAM.
@@ -105,7 +202,13 @@ async def process_full_project_video(project_id: str, final_audio_path: str, aud
     MIN_PART_DURATION = 60.0
     MAX_PART_DURATION = 170.0
 
-    missing_keys = [key for key in REQUIRED_CONFIG_KEYS if key not in config]
+    render_mode = config.get("render_mode", "full")
+    if not isinstance(render_mode, str) or render_mode not in {"full", "simple"}:
+        raise ValueError(f"Chế độ render không hợp lệ: '{render_mode}'.")
+    required_keys = REQUIRED_CONFIG_KEYS
+    if render_mode != "simple":
+        required_keys += FULL_RENDER_CONFIG_KEYS
+    missing_keys = [key for key in required_keys if key not in config]
     if missing_keys:
         raise ValueError(f"Thiếu config bắt buộc: {missing_keys}")
 
@@ -123,16 +226,11 @@ async def process_full_project_video(project_id: str, final_audio_path: str, aud
         # 1. TẠO LIST STREAM VIDEO NỀN (Chỉ tạo file text .txt)
         # ============================================================
         print("[Render Engine] Chuẩn bị kịch bản stream Background Video...")
-        bg_folder = config["background_folder_path"]
-        bg_files = [os.path.join(bg_folder, f) for f in os.listdir(bg_folder) if f.endswith(('.mp4', '.mov', '.webm', '.avi'))]
-
-        bg_inventory = [{"path": bg, "duration": get_media_duration(bg)} for bg in bg_files if get_media_duration(bg) > 0.5]
-
-        if not bg_inventory:
-            raise ValueError(
-                f"Không tìm thấy video nền hợp lệ (duration > 0.5s) trong '{bg_folder}'. "
-                "Không thể dựng background stream."
-            )
+        bg_inventory = (
+            background_inventory
+            if background_inventory is not None
+            else _get_background_inventory(config["background_folder_path"])
+        )
 
         selected_bg_segments = []
         current_bg_duration = 0.0
@@ -229,31 +327,26 @@ async def process_full_project_video(project_id: str, final_audio_path: str, aud
                 ffmpeg_cmd.append(os.path.join(output_dir, f"Final_Project_{project_id}_Full.mp4"))
         else:
             # ============================================================
-            # MODE BÌNH THƯỜNG: Có Overlay và Intro
+            # MODE BÌNH THƯỜNG: Video chính, overlay nền và narration
             # ============================================================
             ffmpeg_cmd.extend([
-                "-i", config["intro_video_path"],
                 "-stream_loop", "-1", "-fflags", "+genpts", "-i", config["main_video_path"],
                 "-f", "concat", "-safe", "0", "-t", str(audio_duration), "-i", bg_list_file,
                 "-i", final_audio_path,
 
                 "-filter_complex",
                 f"""
-                    [1:v]setpts=N/FRAME_RATE/TB,format=yuv420p[main_prepared];
-                    [2:v]scale={config['overlay_w']}:{config['overlay_h']},setsar=1,format=yuv420p[bg_scaled];
+                    [0:v]setpts=N/FRAME_RATE/TB,format=yuv420p[main_prepared];
+                    [1:v]scale={config['overlay_w']}:{config['overlay_h']},setsar=1,format=yuv420p[bg_scaled];
                     [main_prepared][bg_scaled]overlay=x={config['overlay_x']}:y={config['overlay_y']}:shortest=1,setsar=1[content_video];
-
-                    [0:v]setsar=1,format=yuv420p[intro_v];
-                    [0:a]aresample=44100[intro_a];
-                    [3:a]aresample=44100[content_a];
-
-                    [intro_v][intro_a][content_video][content_a]concat=n=2:v=1:a=1[outv][outa]
+                    [2:a]aresample=44100[content_a]
                 """,
 
-                "-map", "[outv]",
-                "-map", "[outa]",
+                "-map", "[content_video]",
+                "-map", "[content_a]",
                 "-c:v", "libx264", "-preset", "fast", "-crf", "23",
                 "-c:a", "aac", "-b:a", "192k",
+                "-shortest",
                 "-movflags", "+faststart",
                 final_output_path
             ])

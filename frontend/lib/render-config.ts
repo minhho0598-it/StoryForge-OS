@@ -8,7 +8,6 @@ export type RenderConfig = {
   story_intro_enabled: boolean;
   story_intro_position: "start" | "end";
   story_intro_pause_ms: number;
-  intro_video_path: string;
   main_video_path: string;
   background_folder_path: string;
   background_audio_path: string;
@@ -28,7 +27,6 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   story_intro_enabled: false,
   story_intro_position: "start",
   story_intro_pause_ms: 1000,
-  intro_video_path: "./data/sample_assets/intro.mp4",
   main_video_path: "./data/sample_assets/main.mp4",
   background_folder_path: "./data/sample_assets/backgrounds",
   background_audio_path: "",
@@ -38,6 +36,10 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   overlay_h: 1060,
 };
 
-export function normalizeRenderConfig(config?: Partial<RenderConfig> | null): RenderConfig {
-  return { ...DEFAULT_RENDER_CONFIG, ...config };
+type LegacyRenderConfig = Partial<RenderConfig> & { intro_video_path?: string };
+
+export function normalizeRenderConfig(config?: LegacyRenderConfig | null): RenderConfig {
+  const normalized = { ...DEFAULT_RENDER_CONFIG, ...config };
+  delete normalized.intro_video_path;
+  return normalized;
 }

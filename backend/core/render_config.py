@@ -14,7 +14,6 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
     "story_intro_enabled": False,
     "story_intro_position": "start",
     "story_intro_pause_ms": 1000,
-    "intro_video_path": "./data/sample_assets/intro.mp4",
     "main_video_path": "./data/sample_assets/main.mp4",
     "background_folder_path": "./data/sample_assets/backgrounds",
     "background_audio_path": "",
@@ -27,6 +26,7 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
 
 def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
     normalized = {**DEFAULT_RENDER_CONFIG, **(config or {})}
+    normalized.pop("intro_video_path", None)
     normalized["literary_style"] = (
         normalized["literary_style"]
         if isinstance(normalized["literary_style"], str)
@@ -34,6 +34,12 @@ def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
         else DEFAULT_RENDER_CONFIG["literary_style"]
     )
     normalized["story_intro_enabled"] = bool(normalized["story_intro_enabled"])
+    normalized["render_mode"] = (
+        normalized["render_mode"]
+        if isinstance(normalized["render_mode"], str)
+        and normalized["render_mode"] in {"full", "simple"}
+        else DEFAULT_RENDER_CONFIG["render_mode"]
+    )
     try:
         background_audio_volume = float(normalized["background_audio_volume"])
         normalized["background_audio_volume"] = (
