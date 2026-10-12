@@ -152,7 +152,7 @@ CREATIVE_PROMPT_CATALOG = [
         "user": "refine_user.md",
         "audio_system": "style_variants/audio_story/refine_system.md",
         "literary_system": "style_variants/literary_book/refine_system.md",
-    },
+    }
 ]
 
 
