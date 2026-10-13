@@ -100,15 +100,10 @@ async def generate_video_metadata(project_id: str, request: MetadataGenerateRequ
                 art_director_system_prompt,
                 art_director_user_prompt,
             )
-            visual_brief = art_direction.get("image_generation_prompt", "")
-            negative_space = art_direction.get("composition", {}).get(
-                "negative_space",
-                "left third of the frame",
-            )
+            story_brief = art_direction.get("story_brief", "")
             generated_list = [prompt_manager.load_prompt(
                 "thumbnail_prompt.md",
-                visualBrief=visual_brief,
-                negativeSpace=negative_space,
+                visualBrief=story_brief
             )]
         else:
             system_prompt = load_story_system_prompt(
