@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
 
-export default function MetadataPage() {
+export default function MetadataContent() {
   const params = useParams();
   const projectId = params.id as string;
 
@@ -294,7 +294,7 @@ export default function MetadataPage() {
                       {copiedField === 'thumbnail' ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => generateMetadataItem('thumbnail_prompt')} disabled={loadingMeta.thumbnail_prompt} className="h-7 text-xs">
-                      {loadingMeta.thumbnail_prompt ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Sinh Prompt Tiếng Anh
+                      {loadingMeta.thumbnail_prompt ? <Loader2 className="h-3 w-3 animate-spin mr-1"/> : <Wand2 className="h-3 w-3 mr-1"/>} Sinh Prompt
                     </Button>
                   </div>
                 </div>
