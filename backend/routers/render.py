@@ -18,7 +18,7 @@ from schemas import (
 )
 from services.llm_service import generate_json
 from services.tts_service import fetch_tts_voices, generate_audio_file
-from services.video_service import process_full_project_video
+from services.video_service import process_full_project_video, validate_render_inputs
 
 router = APIRouter()
 
@@ -158,6 +158,7 @@ async def background_batch_render(project_id: str, config: dict, target_chapter_
         if not valid_chapters:
             raise Exception("Không tìm thấy chương hợp lệ để render.")
         total_chaps = len(valid_chapters)
+        background_inventory = validate_render_inputs(config)
 
         project_res = supabase.table("projects").select("render_config, video_metadata").eq("id", project_id).execute()
         project_metadata = (project_res.data or [{}])[0].get("video_metadata") or {}
@@ -431,7 +432,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             audio_duration=actual_duration, 
             config=config,
             ass_sub_path=ass_file_path,
-            chapter_segments=chapter_segments
+            chapter_segments=chapter_segments,
+            background_inventory=background_inventory,
         )
 
         # ====================================================
