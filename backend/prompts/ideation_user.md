@@ -8,6 +8,11 @@
 {{ heat_level }}
 </heat_level>
 
+# MỨC BỐI CẢNH
+<setting_mode>
+{{ setting_mode }}
+</setting_mode>
+
 # LĂNG KÍNH YÊU CẦU
 <target_lenses>
 {{ target_lenses }}
