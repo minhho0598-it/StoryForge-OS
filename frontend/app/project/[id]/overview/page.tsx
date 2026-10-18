@@ -26,7 +26,7 @@ type ProjectDashboardData = {
   vibe?: string;
   heat_level?: number;
   logline?: string;
-  vietnamese_context?: string;
+  world_context?: string;
   story_bible?: {
     characters?: DashboardCharacter[];
     conflict_system?: { central_conflict?: string };
@@ -102,9 +102,9 @@ export default function OverviewPage() {
               <CardContent className="p-6 space-y-6 bg-amber-50/30">
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                    <Target className="h-4 w-4 text-slate-500" /> Môi trường (Vietnamese Context)
+                    <Target className="h-4 w-4 text-slate-500" /> Bối cảnh (World Context)
                   </h4>
-                  <p className="text-slate-600 text-sm">{project.vietnamese_context}</p>
+                  <p className="text-slate-600 text-sm">{project.world_context}</p>
                 </div>
                 <Separator />
                 <div>

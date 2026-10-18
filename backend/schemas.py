@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class IdeationRequest(BaseModel):
     story_premise: str
+    setting_mode: Literal["vn_real", "vn_ideal", "open"] = "vn_real"
     target_lenses: List[Literal[
         "purist",
         "false_truth",
@@ -35,7 +36,7 @@ class ProjectCreateRequest(BaseModel):
     title: str
     vibe: str
     logline: str
-    vietnamese_context: str
+    world_context: str
     thematic_question: str
     situational_irony: str
     micro_conflict: str
