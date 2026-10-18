@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Layers, Save, X, Wand2, Map, Sparkles, Activity, ChevronDown } from "lucide-react";
+import { Loader2, Layers, Save, X, Wand2, Map, Sparkles, Activity, ChevronDown, TriangleAlert, Pencil, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
@@ -24,48 +24,426 @@ import StoryBibleVisual from "@/components/story-bible-visual";
 /* ------------------------------------------------------------------ */
 
 // Immutably set a value at an arbitrary path (supports object keys and array indices)
-function setDeep(obj: any, path: (string | number)[], value: any): any {
+function setDeep(obj: unknown, path: BibleFieldPath, value: unknown): unknown {
   if (path.length === 0) return value;
   const [key, ...rest] = path;
-  const isArr = Array.isArray(obj);
-  const clone: any = isArr ? [...obj] : { ...(obj || {}) };
+  const clone: Record<string, unknown> | unknown[] = Array.isArray(obj)
+    ? [...obj]
+    : { ...(obj && typeof obj === "object" ? obj : {}) };
+  const current = Array.isArray(clone)
+    ? typeof key === "number" ? clone[key] : undefined
+    : typeof key === "string" ? clone[key] : undefined;
   const nextDefault = typeof rest[0] === "number" ? [] : {};
-  clone[key as any] = setDeep(clone[key as any] ?? nextDefault, rest, value);
+  const next = setDeep(current ?? nextDefault, rest, value);
+  if (Array.isArray(clone) && typeof key === "number") {
+    clone[key] = next;
+  } else if (!Array.isArray(clone) && typeof key === "string") {
+    clone[key] = next;
+  }
   return clone;
 }
 
-function TextField({ label, value, onChange, type = "text", placeholder, disabled }: any) {
+function getDeep(obj: unknown, path: BibleFieldPath): unknown {
+  let value = obj;
+  for (const key of path) {
+    if (Array.isArray(value) && typeof key === "number") {
+      value = value[key];
+    } else if (value && typeof value === "object" && typeof key === "string") {
+      value = (value as Record<string, unknown>)[key];
+    } else {
+      return undefined;
+    }
+  }
+  return value;
+}
+
+type BibleFieldPath = (string | number)[];
+type BibleFieldType = "string" | "number" | "boolean" | "string_array";
+type BibleFieldEditRequest = {
+  path: BibleFieldPath;
+  label: string;
+  value: unknown;
+  fieldType: BibleFieldType;
+  editorType: "text" | "textarea" | "array";
+};
+type EditableBibleField = {
+  path: BibleFieldPath;
+  label: string;
+  field_type: BibleFieldType;
+};
+type BibleFieldEditContextValue = {
+  openFieldEditor: (field: BibleFieldEditRequest) => void;
+};
+
+const BibleFieldEditContext = createContext<BibleFieldEditContextValue | null>(null);
+
+const EDITABLE_BIBLE_FIELD_LABELS: Record<string, string> = {
+  title: "Tiêu đề",
+  core_premise: "Tiền đề",
+  central_theme: "Chủ đề trung tâm",
+  vibe: "Vibe / Tông truyện",
+  story_engine: "Động cơ truyện",
+  sub_themes: "Chủ đề phụ",
+  emotional_promise: "Cảm xúc hứa hẹn",
+  timeline_structure: "Cấu trúc thời gian",
+  thematic_question: "Câu hỏi chủ đề",
+  name: "Tên nhân vật",
+  age: "Tuổi",
+  role_in_story: "Vai trò trong truyện",
+  motivation: "Động lực",
+  relationship_to_protagonist: "Quan hệ với nhân vật chính",
+  timeline_evolution: "Diễn tiến nhân vật",
+  appearance: "Ngoại hình",
+  habits: "Thói quen",
+  living_situation: "Hoàn cảnh sống",
+  career_and_financial_status: "Sự nghiệp và tài chính",
+  fear: "Nỗi sợ",
+  emotional_need: "Nhu cầu cảm xúc",
+  external_pressure: "Áp lực bên ngoài",
+  internal_conflict: "Xung đột nội tâm",
+  secrets_or_insecurities: "Bí mật / Tự ti",
+  strength: "Điểm mạnh",
+  flaw: "Khuyết điểm",
+  core_traits: "Đặc điểm cốt lõi",
+  starting_belief: "Niềm tin ban đầu",
+  false_belief: "Niềm tin sai lệch",
+  truth_they_learn: "Sự thật nhận ra",
+  ending_state: "Trạng thái kết thúc",
+  setting: "Bối cảnh",
+  primary_setting: "Bối cảnh chính",
+  past_setting: "Bối cảnh quá khứ",
+  location: "Địa điểm",
+  daily_life: "Đời sống thường nhật",
+  social_circles: "Các mối quan hệ xã hội",
+  cultural_context: "Bối cảnh văn hoá",
+  socio_economic_pressures: "Áp lực kinh tế - xã hội",
+  central_conflict: "Xung đột trung tâm",
+  micro_conflict_origin: "Nguồn gốc vi-xung đột",
+  escalation_logic: "Logic leo thang",
+  external_conflicts: "Xung đột bên ngoài",
+  internal_conflicts: "Xung đột nội tâm",
+  tone: "Tông giọng",
+  pacing: "Nhịp độ",
+  dialogue_style: "Phong cách hội thoại",
+  suggested_type: "Ngôi kể đề xuất",
+  reasoning: "Lý do đề xuất",
+  system_instruction_string: "Chỉ dẫn ngôi kể",
+  realism_rules: "Quy tắc hiện thực",
+  romance_rules: "Quy tắc lãng mạn",
+  show_dont_tell_rules: "Quy tắc show, don't tell",
+  original_seed_title: "Tựa đề gốc",
+  original_vibe: "Vibe gốc",
+  keywords_integrated: "Từ khoá đã tích hợp",
+  core_elements_that_must_not_change: "Yếu tố cốt lõi không được thay đổi",
+  narrative_boundaries: "Ranh giới trần thuật",
+  applicable: "Có áp dụng hướng dẫn thân mật",
+  note: "Ghi chú",
+  comfort_level: "Mức độ thoải mái",
+  depiction_style: "Phong cách miêu tả",
+  natural_intimacy_beats: "Nhịp thân mật tự nhiên",
+  consent_and_pacing_rules: "Quy tắc đồng thuận và nhịp độ",
+  between: "Nhân vật trong quan hệ",
+  current_relationship: "Mối quan hệ hiện tại",
+  past_relationship: "Mối quan hệ quá khứ",
+  relationship_arc: "Hành trình mối quan hệ",
+  bonding_mechanism: "Cơ chế gắn kết",
+  source_of_tension: "Nguồn căng thẳng",
+  unspoken_issue: "Vấn đề chưa nói ra",
+  what_a_needs_from_b: "A cần gì từ B",
+  what_b_needs_from_a: "B cần gì từ A",
+  physical_intimacy_arc: "Hành trình thân mật thể xác",
+  starting_emotional_state: "Trạng thái cảm xúc ban đầu",
+  midpoint_shift: "Bước ngoặt giữa truyện",
+  major_emotional_turn: "Bước ngoặt cảm xúc lớn",
+  resolution_emotion: "Cảm xúc khi kết thúc",
+};
+
+const STRING_ARRAY_BIBLE_FIELDS = new Set([
+  "sub_themes",
+  "habits",
+  "core_traits",
+  "socio_economic_pressures",
+  "external_conflicts",
+  "internal_conflicts",
+  "realism_rules",
+  "romance_rules",
+  "show_dont_tell_rules",
+  "keywords_integrated",
+  "core_elements_that_must_not_change",
+  "narrative_boundaries",
+  "natural_intimacy_beats",
+  "consent_and_pacing_rules",
+]);
+
+const BOOLEAN_BIBLE_FIELDS = new Set(["applicable"]);
+
+function getBibleFieldType(value: unknown, key?: string): BibleFieldType {
+  if (Array.isArray(value) || STRING_ARRAY_BIBLE_FIELDS.has(key ?? "")) return "string_array";
+  if (typeof value === "boolean" || BOOLEAN_BIBLE_FIELDS.has(key ?? "")) return "boolean";
+  if (typeof value === "number") return "number";
+  return "string";
+}
+
+function getEditableBibleFields(storyBible: unknown): EditableBibleField[] {
+  const fields: EditableBibleField[] = [];
+  const visit = (value: unknown, path: BibleFieldPath) => {
+    if (Array.isArray(value)) {
+      const key = path[path.length - 1];
+      if (typeof key === "string" && STRING_ARRAY_BIBLE_FIELDS.has(key)) {
+        fields.push({
+          path,
+          label: getContextualBibleFieldLabel(storyBible, path, EDITABLE_BIBLE_FIELD_LABELS[key]),
+          field_type: "string_array",
+        });
+        return;
+      }
+      value.forEach((item, index) => visit(item, [...path, index]));
+      return;
+    }
+    if (value && typeof value === "object") {
+      Object.entries(value as Record<string, unknown>).forEach(([key, child]) => {
+        if (child && typeof child === "object") {
+          visit(child, [...path, key]);
+          return;
+        }
+        if (EDITABLE_BIBLE_FIELD_LABELS[key]) {
+          fields.push({
+            path: [...path, key],
+            label: getContextualBibleFieldLabel(
+              storyBible,
+              [...path, key],
+              EDITABLE_BIBLE_FIELD_LABELS[key],
+            ),
+            field_type: getBibleFieldType(child, key),
+          });
+        }
+      });
+      return;
+    }
+    const key = path[path.length - 1];
+    const parentKey = path[path.length - 2];
+    if (typeof parentKey === "string" && EDITABLE_BIBLE_FIELD_LABELS[parentKey]) {
+      const label = parentKey === "between"
+        ? `Nhân vật ${key === 0 ? "A" : "B"}`
+        : EDITABLE_BIBLE_FIELD_LABELS[parentKey];
+      fields.push({
+        path,
+        label: getContextualBibleFieldLabel(storyBible, path, label),
+        field_type: getBibleFieldType(value, parentKey),
+      });
+    }
+  };
+  visit(storyBible, []);
+  return fields;
+}
+
+function formatBibleFieldValue(value: unknown): string {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? "")).join("\n");
+  return value == null ? "" : String(value);
+}
+
+function getContextualBibleFieldLabel(storyBible: unknown, path: BibleFieldPath, label: string): string {
+  if (path[0] === "characters" && typeof path[1] === "number") {
+    const characterName = getDeep(storyBible, ["characters", path[1], "name"]);
+    const character = typeof characterName === "string" && characterName.trim()
+      ? ` (${characterName.trim()})`
+      : "";
+    return `Nhân vật ${path[1] + 1}${character} · ${label}`;
+  }
+  if (path[0] === "relationship_dynamics" && typeof path[1] === "number") {
+    const pair = getDeep(storyBible, ["relationship_dynamics", path[1], "between"]);
+    const pairLabel = Array.isArray(pair)
+      ? pair.filter((name): name is string => typeof name === "string" && Boolean(name.trim())).join(" – ")
+      : "";
+    const relationship = pairLabel ? ` (${pairLabel})` : "";
+    const fieldLabel = path[2] === "between" && typeof path[3] === "number"
+      ? `Nhân vật ${path[3] === 0 ? "A" : "B"}`
+      : label;
+    return `Quan hệ ${path[1] + 1}${relationship} · ${fieldLabel}`;
+  }
+  return label;
+}
+
+function isCompatibleBibleFieldValue(value: unknown, fieldType: BibleFieldType): boolean {
+  if (fieldType === "string") return typeof value === "string";
+  if (fieldType === "number") return typeof value === "number" && Number.isFinite(value);
+  if (fieldType === "boolean") return typeof value === "boolean";
+  return Array.isArray(value) && value.every((item: unknown) => typeof item === "string");
+}
+
+type TextFieldProps = {
+  label: string;
+  value: unknown;
+  onChange: (value: string) => void;
+  type?: "text" | "number" | "checkbox";
+  placeholder?: string;
+  disabled?: boolean;
+  fieldPath?: BibleFieldPath;
+  fieldType?: BibleFieldType;
+};
+
+function TextField({ label, value, onChange, type = "text", placeholder, disabled, fieldPath, fieldType }: TextFieldProps) {
+  const editContext = useContext(BibleFieldEditContext);
+  const canOpenEditor = Boolean(fieldPath && editContext);
+  const openEditor = () => {
+    if (!fieldPath || !editContext) return;
+    const fieldKey = fieldPath[fieldPath.length - 1];
+    editContext?.openFieldEditor({
+      path: fieldPath,
+      label,
+      value,
+      fieldType: fieldType ?? getBibleFieldType(value, typeof fieldKey === "string" ? fieldKey : undefined),
+      editorType: "text",
+    });
+  };
+  const editButton = canOpenEditor && (
+    <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={openEditor} disabled={disabled}>
+      <Pencil className="mr-1 h-3 w-3" /> Chỉnh sửa
+    </Button>
+  );
+  const input = (
+    <Input
+      type={type}
+      value={typeof value === "string" || typeof value === "number" ? value : ""}
+      checked={type === "checkbox" ? Boolean(value) : undefined}
+      className={type === "checkbox" ? "h-4 w-4" : undefined}
+      placeholder={placeholder}
+      disabled={disabled}
+      readOnly={canOpenEditor && type !== "checkbox"}
+      onClick={canOpenEditor ? (event) => {
+        if (type === "checkbox") event.preventDefault();
+        openEditor();
+      } : undefined}
+      onChange={(e) => {
+        if (type !== "checkbox") onChange(e.target.value);
+      }}
+    />
+  );
   return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
-      <Input type={type} value={value ?? ""} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+    <div className={type === "checkbox" ? "flex items-center gap-2" : "space-y-1"}>
+      {type === "checkbox" ? (
+        <>
+          {input}
+          <Label className="cursor-pointer">{label}</Label>
+          {editButton}
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <Label>{label}</Label>
+            {editButton}
+          </div>
+          {input}
+        </>
+      )}
     </div>
   );
 }
 
-function TextAreaField({ label, value, onChange, rows = 3, placeholder }: any) {
+type TextAreaFieldProps = {
+  label: string;
+  value: unknown;
+  onChange: (value: string) => void;
+  rows?: number;
+  placeholder?: string;
+  fieldPath?: BibleFieldPath;
+};
+
+function TextAreaField({ label, value, onChange, rows = 3, placeholder, fieldPath }: TextAreaFieldProps) {
+  const editContext = useContext(BibleFieldEditContext);
+  const canOpenEditor = Boolean(fieldPath && editContext);
+  const openEditor = () => {
+    if (!fieldPath || !editContext) return;
+    editContext?.openFieldEditor({
+      path: fieldPath,
+      label,
+      value,
+      fieldType: "string",
+      editorType: "textarea",
+    });
+  };
   return (
     <div className="space-y-1">
-      <Label>{label}</Label>
-      <Textarea value={value ?? ""} placeholder={placeholder} rows={rows} onChange={(e) => onChange(e.target.value)} />
+      <div className="flex items-center justify-between gap-2">
+        <Label>{label}</Label>
+        {canOpenEditor && (
+          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={openEditor}>
+            <Pencil className="mr-1 h-3 w-3" /> Chỉnh sửa
+          </Button>
+        )}
+      </div>
+      <Textarea
+        value={typeof value === "string" || typeof value === "number" ? value : ""}
+        placeholder={placeholder}
+        rows={rows}
+        readOnly={canOpenEditor}
+        onClick={canOpenEditor ? openEditor : undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
 
-function ArrayTextareaField({ label, value, onChange, rows = 3, placeholder }: any) {
-  const safeValue = value || [];
+type ArrayTextareaFieldProps = {
+  label: string;
+  value: unknown;
+  onChange: (value: string[]) => void;
+  rows?: number;
+  placeholder?: string;
+  fieldPath?: BibleFieldPath;
+};
+
+function ArrayTextareaField({ label, value, onChange, rows = 3, placeholder, fieldPath }: ArrayTextareaFieldProps) {
+  const editContext = useContext(BibleFieldEditContext);
+  const safeValue = Array.isArray(value) ? value.map((item) => String(item ?? "")) : [];
+  const canOpenEditor = Boolean(fieldPath && editContext);
+  const openEditor = () => {
+    if (!fieldPath || !editContext) return;
+    editContext?.openFieldEditor({
+      path: fieldPath,
+      label,
+      value: safeValue,
+      fieldType: "string_array",
+      editorType: "array",
+    });
+  };
   return (
     <div className="space-y-1">
-      <Label>{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label>{label}</Label>
+        {canOpenEditor && (
+          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={openEditor}>
+            <Pencil className="mr-1 h-3 w-3" /> Chỉnh sửa
+          </Button>
+        )}
+      </div>
       <Textarea
         value={safeValue.join("\n")}
         placeholder={placeholder}
         rows={rows}
+        readOnly={canOpenEditor}
+        onClick={canOpenEditor ? openEditor : undefined}
         onChange={(e) => onChange(e.target.value.split("\n"))}
       />
     </div>
   );
 }
+
+type BasicCharacter = {
+  name?: string;
+  age?: string | number;
+  role_in_story?: string;
+  motivation?: string;
+  personality?: {
+    strength?: string;
+    flaw?: string;
+  };
+};
+
+type BasicRelationship = {
+  between?: string[];
+  current_relationship?: string;
+};
 
 /* ------------------------------------------------------------------ */
 /* Default shapes used when adding new characters / relationships      */
@@ -171,6 +549,17 @@ export default function ArchitecturePage() {
   const [isSavingBibleChanges, setIsSavingBibleChanges] = useState(false);
   const [isSavingPacingChanges, setIsSavingPacingChanges] = useState(false);
   const [isRegeneratingPovRecommendation, setIsRegeneratingPovRecommendation] = useState(false);
+  const [bibleFieldEdit, setBibleFieldEdit] = useState<BibleFieldEditRequest | null>(null);
+  const [bibleFieldEditStep, setBibleFieldEditStep] = useState<"choose" | "manual" | "ai" | "review">("choose");
+  const [manualBibleFieldValue, setManualBibleFieldValue] = useState("");
+  const [aiBibleFieldPrompt, setAiBibleFieldPrompt] = useState("");
+  const [aiBibleFieldError, setAiBibleFieldError] = useState<string | null>(null);
+  const [isGeneratingBibleFieldEdit, setIsGeneratingBibleFieldEdit] = useState(false);
+  const [bibleFieldProposal, setBibleFieldProposal] = useState<{
+    field_value: unknown;
+    related_changes: { path: BibleFieldPath; label: string; value: unknown; reason: string }[];
+  } | null>(null);
+  const [selectedBibleRelatedChanges, setSelectedBibleRelatedChanges] = useState<string[]>([]);
 
   // Thêm state cho modal đánh giá
   const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
@@ -333,6 +722,115 @@ export default function ArchitecturePage() {
   const updateBible = (path: (string | number)[], value: any) => {
     setBibleData((prev: any) => setDeep(prev ?? {}, path, value));
     setIsBibleDirty(true); // Chỉ bật cờ Bible
+  };
+
+  const openBibleFieldEditor = (field: BibleFieldEditRequest) => {
+    setBibleFieldEdit({
+      ...field,
+      label: getContextualBibleFieldLabel(bibleData, field.path, field.label),
+    });
+    setBibleFieldEditStep("choose");
+    setManualBibleFieldValue(formatBibleFieldValue(field.value));
+    setAiBibleFieldPrompt("");
+    setAiBibleFieldError(null);
+    setBibleFieldProposal(null);
+    setSelectedBibleRelatedChanges([]);
+  };
+
+  const updateBibleFieldValues = (changes: { path: BibleFieldPath; value: unknown }[]) => {
+    setBibleData((previous: any) => {
+      let next = previous ?? {};
+      for (const change of changes) {
+        next = setDeep(next, change.path, change.value);
+        if (change.path.join(".") === "narrative_rules.pov_recommendation.system_instruction_string") {
+          next = setDeep(next, ["pov_instruction"], change.value);
+        } else if (change.path.join(".") === "pov_instruction") {
+          next = setDeep(next, ["narrative_rules", "pov_recommendation", "system_instruction_string"], change.value);
+        }
+      }
+      return next;
+    });
+    setIsBibleDirty(true);
+    setBibleFieldEdit(null);
+  };
+
+  const generateBibleFieldProposal = async () => {
+    if (!bibleFieldEdit || !aiBibleFieldPrompt.trim()) {
+      setAiBibleFieldError("Nhập yêu cầu chỉnh sửa cho AI.");
+      return;
+    }
+    setIsGeneratingBibleFieldEdit(true);
+    setAiBibleFieldError(null);
+    try {
+      const fields = getEditableBibleFields(bibleData ?? {});
+      const targetPathKey = JSON.stringify(bibleFieldEdit.path);
+      const editableFields = [
+        ...fields.filter((field) => JSON.stringify(field.path) !== targetPathKey),
+        {
+          path: bibleFieldEdit.path,
+          label: bibleFieldEdit.label,
+          field_type: bibleFieldEdit.fieldType,
+        },
+      ];
+      const result = await apiClient.post<{
+        field_value: unknown;
+        related_changes: { path: BibleFieldPath; label: string; value: unknown; reason: string }[];
+      }>(`/api/projects/${projectId}/edit-bible-field`, {
+        current_bible: bibleData ?? {},
+        field_path: bibleFieldEdit.path,
+        field_label: bibleFieldEdit.label,
+        field_type: bibleFieldEdit.fieldType,
+        user_prompt: aiBibleFieldPrompt.trim(),
+        editable_fields: editableFields,
+      });
+      const proposal = result.data;
+      const primaryValueValid = Boolean(
+        proposal && isCompatibleBibleFieldValue(proposal.field_value, bibleFieldEdit.fieldType)
+      );
+      if (!proposal || !primaryValueValid || !Array.isArray(proposal.related_changes)) {
+        throw new Error("AI không trả về đề xuất field hợp lệ.");
+      }
+      setBibleFieldProposal(proposal);
+      setSelectedBibleRelatedChanges(proposal.related_changes.map((change) => JSON.stringify(change.path)));
+      setBibleFieldEditStep("review");
+    } catch (error) {
+      setAiBibleFieldError(error instanceof Error ? error.message : "Không thể tạo đề xuất chỉnh sửa bằng AI.");
+    } finally {
+      setIsGeneratingBibleFieldEdit(false);
+    }
+  };
+
+  const applyManualBibleFieldEdit = () => {
+    if (!bibleFieldEdit) return;
+    let value: unknown = manualBibleFieldValue;
+    if (bibleFieldEdit.fieldType === "string_array") {
+      value = manualBibleFieldValue.split("\n");
+    } else if (bibleFieldEdit.fieldType === "number") {
+      if (!manualBibleFieldValue.trim()) {
+        setAiBibleFieldError("Nhập một giá trị số hợp lệ.");
+        return;
+      }
+      value = Number(manualBibleFieldValue);
+      if (!Number.isFinite(value)) {
+        setAiBibleFieldError("Nhập một giá trị số hợp lệ.");
+        return;
+      }
+    } else if (bibleFieldEdit.fieldType === "boolean") {
+      value = manualBibleFieldValue === "true";
+    }
+    updateBibleFieldValues([{ path: bibleFieldEdit.path, value }]);
+  };
+
+  const applyBibleFieldProposal = () => {
+    if (!bibleFieldEdit || !bibleFieldProposal) return;
+    const selectedPathKeys = new Set(selectedBibleRelatedChanges);
+    const acceptedRelatedChanges = bibleFieldProposal.related_changes
+      .filter((change) => selectedPathKeys.has(JSON.stringify(change.path)))
+      .map(({ path, value }) => ({ path, value }));
+    updateBibleFieldValues([
+      { path: bibleFieldEdit.path, value: bibleFieldProposal.field_value },
+      ...acceptedRelatedChanges,
+    ]);
   };
 
   const updatePovInstruction = (value: string) => {
@@ -700,6 +1198,198 @@ export default function ArchitecturePage() {
                     }}
                   />
                 ) : (
+                <>
+                <BibleFieldEditContext.Provider value={{ openFieldEditor: openBibleFieldEditor }}>
+                <div className="space-y-8 px-6 py-6">
+                      <section className="space-y-4">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">Cốt lõi câu chuyện</h3>
+                          <p className="text-sm text-slate-500">Các thông tin nền tảng cần thiết để định hình truyện.</p>
+                        </div>
+                        <TextField
+                          label="Tiêu đề"
+                          value={bibleData?.story_identity?.title}
+                          fieldPath={["story_identity", "title"]}
+                          onChange={(v: string) => updateBible(["story_identity", "title"], v)}
+                        />
+                        <TextAreaField
+                          label="Tiền đề"
+                          value={bibleData?.story_identity?.core_premise}
+                          fieldPath={["story_identity", "core_premise"]}
+                          onChange={(v: string) => updateBible(["story_identity", "core_premise"], v)}
+                          rows={4}
+                        />
+                        <TextAreaField
+                          label="Chủ đề trung tâm"
+                          value={bibleData?.story_identity?.central_theme}
+                          fieldPath={["story_identity", "central_theme"]}
+                          onChange={(v: string) => updateBible(["story_identity", "central_theme"], v)}
+                          rows={2}
+                        />
+                        <TextAreaField
+                          label="Ngôi kể"
+                          placeholder="Ví dụ: Ngôi thứ nhất. Nhân vật Hoàng Nam xưng Tôi."
+                          value={
+                            bibleData?.narrative_rules?.pov_recommendation?.system_instruction_string ??
+                            bibleData?.pov_instruction
+                          }
+                          fieldPath={["narrative_rules", "pov_recommendation", "system_instruction_string"]}
+                          onChange={updatePovInstruction}
+                          rows={2}
+                        />
+                      </section>
+
+                      <Separator />
+
+                      <section className="space-y-4">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">Nhân vật</h3>
+                          <p className="text-sm text-slate-500">Thông tin cốt lõi của từng nhân vật.</p>
+                        </div>
+                        {(bibleData?.characters || []).map((char: BasicCharacter, index: number) => (
+                          <div key={index} className="space-y-4 rounded-md border bg-slate-50 p-4">
+                            <div className="flex items-start gap-4">
+                              <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-[1fr_8rem]">
+                                <TextField
+                                  label="Tên nhân vật"
+                                  value={char.name}
+                                  fieldPath={["characters", index, "name"]}
+                                  onChange={(v: string) => updateBible(["characters", index, "name"], v)}
+                                />
+                                <TextField
+                                  label="Tuổi"
+                                  value={char.age}
+                                  fieldPath={["characters", index, "age"]}
+                                  onChange={(v: string) => updateBible(["characters", index, "age"], v)}
+                                />
+                              </div>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="mt-5"
+                                onClick={() => removeCharacter(index)}
+                              >
+                                Xoá
+                              </Button>
+                            </div>
+                            <TextField
+                              label="Vai trò trong truyện"
+                              value={char.role_in_story}
+                              fieldPath={["characters", index, "role_in_story"]}
+                              onChange={(v: string) => updateBible(["characters", index, "role_in_story"], v)}
+                            />
+                            <TextAreaField
+                              label="Động lực"
+                              value={char.motivation}
+                              fieldPath={["characters", index, "motivation"]}
+                              onChange={(v: string) => updateBible(["characters", index, "motivation"], v)}
+                              rows={2}
+                            />
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <TextField
+                                label="Điểm mạnh cốt lõi"
+                                value={char.personality?.strength}
+                                fieldPath={["characters", index, "personality", "strength"]}
+                                onChange={(v: string) =>
+                                  updateBible(["characters", index, "personality", "strength"], v)
+                                }
+                              />
+                              <TextField
+                                label="Khuyết điểm cốt lõi"
+                                value={char.personality?.flaw}
+                                fieldPath={["characters", index, "personality", "flaw"]}
+                                onChange={(v: string) =>
+                                  updateBible(["characters", index, "personality", "flaw"], v)
+                                }
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                          <Button variant="outline" className="flex-1" onClick={addCharacter}>
+                            + Thêm thủ công
+                          </Button>
+                          <Button
+                            className="flex-1 border-indigo-200 bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                            onClick={() => setIsAiCharModalOpen(true)}
+                          >
+                            <Wand2 className="mr-2 h-4 w-4" /> AI Sinh Nhân Vật
+                          </Button>
+                        </div>
+                      </section>
+
+                      <Separator />
+
+                      <section className="space-y-4">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">Quan hệ hiện tại</h3>
+                          <p className="text-sm text-slate-500">Mối quan hệ hiện tại giữa từng cặp nhân vật.</p>
+                        </div>
+                        {(bibleData?.relationship_dynamics || []).map((rel: BasicRelationship, index: number) => (
+                          <div key={index} className="space-y-4 rounded-md border bg-slate-50 p-4">
+                            <div className="flex justify-end">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => removeRelationship(index)}
+                              >
+                                Xoá
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <TextField
+                                label="Nhân vật A"
+                                value={rel.between?.[0]}
+                                fieldPath={["relationship_dynamics", index, "between", 0]}
+                                onChange={(v: string) =>
+                                  updateBible(["relationship_dynamics", index, "between", 0], v)
+                                }
+                              />
+                              <TextField
+                                label="Nhân vật B"
+                                value={rel.between?.[1]}
+                                fieldPath={["relationship_dynamics", index, "between", 1]}
+                                onChange={(v: string) =>
+                                  updateBible(["relationship_dynamics", index, "between", 1], v)
+                                }
+                              />
+                            </div>
+                            <TextAreaField
+                              label="Mối quan hệ hiện tại"
+                              value={rel.current_relationship}
+                              fieldPath={["relationship_dynamics", index, "current_relationship"]}
+                              onChange={(v: string) =>
+                                updateBible(["relationship_dynamics", index, "current_relationship"], v)
+                              }
+                              rows={2}
+                            />
+                          </div>
+                        ))}
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                          <Button variant="outline" className="flex-1" onClick={addRelationship}>
+                            + Thêm thủ công
+                          </Button>
+                          <Button
+                            className="flex-1 border-indigo-200 bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                            onClick={() => openAiRelationshipModal()}
+                          >
+                            <Wand2 className="mr-2 h-4 w-4" /> AI Sinh Quan Hệ
+                          </Button>
+                        </div>
+                      </section>
+
+                </div>
+
+                <div className="border-t border-slate-200 bg-slate-50/70 px-6 py-5">
+                  <div className="mb-3 flex items-start gap-2">
+                    <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <div>
+                      <h3 className="font-semibold text-slate-800">Nâng cao</h3>
+                      <p className="text-sm text-slate-600">
+                        Các thông tin chi tiết được nhóm theo chủ đề. Mở từng mục khi cần chỉnh sửa; thay đổi có thể ảnh hưởng đến tính nhất quán của Story Bible.
+                      </p>
+                    </div>
+                  </div>
                 <Accordion multiple={true} className="w-full">
                   {/* 1. NHẬN DIỆN & CỐT LÕI */}
                   <AccordionItem value="item-1" className="px-6">
@@ -708,52 +1398,41 @@ export default function ArchitecturePage() {
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-2">
                       <TextField
-                        label="Tiêu đề (Title)"
-                        value={bibleData?.story_identity?.title}
-                        onChange={(v: any) => updateBible(["story_identity", "title"], v)}
-                      />
-                      <TextField
                         label="Vibe / Tông truyện"
                         value={bibleData?.story_identity?.vibe}
+                        fieldPath={["story_identity", "vibe"]}
                         onChange={(v: any) => updateBible(["story_identity", "vibe"], v)}
-                      />
-                      <TextAreaField
-                        label="Tiền đề (Core Premise)"
-                        value={bibleData?.story_identity?.core_premise}
-                        onChange={(v: any) => updateBible(["story_identity", "core_premise"], v)}
-                        rows={4}
                       />
                       <TextAreaField
                         label="Động cơ truyện (Story Engine)"
                         value={bibleData?.story_identity?.story_engine}
+                        fieldPath={["story_identity", "story_engine"]}
                         onChange={(v: any) => updateBible(["story_identity", "story_engine"], v)}
                         rows={3}
-                      />
-                      <TextAreaField
-                        label="Chủ đề trung tâm (Central Theme)"
-                        value={bibleData?.story_identity?.central_theme}
-                        onChange={(v: any) => updateBible(["story_identity", "central_theme"], v)}
-                        rows={2}
                       />
                       <ArrayTextareaField
                         label="Chủ đề phụ (Sub Themes)"
                         value={bibleData?.story_identity?.sub_themes}
+                        fieldPath={["story_identity", "sub_themes"]}
                         onChange={(v: any) => updateBible(["story_identity", "sub_themes"], v)}
                       />
                       <TextAreaField
                         label="Cảm xúc hứa hẹn (Emotional Promise)"
                         value={bibleData?.story_identity?.emotional_promise}
+                        fieldPath={["story_identity", "emotional_promise"]}
                         onChange={(v: any) => updateBible(["story_identity", "emotional_promise"], v)}
                         rows={2}
                       />
                       <TextField
                         label="Cấu trúc Thời gian (Timeline Structure)"
                         value={bibleData?.story_identity?.timeline_structure}
+                        fieldPath={["story_identity", "timeline_structure"]}
                         onChange={(v: any) => updateBible(["story_identity", "timeline_structure"], v)}
                       />
                       <TextAreaField
                         label="Câu hỏi cảm xúc mà câu chuyện muốn đặt ra (Thematic Question)"
                         value={bibleData?.story_identity?.thematic_question}
+                        fieldPath={["story_identity", "thematic_question"]}
                         onChange={(v: any) => updateBible(["story_identity", "thematic_question"], v)}
                         rows={2}
                       />
@@ -767,42 +1446,25 @@ export default function ArchitecturePage() {
                     </AccordionTrigger>
                     <AccordionContent className="space-y-6 pt-2">
                       {(bibleData?.characters || []).map((char: any, index: number) => (
-                        <div key={index} className="p-4 bg-slate-50 border rounded-md space-y-4 relative">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-3 right-3"
-                            onClick={() => removeCharacter(index)}
-                          >
-                            Xoá
-                          </Button>
-
-                          <div className="flex gap-4">
-                            <div className="flex-1">
-                              <TextField
-                                label="Tên nhân vật"
-                                value={char.name}
-                                onChange={(v: any) => updateBible(["characters", index, "name"], v)}
-                              />
-                            </div>
-                            <div className="w-56">
-                              <TextField
-                                label="Tuổi"
-                                value={char.age}
-                                onChange={(v: any) => updateBible(["characters", index, "age"], v)}
-                              />
+                        <div key={index} className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                          <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                              {index + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <h4 className="truncate font-semibold text-slate-900">
+                                {typeof char.name === "string" && char.name.trim()
+                                  ? char.name.trim()
+                                  : `Nhân vật ${index + 1}`}
+                              </h4>
+                              <p className="text-xs text-slate-500">Thông tin chi tiết nhân vật</p>
                             </div>
                           </div>
-
                           <div className="grid grid-cols-2 gap-4">
-                            <TextField
-                              label="Vai trò trong truyện"
-                              value={char.role_in_story}
-                              onChange={(v: any) => updateBible(["characters", index, "role_in_story"], v)}
-                            />
                             <TextField
                               label="Quan hệ với nhân vật chính"
                               value={char.relationship_to_protagonist}
+                              fieldPath={["characters", index, "relationship_to_protagonist"]}
                               onChange={(v: any) =>
                                 updateBible(["characters", index, "relationship_to_protagonist"], v)
                               }
@@ -813,6 +1475,7 @@ export default function ArchitecturePage() {
                             label="Sự thay đổi qua thời gian (Timeline Evolution)"
                             placeholder="Mô tả sự thay đổi của nhân vật từ quá khứ đến hiện tại (nếu có)"
                             value={char.timeline_evolution}
+                            fieldPath={["characters", index, "timeline_evolution"]}
                             onChange={(v: any) => updateBible(["characters", index, "timeline_evolution"], v)}
                             rows={2}
                           />
@@ -820,6 +1483,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Ngoại hình (Appearance)"
                             value={char.appearance}
+                            fieldPath={["characters", index, "appearance"]}
                             onChange={(v: any) => updateBible(["characters", index, "appearance"], v)}
                             rows={2}
                           />
@@ -827,6 +1491,7 @@ export default function ArchitecturePage() {
                           <ArrayTextareaField
                             label="Thói quen (Habits)"
                             value={char.habits}
+                            fieldPath={["characters", index, "habits"]}
                             onChange={(v: any) => updateBible(["characters", index, "habits"], v)}
                           />
 
@@ -834,11 +1499,13 @@ export default function ArchitecturePage() {
                             <TextField
                               label="Hoàn cảnh sống"
                               value={char.living_situation}
+                              fieldPath={["characters", index, "living_situation"]}
                               onChange={(v: any) => updateBible(["characters", index, "living_situation"], v)}
                             />
                             <TextField
                               label="Sự nghiệp & tài chính"
                               value={char.career_and_financial_status}
+                              fieldPath={["characters", index, "career_and_financial_status"]}
                               onChange={(v: any) =>
                                 updateBible(["characters", index, "career_and_financial_status"], v)
                               }
@@ -848,36 +1515,35 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Nỗi sợ (Fear)"
                             value={char.fear}
+                            fieldPath={["characters", index, "fear"]}
                             onChange={(v: any) => updateBible(["characters", index, "fear"], v)}
-                            rows={2}
-                          />
-                          <TextAreaField
-                            label="Động lực (Motivation)"
-                            value={char.motivation}
-                            onChange={(v: any) => updateBible(["characters", index, "motivation"], v)}
                             rows={2}
                           />
                           <TextAreaField
                             label="Nhu cầu cảm xúc (Emotional Need)"
                             value={char.emotional_need}
+                            fieldPath={["characters", index, "emotional_need"]}
                             onChange={(v: any) => updateBible(["characters", index, "emotional_need"], v)}
                             rows={2}
                           />
                           <TextAreaField
                             label="Áp lực bên ngoài (External Pressure)"
                             value={char.external_pressure}
+                            fieldPath={["characters", index, "external_pressure"]}
                             onChange={(v: any) => updateBible(["characters", index, "external_pressure"], v)}
                             rows={2}
                           />
                           <TextAreaField
                             label="Xung đột nội tâm (Internal Conflict)"
                             value={char.internal_conflict}
+                            fieldPath={["characters", index, "internal_conflict"]}
                             onChange={(v: any) => updateBible(["characters", index, "internal_conflict"], v)}
                             rows={2}
                           />
                           <TextAreaField
                             label="Bí mật / Tự ti (Secrets or Insecurities)"
                             value={char.secrets_or_insecurities}
+                            fieldPath={["characters", index, "secrets_or_insecurities"]}
                             onChange={(v: any) =>
                               updateBible(["characters", index, "secrets_or_insecurities"], v)
                             }
@@ -886,21 +1552,10 @@ export default function ArchitecturePage() {
 
                           <Separator />
                           <p className="text-sm font-medium text-slate-700">Tính cách (Personality)</p>
-                          <TextField
-                            label="Điểm mạnh (Strength)"
-                            value={char.personality?.strength}
-                            onChange={(v: any) =>
-                              updateBible(["characters", index, "personality", "strength"], v)
-                            }
-                          />
-                          <TextField
-                            label="Khuyết điểm (Flaw)"
-                            value={char.personality?.flaw}
-                            onChange={(v: any) => updateBible(["characters", index, "personality", "flaw"], v)}
-                          />
                           <ArrayTextareaField
                             label="Đặc điểm cốt lõi (Core Traits)"
                             value={char.personality?.core_traits}
+                            fieldPath={["characters", index, "personality", "core_traits"]}
                             onChange={(v: any[]) =>
                               updateBible(["characters", index, "personality", "core_traits"], v)
                             }
@@ -913,6 +1568,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Niềm tin ban đầu (Starting Belief)"
                             value={char.character_arc?.starting_belief}
+                            fieldPath={["characters", index, "character_arc", "starting_belief"]}
                             onChange={(v: any) =>
                               updateBible(["characters", index, "character_arc", "starting_belief"], v)
                             }
@@ -921,6 +1577,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Niềm tin sai lệch (False Belief)"
                             value={char.character_arc?.false_belief}
+                            fieldPath={["characters", index, "character_arc", "false_belief"]}
                             onChange={(v: any) =>
                               updateBible(["characters", index, "character_arc", "false_belief"], v)
                             }
@@ -929,6 +1586,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Sự thật nhận ra (Truth They Learn)"
                             value={char.character_arc?.truth_they_learn}
+                            fieldPath={["characters", index, "character_arc", "truth_they_learn"]}
                             onChange={(v: any) =>
                               updateBible(["characters", index, "character_arc", "truth_they_learn"], v)
                             }
@@ -937,6 +1595,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Trạng thái kết thúc (Ending State)"
                             value={char.character_arc?.ending_state}
+                            fieldPath={["characters", index, "character_arc", "ending_state"]}
                             onChange={(v: any) =>
                               updateBible(["characters", index, "character_arc", "ending_state"], v)
                             }
@@ -945,17 +1604,6 @@ export default function ArchitecturePage() {
                         </div>
                       ))}
 
-                      <div className="flex gap-4">
-                        <Button variant="outline" className="flex-1" onClick={addCharacter}>
-                          + Thêm thủ công
-                        </Button>
-                        <Button 
-                          className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200" 
-                          onClick={() => setIsAiCharModalOpen(true)}
-                        >
-                          <Wand2 className="h-4 w-4 mr-2" /> AI Sinh Nhân Vật
-                        </Button>
-                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -968,47 +1616,55 @@ export default function ArchitecturePage() {
                       <TextAreaField
                         label="Bối cảnh (Setting)"
                         value={bibleData?.world_building?.setting}
+                        fieldPath={["world_building", "setting"]}
                         onChange={(v: any) => updateBible(["world_building", "setting"], v)}
                         rows={3}
                       />
                       <TextAreaField
                         label="Bối cảnh Chính (Hiện tại)"
                         value={bibleData?.world_building?.primary_setting || bibleData?.world_building?.setting}
+                        fieldPath={["world_building", "primary_setting"]}
                         onChange={(v: any) => updateBible(["world_building", "primary_setting"], v)}
                         rows={2}
                       />
                       <TextAreaField
                         label="Bối cảnh Quá khứ (Nếu có Time-jump)"
                         value={bibleData?.world_building?.past_setting}
+                        fieldPath={["world_building", "past_setting"]}
                         onChange={(v: any) => updateBible(["world_building", "past_setting"], v)}
                         rows={2}
                       />
                       <TextField
                         label="Địa điểm (Location)"
                         value={bibleData?.world_building?.location}
+                        fieldPath={["world_building", "location"]}
                         onChange={(v: any) => updateBible(["world_building", "location"], v)}
                       />
                       <TextAreaField
                         label="Đời sống thường nhật (Daily Life)"
                         value={bibleData?.world_building?.daily_life}
+                        fieldPath={["world_building", "daily_life"]}
                         onChange={(v: any) => updateBible(["world_building", "daily_life"], v)}
                         rows={2}
                       />
                       <TextAreaField
                         label="Các mối quan hệ xã hội (Social Circles)"
                         value={bibleData?.world_building?.social_circles}
+                        fieldPath={["world_building", "social_circles"]}
                         onChange={(v: any) => updateBible(["world_building", "social_circles"], v)}
                         rows={2}
                       />
                       <TextAreaField
                         label="Bối cảnh văn hoá (Cultural Context)"
                         value={bibleData?.world_building?.cultural_context}
+                        fieldPath={["world_building", "cultural_context"]}
                         onChange={(v: any) => updateBible(["world_building", "cultural_context"], v)}
                         rows={2}
                       />
                       <ArrayTextareaField
                         label="Áp lực kinh tế - xã hội (Socio-economic Pressures)"
                         value={bibleData?.world_building?.socio_economic_pressures}
+                        fieldPath={["world_building", "socio_economic_pressures"]}
                         onChange={(v: any) => updateBible(["world_building", "socio_economic_pressures"], v)}
 
                       />
@@ -1024,29 +1680,34 @@ export default function ArchitecturePage() {
                       <TextAreaField
                         label="Xung đột trung tâm (Central Conflict)"
                         value={bibleData?.conflict_system?.central_conflict}
+                        fieldPath={["conflict_system", "central_conflict"]}
                         onChange={(v: any) => updateBible(["conflict_system", "central_conflict"], v)}
                         rows={3}
                       />
                       <TextAreaField
                         label="Nguồn gốc vi-xung đột (Micro-conflict Origin)"
                         value={bibleData?.conflict_system?.micro_conflict_origin}
+                        fieldPath={["conflict_system", "micro_conflict_origin"]}
                         onChange={(v: any) => updateBible(["conflict_system", "micro_conflict_origin"], v)}
                         rows={2}
                       />
                       <TextAreaField
                         label="Logic leo thang (Escalation Logic)"
                         value={bibleData?.conflict_system?.escalation_logic}
+                        fieldPath={["conflict_system", "escalation_logic"]}
                         onChange={(v: any) => updateBible(["conflict_system", "escalation_logic"], v)}
                         rows={3}
                       />
                       <ArrayTextareaField
                         label="Xung đột bên ngoài (External Conflicts)"
                         value={bibleData?.conflict_system?.external_conflicts}
+                        fieldPath={["conflict_system", "external_conflicts"]}
                         onChange={(v: any) => updateBible(["conflict_system", "external_conflicts"], v)}
                       />
                       <ArrayTextareaField
                         label="Xung đột nội tâm (Internal Conflicts)"
                         value={bibleData?.conflict_system?.internal_conflicts}
+                        fieldPath={["conflict_system", "internal_conflicts"]}
                         onChange={(v: any) => updateBible(["conflict_system", "internal_conflicts"], v)}
                       />
                     </AccordionContent>
@@ -1062,17 +1723,20 @@ export default function ArchitecturePage() {
                         <TextField
                           label="Tông giọng (Tone)"
                           value={bibleData?.narrative_rules?.tone}
+                          fieldPath={["narrative_rules", "tone"]}
                           onChange={(v: any) => updateBible(["narrative_rules", "tone"], v)}
                         />
                         <TextField
                           label="Nhịp độ (Pacing)"
                           value={bibleData?.narrative_rules?.pacing}
+                          fieldPath={["narrative_rules", "pacing"]}
                           onChange={(v: any) => updateBible(["narrative_rules", "pacing"], v)}
                         />
                       </div>
                       <TextAreaField
                         label="Phong cách hội thoại (Dialogue Style)"
                         value={bibleData?.narrative_rules?.dialogue_style}
+                        fieldPath={["narrative_rules", "dialogue_style"]}
                         onChange={(v: any) => updateBible(["narrative_rules", "dialogue_style"], v)}
                         rows={2}
                       />
@@ -1082,6 +1746,7 @@ export default function ArchitecturePage() {
                             <TextField
                               label="Ngôi kể đề xuất (Suggested Type)"
                               value={bibleData?.narrative_rules?.pov_recommendation?.suggested_type}
+                              fieldPath={["narrative_rules", "pov_recommendation", "suggested_type"]}
                               onChange={(v: string) => updateBible(["narrative_rules", "pov_recommendation", "suggested_type"], v)}
                               placeholder="Ví dụ: Ngôi thứ nhất (Single POV)"
                               disabled={isRegeneratingPovRecommendation}
@@ -1105,33 +1770,27 @@ export default function ArchitecturePage() {
                         <TextAreaField
                           label="Lý do đề xuất (Reasoning)"
                           value={bibleData?.narrative_rules?.pov_recommendation?.reasoning}
+                          fieldPath={["narrative_rules", "pov_recommendation", "reasoning"]}
                           onChange={(v: string) => updateBible(["narrative_rules", "pov_recommendation", "reasoning"], v)}
                           rows={3}
-                        />
-                        <TextAreaField
-                          label="Chỉ thị ngôi kể (System Instruction)"
-                          placeholder="Ví dụ: Ngôi thứ nhất. Nhân vật Hoàng Nam xưng Tôi."
-                          value={
-                            bibleData?.narrative_rules?.pov_recommendation?.system_instruction_string ??
-                            bibleData?.pov_instruction
-                          }
-                          onChange={updatePovInstruction}
-                          rows={2}
                         />
                       </div>
                       <ArrayTextareaField
                         label="Quy tắc hiện thực (Realism Rules)"
                         value={bibleData?.narrative_rules?.realism_rules}
+                        fieldPath={["narrative_rules", "realism_rules"]}
                         onChange={(v: any) => updateBible(["narrative_rules", "realism_rules"], v)}
                       />
                       <ArrayTextareaField
                         label="Quy tắc lãng mạn (Romance Rules)"
                         value={bibleData?.narrative_rules?.romance_rules}
+                        fieldPath={["narrative_rules", "romance_rules"]}
                         onChange={(v: any) => updateBible(["narrative_rules", "romance_rules"], v)}
                       />
                       <ArrayTextareaField
                         label="Show, don't tell"
                         value={bibleData?.narrative_rules?.show_dont_tell_rules}
+                        fieldPath={["narrative_rules", "show_dont_tell_rules"]}
                         onChange={(v: any) => updateBible(["narrative_rules", "show_dont_tell_rules"], v)}
                       />
                     </AccordionContent>
@@ -1147,22 +1806,26 @@ export default function ArchitecturePage() {
                         <TextField
                           label="Tựa đề gốc (Original Seed Title)"
                           value={bibleData?.story_continuity?.original_seed_title}
+                          fieldPath={["story_continuity", "original_seed_title"]}
                           onChange={(v: any) => updateBible(["story_continuity", "original_seed_title"], v)}
                         />
                         <TextField
                           label="Vibe gốc (Original Vibe)"
                           value={bibleData?.story_continuity?.original_vibe}
+                          fieldPath={["story_continuity", "original_vibe"]}
                           onChange={(v: any) => updateBible(["story_continuity", "original_vibe"], v)}
                         />
                       </div>
                       <ArrayTextareaField
                         label="Từ khoá đã tích hợp (Keywords Integrated)"
                         value={bibleData?.story_continuity?.keywords_integrated}
+                        fieldPath={["story_continuity", "keywords_integrated"]}
                         onChange={(v: any) => updateBible(["story_continuity", "keywords_integrated"], v)}
                       />
                       <ArrayTextareaField
                         label="Yếu tố cốt lõi không được thay đổi"
                         value={bibleData?.story_continuity?.core_elements_that_must_not_change}
+                        fieldPath={["story_continuity", "core_elements_that_must_not_change"]}
                         onChange={(v: any) =>
                           updateBible(["story_continuity", "core_elements_that_must_not_change"], v)
                         }
@@ -1170,6 +1833,7 @@ export default function ArchitecturePage() {
                       <ArrayTextareaField
                         label="Ranh giới trần thuật (Narrative Boundaries)"
                         value={bibleData?.narrative_boundaries}
+                        fieldPath={["narrative_boundaries"]}
                         onChange={(v: any) => updateBible(["narrative_boundaries"], v)}
                       />
                     </AccordionContent>
@@ -1181,52 +1845,45 @@ export default function ArchitecturePage() {
                       Hướng dẫn Thân mật (Intimacy Guidance)
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="intimacy-applicable"
-                          checked={!!bibleData?.intimacy_guidance?.applicable}
-                          onChange={(e) => {
-                            const newData = setDeep(
-                              bibleData,
-                              ["intimacy_guidance", "applicable"],
-                              e.target.checked
-                            );
-                            setBibleData(newData);
-                            handleSaveBible(newData);
-                          }}
-                          className="h-4 w-4 rounded border-slate-300"
-                        />
-                        <Label htmlFor="intimacy-applicable" className="cursor-pointer">
-                          Có áp dụng hướng dẫn thân mật
-                        </Label>
-                      </div>
+                      <TextField
+                        label="Có áp dụng hướng dẫn thân mật"
+                        type="checkbox"
+                        value={bibleData?.intimacy_guidance?.applicable}
+                        fieldPath={["intimacy_guidance", "applicable"]}
+                        fieldType="boolean"
+                        onChange={() => {}}
+                      />
                       <TextAreaField
                         label="Ghi chú (Note)"
                         value={bibleData?.intimacy_guidance?.note}
+                        fieldPath={["intimacy_guidance", "note"]}
                         onChange={(v: any) => updateBible(["intimacy_guidance", "note"], v)}
                         rows={2}
                       />
                       <TextAreaField
                         label="Mức độ thoải mái (Comfort Level)"
                         value={bibleData?.intimacy_guidance?.comfort_level}
+                        fieldPath={["intimacy_guidance", "comfort_level"]}
                         onChange={(v: any) => updateBible(["intimacy_guidance", "comfort_level"], v)}
                         rows={2}
                       />
                       <TextAreaField
                         label="Phong cách miêu tả (Depiction Style)"
                         value={bibleData?.intimacy_guidance?.depiction_style}
+                        fieldPath={["intimacy_guidance", "depiction_style"]}
                         onChange={(v: any) => updateBible(["intimacy_guidance", "depiction_style"], v)}
                         rows={2}
                       />
                       <ArrayTextareaField
                         label="Nhịp thân mật tự nhiên (Natural Intimacy Beats)"
                         value={bibleData?.intimacy_guidance?.natural_intimacy_beats}
+                        fieldPath={["intimacy_guidance", "natural_intimacy_beats"]}
                         onChange={(v: any) => updateBible(["intimacy_guidance", "natural_intimacy_beats"], v)}
                       />
                       <ArrayTextareaField
                         label="Quy tắc đồng thuận & nhịp độ (Consent & Pacing Rules)"
                         value={bibleData?.intimacy_guidance?.consent_and_pacing_rules}
+                        fieldPath={["intimacy_guidance", "consent_and_pacing_rules"]}
                         onChange={(v: any) =>
                           updateBible(["intimacy_guidance", "consent_and_pacing_rules"], v)
                         }
@@ -1242,45 +1899,16 @@ export default function ArchitecturePage() {
                     <AccordionContent className="space-y-6 pt-2">
                       {(bibleData?.relationship_dynamics || []).map((rel: any, index: number) => (
                         <div key={index} className="p-4 bg-slate-50 border rounded-md space-y-3 relative">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-3 right-3"
-                            onClick={() => removeRelationship(index)}
-                          >
-                            Xoá
-                          </Button>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <TextField
-                              label="Nhân vật A"
-                              value={rel.between?.[0]}
-                              onChange={(v: any) =>
-                                updateBible(["relationship_dynamics", index, "between", 0], v)
-                              }
-                            />
-                            <TextField
-                              label="Nhân vật B"
-                              value={rel.between?.[1]}
-                              onChange={(v: any) =>
-                                updateBible(["relationship_dynamics", index, "between", 1], v)
-                              }
-                            />
-                          </div>
-
                           <TextField
                             label="Mối quan hệ Quá khứ (Nếu có)"
                             value={rel.past_relationship}
+                            fieldPath={["relationship_dynamics", index, "past_relationship"]}
                             onChange={(v: any) => updateBible(["relationship_dynamics", index, "past_relationship"], v)}
-                          />
-                          <TextField
-                            label="Mối quan hệ Hiện tại"
-                            value={rel.current_relationship}
-                            onChange={(v: any) => updateBible(["relationship_dynamics", index, "current_relationship"], v)}
                           />
                           <TextAreaField
                             label="Hành trình mối quan hệ (Relationship Arc)"
                             value={rel.relationship_arc}
+                            fieldPath={["relationship_dynamics", index, "relationship_arc"]}
                             onChange={(v: any) =>
                               updateBible(["relationship_dynamics", index, "relationship_arc"], v)
                             }
@@ -1289,6 +1917,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Cơ chế gắn kết (Bonding Mechanism)"
                             value={rel.bonding_mechanism}
+                            fieldPath={["relationship_dynamics", index, "bonding_mechanism"]}
                             onChange={(v: any) =>
                               updateBible(["relationship_dynamics", index, "bonding_mechanism"], v)
                             }
@@ -1297,6 +1926,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Nguồn căng thẳng (Source of Tension)"
                             value={rel.source_of_tension}
+                            fieldPath={["relationship_dynamics", index, "source_of_tension"]}
                             onChange={(v: any) =>
                               updateBible(["relationship_dynamics", index, "source_of_tension"], v)
                             }
@@ -1305,6 +1935,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Vấn đề chưa nói ra (Unspoken Issue)"
                             value={rel.unspoken_issue}
+                            fieldPath={["relationship_dynamics", index, "unspoken_issue"]}
                             onChange={(v: any) =>
                               updateBible(["relationship_dynamics", index, "unspoken_issue"], v)
                             }
@@ -1313,6 +1944,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="A cần gì từ B"
                             value={rel.what_a_needs_from_b}
+                            fieldPath={["relationship_dynamics", index, "what_a_needs_from_b"]}
                             onChange={(v: any) =>
                               updateBible(["relationship_dynamics", index, "what_a_needs_from_b"], v)
                             }
@@ -1321,6 +1953,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="B cần gì từ A"
                             value={rel.what_b_needs_from_a}
+                            fieldPath={["relationship_dynamics", index, "what_b_needs_from_a"]}
                             onChange={(v: any) =>
                               updateBible(["relationship_dynamics", index, "what_b_needs_from_a"], v)
                             }
@@ -1329,6 +1962,7 @@ export default function ArchitecturePage() {
                           <TextAreaField
                             label="Hành trình thân mật thể xác (Physical Intimacy Arc)"
                             value={rel.physical_intimacy_arc}
+                            fieldPath={["relationship_dynamics", index, "physical_intimacy_arc"]}
                             onChange={(v: any) =>
                               updateBible(["relationship_dynamics", index, "physical_intimacy_arc"], v)
                             }
@@ -1337,17 +1971,6 @@ export default function ArchitecturePage() {
                         </div>
                       ))}
 
-                      <div className="flex gap-4">
-                        <Button variant="outline" className="flex-1" onClick={addRelationship}>
-                          + Thêm thủ công
-                        </Button>
-                        <Button 
-                          className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200" 
-                          onClick={() => openAiRelationshipModal()}
-                        >
-                          <Wand2 className="h-4 w-4 mr-2" /> AI Sinh Quan Hệ
-                        </Button>
-                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -1360,6 +1983,7 @@ export default function ArchitecturePage() {
                       <TextAreaField
                         label="Trạng thái cảm xúc ban đầu (Starting Emotional State)"
                         value={bibleData?.emotional_architecture?.starting_emotional_state}
+                        fieldPath={["emotional_architecture", "starting_emotional_state"]}
                         onChange={(v: any) =>
                           updateBible(["emotional_architecture", "starting_emotional_state"], v)
                         }
@@ -1368,12 +1992,14 @@ export default function ArchitecturePage() {
                       <TextAreaField
                         label="Bước ngoặt giữa truyện (Midpoint Shift)"
                         value={bibleData?.emotional_architecture?.midpoint_shift}
+                        fieldPath={["emotional_architecture", "midpoint_shift"]}
                         onChange={(v: any) => updateBible(["emotional_architecture", "midpoint_shift"], v)}
                         rows={2}
                       />
                       <TextAreaField
                         label="Bước ngoặt cảm xúc lớn (Major Emotional Turn)"
                         value={bibleData?.emotional_architecture?.major_emotional_turn}
+                        fieldPath={["emotional_architecture", "major_emotional_turn"]}
                         onChange={(v: any) =>
                           updateBible(["emotional_architecture", "major_emotional_turn"], v)
                         }
@@ -1382,12 +2008,16 @@ export default function ArchitecturePage() {
                       <TextAreaField
                         label="Cảm xúc khi kết thúc (Resolution Emotion)"
                         value={bibleData?.emotional_architecture?.resolution_emotion}
+                        fieldPath={["emotional_architecture", "resolution_emotion"]}
                         onChange={(v: any) => updateBible(["emotional_architecture", "resolution_emotion"], v)}
                         rows={2}
                       />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+                </div>
+                </BibleFieldEditContext.Provider>
+                </>
                 )}
               </CardContent>
             </Card>
@@ -1664,6 +2294,197 @@ export default function ArchitecturePage() {
           </div>
         </div>
       )}
+
+      <Dialog
+        open={Boolean(bibleFieldEdit)}
+        onOpenChange={(open) => {
+          if (!open && !isGeneratingBibleFieldEdit) setBibleFieldEdit(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[680px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-indigo-600" />
+              Chỉnh sửa: {bibleFieldEdit?.label}
+            </DialogTitle>
+            <DialogDescription>
+              Chọn cách chỉnh sửa field trong Story Bible. Các thay đổi chỉ nằm trong bản nháp đến khi bạn lưu Bible.
+            </DialogDescription>
+          </DialogHeader>
+
+          {bibleFieldEditStep === "choose" && (
+            <div className="grid gap-3 py-3 sm:grid-cols-2">
+              <Button
+                variant="outline"
+                className="h-auto min-h-28 flex-col items-start gap-2 whitespace-normal p-4 text-left"
+                onClick={() => {
+                  setManualBibleFieldValue(formatBibleFieldValue(bibleFieldEdit?.value));
+                  setAiBibleFieldError(null);
+                  setBibleFieldEditStep("manual");
+                }}
+              >
+                <span className="font-semibold">Chỉnh sửa thủ công</span>
+                <span className="text-xs font-normal text-slate-500">
+                  Tự nhập giá trị cho field đang chọn.
+                </span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto min-h-28 flex-col items-start gap-2 whitespace-normal border-indigo-200 p-4 text-left hover:bg-indigo-50"
+                onClick={() => {
+                  setAiBibleFieldError(null);
+                  setBibleFieldEditStep("ai");
+                }}
+              >
+                <span className="font-semibold text-indigo-700">
+                  <Wand2 className="mr-1 inline h-4 w-4" /> Chỉnh sửa tự động nhờ AI
+                </span>
+                <span className="text-xs font-normal text-slate-500">
+                  AI đề xuất giá trị mới và nhắc các field liên quan cần đồng bộ.
+                </span>
+              </Button>
+            </div>
+          )}
+
+          {bibleFieldEditStep === "manual" && bibleFieldEdit && (
+            <div className="space-y-3 py-2">
+              <Label htmlFor="manual-bible-field-value">Giá trị mới</Label>
+              {bibleFieldEdit.fieldType === "boolean" ? (
+                <Select value={manualBibleFieldValue} onValueChange={(value) => setManualBibleFieldValue(value ?? "false")}>
+                  <SelectTrigger id="manual-bible-field-value" className="w-full">
+                    <SelectValue placeholder="Chọn giá trị" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Có</SelectItem>
+                    <SelectItem value="false">Không</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : bibleFieldEdit.fieldType === "number" ? (
+                <Input
+                  id="manual-bible-field-value"
+                  type="number"
+                  value={manualBibleFieldValue}
+                  onChange={(event) => setManualBibleFieldValue(event.target.value)}
+                />
+              ) : bibleFieldEdit.editorType === "text" && bibleFieldEdit.fieldType === "string" ? (
+                <Input
+                  id="manual-bible-field-value"
+                  value={manualBibleFieldValue}
+                  onChange={(event) => setManualBibleFieldValue(event.target.value)}
+                />
+              ) : (
+                <Textarea
+                  id="manual-bible-field-value"
+                  rows={bibleFieldEdit.editorType === "array" ? 6 : 4}
+                  value={manualBibleFieldValue}
+                  onChange={(event) => setManualBibleFieldValue(event.target.value)}
+                  placeholder={bibleFieldEdit.fieldType === "string_array" ? "Mỗi dòng là một mục" : undefined}
+                />
+              )}
+              {bibleFieldEdit.fieldType === "string_array" && (
+                <p className="text-xs text-slate-500">Mỗi dòng sẽ trở thành một mục trong danh sách.</p>
+              )}
+              {aiBibleFieldError && <p role="alert" className="text-sm text-red-600">{aiBibleFieldError}</p>}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBibleFieldEditStep("choose")}>Quay lại</Button>
+                <Button onClick={applyManualBibleFieldEdit}>Áp dụng vào bản nháp</Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {bibleFieldEditStep === "ai" && (
+            <div className="space-y-3 py-2">
+              <Label htmlFor="ai-bible-field-prompt">Bạn muốn thay đổi field này như thế nào?</Label>
+              <Textarea
+                id="ai-bible-field-prompt"
+                rows={5}
+                value={aiBibleFieldPrompt}
+                onChange={(event) => setAiBibleFieldPrompt(event.target.value)}
+                placeholder="Mô tả thay đổi mong muốn và những điều cần giữ nguyên..."
+                disabled={isGeneratingBibleFieldEdit}
+              />
+              {aiBibleFieldError && <p role="alert" className="text-sm text-red-600">{aiBibleFieldError}</p>}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBibleFieldEditStep("choose")} disabled={isGeneratingBibleFieldEdit}>
+                  Quay lại
+                </Button>
+                <Button onClick={generateBibleFieldProposal} disabled={isGeneratingBibleFieldEdit || !aiBibleFieldPrompt.trim()}>
+                  {isGeneratingBibleFieldEdit
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <Wand2 className="mr-2 h-4 w-4" />}
+                  Tạo đề xuất
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {bibleFieldEditStep === "review" && bibleFieldEdit && bibleFieldProposal && (
+            <div className="space-y-4 py-2">
+              <p className="text-sm font-medium text-slate-800">Field được chọn</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-md border bg-slate-50 p-3">
+                  <p className="mb-1 text-xs font-semibold uppercase text-slate-500">Hiện tại</p>
+                  <p className="whitespace-pre-wrap text-sm">{formatBibleFieldValue(bibleFieldEdit.value) || "(trống)"}</p>
+                </div>
+                <div className="rounded-md border border-indigo-200 bg-indigo-50/50 p-3">
+                  <p className="mb-1 text-xs font-semibold uppercase text-indigo-700">Đề xuất</p>
+                  <p className="whitespace-pre-wrap text-sm">{formatBibleFieldValue(bibleFieldProposal.field_value) || "(trống)"}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div>
+                  <p className="font-medium text-slate-800">Field liên quan có thể bị ảnh hưởng</p>
+                  <p className="text-xs text-slate-500">Bỏ chọn các thay đổi bạn không muốn áp dụng.</p>
+                </div>
+                {bibleFieldProposal.related_changes.length === 0 ? (
+                  <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    AI không đề xuất thay đổi field liên quan nào.
+                  </p>
+                ) : (
+                  bibleFieldProposal.related_changes.map((change) => {
+                    const changeKey = JSON.stringify(change.path);
+                    const checked = selectedBibleRelatedChanges.includes(changeKey);
+                    return (
+                      <label key={changeKey} className="flex cursor-pointer gap-3 rounded-md border p-3 hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 shrink-0"
+                          checked={checked}
+                          onChange={(event) => setSelectedBibleRelatedChanges((previous) =>
+                            event.target.checked
+                              ? [...previous, changeKey]
+                              : previous.filter((path) => path !== changeKey)
+                          )}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium">{change.label}</span>
+                          <span className="mt-1 block text-xs text-slate-500">{change.reason}</span>
+                          <span className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                            <span className="whitespace-pre-wrap text-slate-500">
+                              Hiện tại: {formatBibleFieldValue(getDeep(bibleData, change.path)) || "(trống)"}
+                            </span>
+                            <span className="whitespace-pre-wrap font-medium text-indigo-700">
+                              Đề xuất: {formatBibleFieldValue(change.value) || "(trống)"}
+                            </span>
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBibleFieldEditStep("ai")}>Quay lại</Button>
+                <Button onClick={applyBibleFieldProposal}>
+                  <Check className="mr-2 h-4 w-4" /> Áp dụng đề xuất đã chọn
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL AI SINH NHÂN VẬT */}
       <Dialog open={isAiCharModalOpen} onOpenChange={setIsAiCharModalOpen}>

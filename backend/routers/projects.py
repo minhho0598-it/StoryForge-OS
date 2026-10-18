@@ -13,6 +13,8 @@ from schemas import (
     GenerateSingleChapterRequest,
     IdeationRequest,
     ProjectCreateRequest,
+    StoryBibleFieldEditRequest,
+    StoryBibleFieldEditProposal,
     UpdateBibleRequest,
 )
 from services.llm_service import generate_json
@@ -26,6 +28,122 @@ from .common import (
 )
 
 router = APIRouter()
+
+_MISSING_FIELD = object()
+
+
+def _get_bible_field_value(
+    story_bible: dict,
+    field_path: list[str | int],
+    *,
+    allow_missing_leaf: bool = False,
+):
+    value = story_bible
+    for index, part in enumerate(field_path):
+        if isinstance(part, str) and isinstance(value, dict):
+            if part not in value:
+                missing_suffix = field_path[index:]
+                if allow_missing_leaf and all(
+                    isinstance(segment, str) for segment in missing_suffix
+                ):
+                    return _MISSING_FIELD
+                raise ValueError("Đường dẫn field không tồn tại trong Story Bible.")
+            value = value[part]
+        elif isinstance(part, int) and not isinstance(part, bool) and isinstance(value, list):
+            if part < 0 or part >= len(value):
+                raise ValueError("Chỉ số field không hợp lệ trong Story Bible.")
+            value = value[part]
+        else:
+            raise ValueError("Đường dẫn field không hợp lệ trong Story Bible.")
+
+    if isinstance(value, dict):
+        raise ValueError("Chỉ có thể sửa field dữ liệu, không thể thay thế nhóm field.")
+    if isinstance(value, list) and not all(
+        item is None or isinstance(item, (str, int, float, bool))
+        for item in value
+    ):
+        raise ValueError("Chỉ hỗ trợ field dạng danh sách giá trị đơn.")
+    return value
+
+
+def _is_compatible_bible_value(value, expected_type: str) -> bool:
+    if expected_type == "string":
+        return isinstance(value, str)
+    if expected_type == "boolean":
+        return isinstance(value, bool)
+    if expected_type == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected_type == "string_array":
+        return isinstance(value, list) and all(isinstance(item, str) for item in value)
+    return False
+
+
+def _validate_bible_field_edit_response(result: dict, request: StoryBibleFieldEditRequest) -> dict:
+    editable_fields = {
+        tuple(field.path): field
+        for field in request.editable_fields
+    }
+    selected_field = editable_fields.get(tuple(request.field_path))
+    if selected_field is None or selected_field.field_type != request.field_type:
+        raise ValueError("Field được chọn không nằm trong danh sách field có thể chỉnh sửa.")
+    if not isinstance(result, dict) or "field_value" not in result:
+        raise ValueError("AI không trả về giá trị field chính hợp lệ.")
+    if not _is_compatible_bible_value(result["field_value"], request.field_type):
+        raise ValueError("AI trả về giá trị field chính không đúng kiểu dữ liệu.")
+
+    related_changes = result.get("related_changes")
+    if not isinstance(related_changes, list) or len(related_changes) > 20:
+        raise ValueError("AI không trả về danh sách field liên quan hợp lệ.")
+
+    validated_changes = []
+    selected_path = request.field_path
+    seen_paths = {tuple(selected_path)}
+    for change in related_changes:
+        if not isinstance(change, dict):
+            raise ValueError("AI trả về field liên quan không hợp lệ.")
+        path = change.get("path")
+        reason = change.get("reason")
+        if (
+            not isinstance(path, list)
+            or not path
+            or len(path) > 10
+            or not all(
+                isinstance(part, str)
+                or (isinstance(part, int) and not isinstance(part, bool))
+                for part in path
+            )
+            or not isinstance(reason, str)
+            or not reason.strip()
+        ):
+            raise ValueError("AI trả về đường dẫn hoặc lý do field liên quan không hợp lệ.")
+
+        path_key = tuple(path)
+        if path_key in seen_paths:
+            raise ValueError("AI trả về field liên quan bị trùng hoặc trùng field đang sửa.")
+        seen_paths.add(path_key)
+
+        field = editable_fields.get(path_key)
+        if field is None:
+            raise ValueError("AI đề xuất field không nằm trong Story Bible editor.")
+        current_value = _get_bible_field_value(request.current_bible, path)
+        if current_value is not None and not _is_compatible_bible_value(
+            current_value,
+            field.field_type,
+        ):
+            raise ValueError("Kiểu dữ liệu field liên quan không khớp với Story Bible hiện tại.")
+        if not _is_compatible_bible_value(change.get("value"), field.field_type):
+            raise ValueError("AI trả về field liên quan không đúng kiểu dữ liệu hiện tại.")
+        validated_changes.append({
+            "path": path,
+            "label": field.label,
+            "value": change["value"],
+            "reason": reason.strip(),
+        })
+
+    return {
+        "field_value": result["field_value"],
+        "related_changes": validated_changes,
+    }
 
 
 @router.post("/api/ideation")
@@ -165,6 +283,64 @@ async def update_story_bible(project_id: str, request: UpdateBibleRequest):
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/projects/{project_id}/edit-bible-field")
+async def edit_story_bible_field(project_id: str, request: StoryBibleFieldEditRequest):
+    try:
+        current_value = _get_bible_field_value(
+            request.current_bible,
+            request.field_path,
+            allow_missing_leaf=True,
+        )
+        editable_fields = {
+            tuple(field.path): field
+            for field in request.editable_fields
+        }
+        selected_field = editable_fields.get(tuple(request.field_path))
+        if (
+            selected_field is None
+            or selected_field.field_type != request.field_type
+            or selected_field.label != request.field_label
+        ):
+            raise ValueError("Field được chọn không nằm trong danh sách field có thể chỉnh sửa.")
+        if current_value is not _MISSING_FIELD and current_value is not None:
+            if request.field_type == "string_array":
+                compatible = isinstance(current_value, list) and all(
+                    isinstance(item, str) for item in current_value
+                )
+            else:
+                compatible = _is_compatible_bible_value(current_value, request.field_type)
+            if not compatible:
+                raise ValueError("Kiểu dữ liệu field không khớp với Story Bible hiện tại.")
+        system_prompt = prompt_manager.load_prompt("story_bible_field_edit_system.md")
+        user_prompt = prompt_manager.load_prompt(
+            "story_bible_field_edit_user.md",
+            current_bible=json.dumps(request.current_bible, ensure_ascii=False),
+            field_path=json.dumps(request.field_path, ensure_ascii=False),
+            field_label=request.field_label.strip(),
+            field_type=request.field_type,
+            editable_fields=json.dumps(
+                [field.model_dump() for field in request.editable_fields],
+                ensure_ascii=False,
+            ),
+            current_value=(
+                "null"
+                if current_value is _MISSING_FIELD
+                else json.dumps(current_value, ensure_ascii=False)
+            ),
+            user_prompt=request.user_prompt.strip(),
+        )
+        result = await generate_json(system_prompt, user_prompt)
+        validated_result = StoryBibleFieldEditProposal.model_validate(
+            _validate_bible_field_edit_response(result, request)
+        )
+        return {"success": True, "data": validated_result.model_dump()}
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/api/projects/{project_id}/generate-character")
 async def generate_character(project_id: str, request: GenerateCharacterRequest):

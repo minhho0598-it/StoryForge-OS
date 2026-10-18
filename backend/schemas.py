@@ -136,6 +136,34 @@ class GeneratePovRecommendationRequest(BaseModel):
     current_bible: dict
     suggested_type: str
 
+
+class StoryBibleEditableField(BaseModel):
+    path: list[str | int] = Field(min_length=1, max_length=10)
+    label: str = Field(min_length=1, max_length=200)
+    field_type: Literal["string", "number", "boolean", "string_array"]
+
+
+class StoryBibleFieldEditRequest(BaseModel):
+    current_bible: dict[str, Any]
+    field_path: list[str | int] = Field(min_length=1, max_length=10)
+    field_label: str = Field(min_length=1, max_length=200)
+    field_type: Literal["string", "number", "boolean", "string_array"]
+    user_prompt: str = Field(min_length=1, max_length=4000)
+    editable_fields: list[StoryBibleEditableField] = Field(min_length=1, max_length=300)
+
+
+class StoryBibleRelatedFieldChange(BaseModel):
+    path: list[str | int]
+    label: str
+    value: Any
+    reason: str
+
+
+class StoryBibleFieldEditProposal(BaseModel):
+    field_value: Any
+    related_changes: list[StoryBibleRelatedFieldChange]
+
+
 class GenerateRelationshipRequest(BaseModel):
     mode: Literal["manual", "automatic"] = "manual"
     user_prompt: str = ""

@@ -10,6 +10,7 @@ flowchart TD
     ideation["Sinh ý tưởng<br/>ideation"]
     selected["Ý tưởng được chọn<br/>tạo project"]
     bible["Tạo Story Bible<br/>story-bible"]
+    bible_edit["Đề xuất sửa field Story Bible<br/>story-bible-field-edit"]
     character["Bổ sung nhân vật<br/>character"]
     pov["Gợi ý ngôi kể<br/>point-of-view"]
     relation["Bổ sung quan hệ<br/>relationship"]
@@ -29,6 +30,7 @@ flowchart TD
 
     premise --> ideation --> selected --> bible
     bible --> character
+    bible --> bible_edit
     bible --> pov
     bible --> relation
     bible --> pacing --> chapters
@@ -79,6 +81,7 @@ Các prompt sáng tác dưới đây được khai báo trong `CREATIVE_PROMPT_C
 |---|---|---|
 | `ideation` | `ideation_user.md` | `style_variants/{audio_story,literary_book}/ideation_system.md` |
 | `story-bible` | `story_bible_user.md` | `style_variants/{audio_story,literary_book}/story_bible_system.md` |
+| `story-bible-field-edit` | `story_bible_field_edit_user.md` | `story_bible_field_edit_system.md` |
 | `character` | `add_character_user.md` | `style_variants/{audio_story,literary_book}/add_character_system.md` |
 | `point-of-view` | `regenerate_pov_user.md` | `style_variants/{audio_story,literary_book}/regenerate_pov_system.md` |
 | `relationship` | `add_relationship_user.md` | `style_variants/{audio_story,literary_book}/add_relationship_system.md` |
