@@ -113,5 +113,44 @@ async def generate_text_xml(system_prompt: str, user_prompt: str, target_tag: st
             print(f"[Lỗi LLM Text] Thử lại... {e}")
             if attempt < max_retries - 1:
                 await asyncio.sleep(2)
-                
+
+    raise ValueError("Lỗi tạo văn bản từ AI.")
+
+
+async def generate_text_xml_tags(
+    system_prompt: str,
+    user_prompt: str,
+    target_tags: list[str],
+    max_retries: int = 2,
+) -> dict[str, str]:
+    """Generate XML output once and extract each requested tag."""
+    for attempt in range(max_retries):
+        try:
+            print(f"[LLM Text] Đang viết văn bản... (Tags: {', '.join(target_tags)})")
+            response = await client.chat.completions.create(
+                model=settings.LLM_MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.8,
+            )
+
+            raw_content = response.choices[0].message.content or ""
+            extracted_tags = {
+                tag: match.group(1).strip() if (match := re.search(
+                    rf"<{re.escape(tag)}(?:\s[^>]*)?>(.*?)</{re.escape(tag)}\s*>",
+                    raw_content,
+                    re.DOTALL | re.IGNORECASE,
+                )) else ""
+                for tag in target_tags
+            }
+            if target_tags and not extracted_tags[target_tags[0]]:
+                extracted_tags[target_tags[0]] = raw_content.strip()
+            return extracted_tags
+        except Exception as e:
+            print(f"[Lỗi LLM Text] Thử lại... {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)
+
     raise ValueError("Lỗi tạo văn bản từ AI.")
