@@ -35,3 +35,4 @@ PROJECT_DOCS.md
 *.py[cod]
 PROJECT_SPEC.md
 frontend/package-lock.json
+PROMPT_MAP.md

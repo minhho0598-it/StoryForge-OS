@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
-import { BookOpen, PenTool, Clapperboard, ChevronLeft, LayoutDashboard, Newspaper, Settings, ChevronRight, FolderOpen } from "lucide-react";
+import { BookOpen, PenTool, Clapperboard, ChevronLeft, LayoutDashboard, Settings, ChevronRight, FolderOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,7 +12,7 @@ type ProjectOption = {
   title: string;
 };
 
-const projectSections = ["architecture", "overview", "metadata", "settings", "studio", "writer-room"] as const;
+const projectSections = ["architecture", "overview", "settings", "studio", "writer-room"] as const;
 
 export default function ProjectLayout({
   children,
@@ -137,20 +137,11 @@ export default function ProjectLayout({
 
             <Link
               href={`/project/${projectId}/studio`}
-              title="Xưởng Sản Xuất"
+              title="Studio & Xuất Bản"
               className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/studio') ? 'bg-amber-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
             >
               <Clapperboard className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="hidden truncate sm:inline">Xưởng Sản Xuất</span>}
-            </Link>
-
-            <Link
-              href={`/project/${projectId}/metadata`}
-              title="Xuất Bản & SEO"
-              className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 ease-out ${isCollapsed ? "justify-center" : ""} ${isActive('/metadata') ? 'bg-indigo-600 text-white font-medium shadow-md' : 'hover:bg-slate-800 hover:text-white'}`}
-            >
-              <Newspaper className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span className="hidden truncate sm:inline">Xuất Bản & SEO</span>}
+              {!isCollapsed && <span className="hidden truncate sm:inline">Studio & Xuất Bản</span>}
             </Link>
           </div>
 
