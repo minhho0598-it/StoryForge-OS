@@ -36,3 +36,4 @@ PROJECT_DOCS.md
 PROJECT_SPEC.md
 frontend/package-lock.json
 PROMPT_MAP.md
+frontend/next.config.ts

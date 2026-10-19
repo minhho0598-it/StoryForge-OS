@@ -11,7 +11,7 @@ from schemas import (
     GenerateAllBeatsRequest,
     StoryOutlineUpdateRequest,
 )
-from services.llm_service import generate_json, generate_text_xml
+from services.llm_service import generate_json, generate_text_xml, generate_text_xml_tags
 
 from .common import (
     _chapter_signature,
@@ -19,6 +19,7 @@ from .common import (
     _load_project_chapters,
     _project_has_beats,
     _project_literary_style,
+    _refine_story_bible_context,
     _sanitize_story_text,
     _story_bible_signature,
     get_optimized_bible,
@@ -584,13 +585,27 @@ async def batch_draft_chapter(
     try:
         forbidden_phrases = load_forbidden_phrases()
         # 1. Lấy tất cả các beats của chương, sắp xếp đúng thứ tự
-        chapter_res = supabase.table("chapters").select("pov_character, projects(id, story_bible, heat_level, render_config)").eq("id", chapter_id).execute()
+        chapter_res = supabase.table("chapters").select(
+            "id, project_id, chapter_number, pov_character, memory_before_chapter, "
+            "projects(id, story_bible, current_memory, heat_level, render_config)"
+        ).eq("id", chapter_id).execute()
+        if not chapter_res.data:
+            raise HTTPException(status_code=404, detail="Chapter not found")
         beats_res = supabase.table("beats").select("*").eq("chapter_id", chapter_id).order("beat_order").execute()
         beats = beats_res.data
         project = chapter_res.data[0]["projects"]
+        chapter = chapter_res.data[0]
         project_id = project["id"]
         if not beats:
             raise HTTPException(status_code=400, detail="Chương này chưa có nhịp truyện (Beats) nào.")
+
+        memory_before_chapter = chapter.get("memory_before_chapter")
+        has_existing_drafts = any(beat.get("ai_draft_text") for beat in beats)
+        if memory_before_chapter is None and not has_existing_drafts:
+            memory_before_chapter = project.get("current_memory") or {}
+            supabase.table("chapters").update({
+                "memory_before_chapter": memory_before_chapter,
+            }).eq("id", chapter_id).execute()
 
         supabase.table("chapters").update({
             "status": "Drafting",
@@ -635,12 +650,18 @@ async def batch_draft_chapter(
                 ),
             )
 
-            draft_text = _sanitize_story_text(
-                await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+            generated_tags = await generate_text_xml_tags(
+                system_prompt,
+                user_prompt,
+                ["story_text", "pronoun_mapping"],
             )
+            draft_text = _sanitize_story_text(generated_tags["story_text"])
             
             # Lưu bản nháp vào DB
-            supabase.table("beats").update({"ai_draft_text": draft_text}).eq("id", beat["id"]).execute()
+            supabase.table("beats").update({
+                "ai_draft_text": draft_text,
+                "pronoun_mapping": generated_tags["pronoun_mapping"],
+            }).eq("id", beat["id"]).execute()
             
             # Lấy 900 ký tự cuối để làm mồi cho Beat tiếp theo
             previous_text = draft_text
@@ -679,44 +700,74 @@ async def batch_draft_chapter(
 async def refine_chapter(chapter_id: str):
     try:
         # Lấy tất cả các beats của chương này
-        beats_res = supabase.table("beats").select("ai_draft_text, characters_present").eq("chapter_id", chapter_id).order("beat_order").execute()
-        project_res = supabase.table("chapters").select("chapter_number, project_id, projects(story_bible, heat_level, render_config)").eq("id", chapter_id).single().execute()
+        beats_res = supabase.table("beats").select(
+            "ai_draft_text, characters_present, pronoun_mapping"
+        ).eq("chapter_id", chapter_id).order("beat_order").execute()
+        project_res = supabase.table("chapters").select(
+            "chapter_number, project_id, pov_character, memory_before_chapter, "
+            "projects(story_bible, heat_level, render_config)"
+        ).eq("id", chapter_id).single().execute()
         
         # Nối tất cả các bản nháp lại thành 1 chương hoàn chỉnh
         full_draft_text = "\n\n".join([b["ai_draft_text"] for b in beats_res.data if b.get("ai_draft_text")])
 
-        # Lấy ra đối tượng story_bile thô
-        story_bible = project_res.data.get("story_bible", {})
+        project = project_res.data["projects"]
+        story_bible = project.get("story_bible") or {}
         
         if not full_draft_text:
             raise HTTPException(status_code=400, detail="Chưa có bản nháp nào được viết trong chương này.")
 
-        # Nối tất cả danh sách nhân vật có trong tất cả các beat
-        present_chars_list = list(dict.fromkeys(
-            character.strip()
-            for beat in beats_res.data
-            for character in (beat.get("characters_present") or "").split(",")
-            if character.strip()
-        ))
-        # In ra danh sách nhân vật
-        print(f"Danh sách nhân vật của chapter {project_res.data.get('chapter_number')} là {present_chars_list}")
+        previous_chapter_res = (
+            supabase.table("chapters")
+            .select("final_content")
+            .eq("project_id", project_res.data["project_id"])
+            .lt("chapter_number", project_res.data["chapter_number"])
+            .order("chapter_number", desc=True)
+            .limit(1)
+            .execute()
+        )
+        previous_chapter_ending = ""
+        if previous_chapter_res.data:
+            previous_chapter_ending = (
+                previous_chapter_res.data[0].get("final_content") or ""
+            )[-1500:]
+
+
         
         # Gọi hàm lọc
-        optimized_bible = get_optimized_bible(
-            story_bible, 
-            task="drafting", 
-            present_characters=present_chars_list
-        )
+        pronoun_mapping = "\n".join(dict.fromkeys(
+            (beat.get("pronoun_mapping") or "").strip()
+            for beat in beats_res.data
+            if (beat.get("pronoun_mapping") or "").strip()
+        ))
+        story_bible_style_and_intimacy = _refine_story_bible_context(story_bible)
 
         system_prompt = load_story_system_prompt(
             "refine_system.md",
-            _project_literary_style(project_res.data),
+            _project_literary_style(project),
         )
         user_prompt = prompt_manager.load_prompt(
             "refine_user.md",
-            heat_level=project_res.data.get("heat_level", 1),
+            heat_level=project.get("heat_level", 1),
             chapter_draft_text=full_draft_text,
-            story_bible=optimized_bible
+            story_bible_style_and_intimacy=json.dumps(
+                story_bible_style_and_intimacy,
+                ensure_ascii=False,
+            ),
+            pov_instruction=get_pov_instruction(
+                story_bible,
+                project_res.data.get("pov_character", ""),
+            ),
+            pronoun_mapping=pronoun_mapping,
+            memory_before_chapter=(
+                json.dumps(
+                    project_res.data["memory_before_chapter"],
+                    ensure_ascii=False,
+                )
+                if project_res.data.get("memory_before_chapter") is not None
+                else ""
+            ),
+            previous_chapter_ending=previous_chapter_ending,
         )
         
         final_text = await generate_text_xml(system_prompt, user_prompt, target_tag="final_polished_chapter")

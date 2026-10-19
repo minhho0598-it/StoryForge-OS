@@ -12,7 +12,7 @@ from schemas import (
     BulkBeatUpdateRequest,
     EditBeatTextRequest,
 )
-from services.llm_service import generate_json, generate_text_xml
+from services.llm_service import generate_json, generate_text_xml, generate_text_xml_tags
 
 from .common import (
     _project_literary_style,
@@ -79,7 +79,7 @@ async def get_single_beat_draft_prompt(beat_id: str, previous_text: str = ""):
     try:
         beat_res = (
             supabase.table("beats")
-            .select("location, characters_present, action_and_dialogue, emotional_shift, chapter:chapters(id, title, pov_character, timeline_period, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(id, current_memory, story_bible, heat_level, render_config))")
+            .select("location, characters_present, action_and_dialogue, emotional_shift, chapter:chapters(id, title, pov_character, timeline_period, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, memory_before_chapter, projects(id, current_memory, story_bible, heat_level, render_config))")
             .eq("id", beat_id)
             .execute()
         )
@@ -106,7 +106,7 @@ async def get_single_beat_draft_prompt(beat_id: str, previous_text: str = ""):
 async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, previous_text: str = ""):
     try:
         # 1. Lấy Data
-        beat_res = supabase.table("beats").select("*, chapter:chapters(id, title, pov_character, timeline_period, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, projects(id, current_memory, story_bible, heat_level, render_config))").eq("id", beat_id).execute()
+        beat_res = supabase.table("beats").select("*, chapter:chapters(id, title, pov_character, timeline_period, primary_function, main_event, emotional_beat, relationship_beat, chapter_hook, continuity_note, memory_before_chapter, projects(id, current_memory, story_bible, heat_level, render_config))").eq("id", beat_id).execute()
         if not beat_res.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy beat.")
         beat = beat_res.data[0]
@@ -115,14 +115,32 @@ async def draft_single_beat(beat_id: str, background_tasks: BackgroundTasks, pre
         project_id = project["id"]
         current_memory_data = project.get("current_memory", {})
 
+        if chapter.get("memory_before_chapter") is None:
+            chapter_beats = (
+                supabase.table("beats")
+                .select("ai_draft_text")
+                .eq("chapter_id", chapter["id"])
+                .execute()
+            ).data or []
+            if not any(item.get("ai_draft_text") for item in chapter_beats):
+                supabase.table("chapters").update({
+                    "memory_before_chapter": current_memory_data or {},
+                }).eq("id", chapter["id"]).execute()
+
         # 2. Gọi AI Viết Văn
         system_prompt, user_prompt = _build_single_beat_draft_prompts(beat, previous_text)
-        draft_text = _sanitize_story_text(
-            await generate_text_xml(system_prompt, user_prompt, target_tag="story_text")
+        generated_tags = await generate_text_xml_tags(
+            system_prompt,
+            user_prompt,
+            ["story_text", "pronoun_mapping"],
         )
+        draft_text = _sanitize_story_text(generated_tags["story_text"])
         
         # 3. Lưu bản nháp vào DB
-        supabase.table("beats").update({"ai_draft_text": draft_text}).eq("id", beat_id).execute()
+        supabase.table("beats").update({
+            "ai_draft_text": draft_text,
+            "pronoun_mapping": generated_tags["pronoun_mapping"],
+        }).eq("id", beat_id).execute()
         supabase.table("chapters").update({
             "status": "Draft Completed",
             "final_content": None,
@@ -155,7 +173,7 @@ async def bulk_update_beats(request: BulkBeatUpdateRequest, background_tasks: Ba
             draft_text = beat["draft_text"]
             beat_result = (
                 supabase.table("beats")
-                .select("id, chapter_id, ai_draft_text")
+                .select("id, chapter_id, ai_draft_text, pronoun_mapping")
                 .eq("id", beat_id)
                 .execute()
             )
@@ -165,9 +183,10 @@ async def bulk_update_beats(request: BulkBeatUpdateRequest, background_tasks: Ba
             sanitized_text = (
                 _sanitize_story_text(draft_text) if draft_text is not None else None
             )
-            supabase.table("beats").update({
-                "ai_draft_text": sanitized_text,
-            }).eq("id", beat_id).execute()
+            beat_updates = {"ai_draft_text": sanitized_text}
+            if sanitized_text != saved_beat.get("ai_draft_text"):
+                beat_updates["pronoun_mapping"] = ""
+            supabase.table("beats").update(beat_updates).eq("id", beat_id).execute()
 
             if (
                 not sanitized_text
@@ -313,7 +332,10 @@ async def edit_beat_text(beat_id: str, request: EditBeatTextRequest):
         )
         
         # Cập nhật trực tiếp văn bản vào DB
-        supabase.table("beats").update({"ai_draft_text": new_text}).eq("id", beat_id).execute()
+        supabase.table("beats").update({
+            "ai_draft_text": new_text,
+            "pronoun_mapping": "",
+        }).eq("id", beat_id).execute()
         
         return {"success": True, "text": new_text}
     except Exception as e:
@@ -390,6 +412,7 @@ async def insert_beat(chapter_id: str, request: BeatInsertRequest):
             "action_and_dialogue": request.action_and_dialogue if request.action_and_dialogue is not None else "Action: \nDialogue: ",
             "emotional_shift": request.emotional_shift if request.emotional_shift is not None else "",
             "ai_draft_text": _sanitize_story_text(request.draft_text) if request.draft_text is not None else "",
+            "pronoun_mapping": "",
         }).execute().data
         if not inserted_result:
             raise HTTPException(status_code=500, detail="Không nhận được beat vừa tạo từ database.")
@@ -490,6 +513,8 @@ async def update_beat_text(
             draft_text_changed
             and updates.get("ai_draft_text") != saved_beat.get("ai_draft_text")
         )
+        if draft_text_changed:
+            updates["pronoun_mapping"] = ""
         supabase.table("beats").update(updates).eq("id", beat_id).execute()
         chapter_id = saved_beat["chapter_id"]
         supabase.table("chapters").update({

@@ -147,6 +147,20 @@ def get_pov_instruction(story_bible: dict, pov_character: str = "") -> str:
 
     return fallback_instruction
 
+
+def _refine_story_bible_context(story_bible: dict) -> dict:
+    return {
+        key: story_bible[key]
+        for key in (
+            "narrative_rules",
+            "intimacy_guidance",
+            "relationship_dynamics",
+            "narrative_boundaries",
+        )
+        if story_bible.get(key)
+    }
+
+
 def get_optimized_bible(full_bible: dict, task: str, present_characters: list = None, pov_character: str = "") -> dict:
     """
     Hàm gọt dũa Story Bible tùy theo tác vụ của AI để tránh pha loãng ngữ cảnh (Context Dilution).
