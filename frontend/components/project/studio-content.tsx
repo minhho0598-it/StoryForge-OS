@@ -358,7 +358,7 @@ export default function StudioContent() {
                       <SelectValue placeholder="Chọn chế độ" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="full">Mode Bình Thường (Intro + Main Overlay + Nền)</SelectItem>
+                      <SelectItem value="full">Mode Bình Thường (Video chính + Overlay + Nền)</SelectItem>
                       <SelectItem value="simple">Mode Đơn Giản (Chỉ Nền + Audio)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -366,7 +366,7 @@ export default function StudioContent() {
                 <div className="space-y-4 rounded-md border bg-white p-4">
                   <div className="flex items-center justify-between gap-4">
                     <Label htmlFor="story-intro-enabled" className="font-semibold text-slate-800">
-                      Chèn lời giới thiệu câu chuyện
+                      Chèn lời giới thiệu câu chuyện bằng giọng đọc
                     </Label>
                     <Switch
                       id="story-intro-enabled"
@@ -464,18 +464,12 @@ export default function StudioContent() {
                     </div>
                   )}
                   
-                  {/* Chỉ hiện Intro và Main nếu là Mode Full */}
+                  {/* Chỉ hiện video chính nếu là Mode Full */}
                   {config.render_mode === "full" && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>File Video Intro</Label>
-                        <Input className="bg-white font-mono text-sm" value={config.intro_video_path} onChange={e => setConfig({...config, intro_video_path: e.target.value})} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>File Video Main (Loop nền)</Label>
-                        <Input className="bg-white font-mono text-sm" value={config.main_video_path} onChange={e => setConfig({...config, main_video_path: e.target.value})} />
-                      </div>
-                    </>
+                    <div className="space-y-2">
+                      <Label>File Video chính (Loop nền)</Label>
+                      <Input className="bg-white font-mono text-sm" value={config.main_video_path} onChange={e => setConfig({...config, main_video_path: e.target.value})} />
+                    </div>
                   )}
                 </div>
 
