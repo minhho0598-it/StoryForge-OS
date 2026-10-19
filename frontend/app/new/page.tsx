@@ -35,7 +35,13 @@ const HEAT_LEVELS = [
   { value: 5, label: "5 · Không giới hạn", description: "Yếu tố 18+ có thể là trục hoặc bước ngoặt của ý tưởng." },
 ] as const;
 
-interface Idea { id: number; lens_key: string; title: string; vietnamese_context: string; situational_irony: string; logline: string; micro_conflict: string; thematic_question: string; vibe: string; }
+const SETTING_MODES = [
+  { value: "vn_real", label: "Việt Nam đời thực", description: "Dùng ràng buộc đời thường, không bịa chính sách hay quy định pháp lý." },
+  { value: "vn_ideal", label: "Việt Nam lý tưởng hóa", description: "Giữ nét Việt Nam, cho phép tối đa 1–2 luật riêng hoặc tổ chức hư cấu." },
+  { value: "open", label: "Tự do bối cảnh", description: "Tự do quốc gia, thời đại hoặc thế giới; tối đa 1–2 luật riêng." },
+] as const;
+
+interface Idea { id: number; title: string; world_context: string; situational_irony: string; logline: string; micro_conflict: string; thematic_question: string; vibe: string; }
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -43,6 +49,7 @@ export default function NewProjectPage() {
   const [premise, setPremise] = useState("");
   const [selectedLenses, setSelectedLenses] = useState<LensKey[]>(IDEATION_LENSES.map((lens) => lens.key));
   const [ideasPerLens, setIdeasPerLens] = useState("1");
+  const [settingMode, setSettingMode] = useState<(typeof SETTING_MODES)[number]["value"]>("vn_real");
   const [heatLevel, setHeatLevel] = useState(1);
   const [ideasHeatLevel, setIdeasHeatLevel] = useState(1);
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -52,8 +59,8 @@ export default function NewProjectPage() {
   const [creatingProject, setCreatingProject] = useState(false);
   const parsedIdeasPerLens = Number(ideasPerLens);
   const isIdeasPerLensValid = Number.isInteger(parsedIdeasPerLens) && parsedIdeasPerLens >= 1 && parsedIdeasPerLens <= 5;
-  const puristIdeas = ideas.filter((idea) => idea.lens_key === "purist");
-  const multiAngleIdeas = ideas.filter((idea) => idea.lens_key !== "purist");
+  const puristIdeas = ideas.filter((idea) => idea.vibe === "purist");
+  const multiAngleIdeas = ideas.filter((idea) => idea.vibe !== "purist");
 
   // Generate ideas for the selected lenses.
   const handleGenerateIdeas = async () => {
@@ -64,6 +71,7 @@ export default function NewProjectPage() {
     try {
       const result = await apiClient.post<Idea[]>("/api/ideation", {
         story_premise: premise.trim(),
+        setting_mode: settingMode,
         target_lenses: IDEATION_LENSES.filter((lens) => selectedLenses.includes(lens.key)).map((lens) => lens.key),
         ideas_per_lens: parsedIdeasPerLens,
         heat_level: heatLevel,
@@ -90,7 +98,7 @@ export default function NewProjectPage() {
           vibe: idea.vibe, 
           logline: idea.logline,
           thematic_question: idea.thematic_question,
-          vietnamese_context: idea.vietnamese_context, 
+          world_context: idea.world_context,
           situational_irony: idea.situational_irony,
           micro_conflict: idea.micro_conflict, 
           story_premise: premise, // Lưu lại bản gốc
@@ -166,7 +174,7 @@ export default function NewProjectPage() {
               )}
             </fieldset>
 
-            <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="ideas-per-lens">Ý tưởng mỗi lăng kính</Label>
                 <Input
@@ -184,6 +192,24 @@ export default function NewProjectPage() {
                 {!isIdeasPerLensValid && (
                   <p role="alert" className="text-sm text-red-600">Số lượng phải là số nguyên từ 1 đến 5.</p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="setting-mode">Chế độ bối cảnh</Label>
+                <Select value={settingMode} onValueChange={(value) => {
+                  const mode = SETTING_MODES.find((option) => option.value === value);
+                  if (mode) setSettingMode(mode.value);
+                }}>
+                  <SelectTrigger id="setting-mode" className="w-full bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SETTING_MODES.map((mode) => (
+                      <SelectItem key={mode.value} value={mode.value}>{mode.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">{SETTING_MODES.find((mode) => mode.value === settingMode)?.description}</p>
               </div>
 
               <div className="space-y-2">
@@ -246,7 +272,7 @@ export default function NewProjectPage() {
                     </CardHeader>
                     
                     <CardContent className="space-y-3 text-sm text-slate-600">
-                      <div><span className="font-semibold text-slate-900">Bối cảnh: </span>{originalIdea.vietnamese_context}</div>
+                      <div><span className="font-semibold text-slate-900">Bối cảnh: </span>{originalIdea.world_context}</div>
                       <div><span className="font-semibold text-slate-900">Câu hỏi chủ đề: </span>{originalIdea.thematic_question}</div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                         <div className="bg-white p-3 rounded-md border border-amber-100/50 shadow-sm">

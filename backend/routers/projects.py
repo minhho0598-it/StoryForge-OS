@@ -158,6 +158,7 @@ async def generate_ideas(request: IdeationRequest):
             "ideation_user.md", 
             story_premise=request.story_premise,
             heat_level=request.heat_level,
+            setting_mode=request.setting_mode,
             target_lenses=json.dumps(request.target_lenses, ensure_ascii=False),
             ideas_per_lens=request.ideas_per_lens,
         )
@@ -188,7 +189,7 @@ async def create_project(request: ProjectCreateRequest):
             "vibe": request.vibe,
             "logline": request.logline,
             "thematic_question": request.thematic_question,
-            "vietnamese_context": request.vietnamese_context,
+            "world_context": request.world_context,
             "story_premise": request.story_premise,
             "situational_irony": request.situational_irony,
             "micro_conflict": request.micro_conflict,
@@ -222,7 +223,7 @@ async def generate_story_bible(project_id: str):
                 "title",
                 "vibe",
                 "logline",
-                "vietnamese_context",
+                "world_context",
                 "micro_conflict",
                 "situational_irony",
                 "heat_level, render_config",
@@ -240,7 +241,7 @@ async def generate_story_bible(project_id: str):
             "title": project["title"],
             "vibe": project["vibe"],
             "logline": project["logline"],
-            "vietnamese_context": project["vietnamese_context"],
+            "world_context": project["world_context"],
             "micro_conflict": project["micro_conflict"],
             "situational_irony": project["situational_irony"]
         }, ensure_ascii=False)
