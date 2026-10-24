@@ -5,7 +5,6 @@ from core.prompt_manager import prompt_manager
 
 STORY_STYLES = {
     "literary_book": "Sách văn chương",
-    "audio_story": "Truyện audio",
 }
 
 CREATIVE_PROMPT_CATALOG = [
@@ -163,8 +162,6 @@ def normalize_story_style(style: Any) -> str:
 
 
 def _system_prompt_filename(entry: dict[str, Any], style: str) -> str:
-    if style == "audio_story":
-        return entry.get("audio_system", entry["system"])
     return entry.get("literary_system", entry["system"])
 
 

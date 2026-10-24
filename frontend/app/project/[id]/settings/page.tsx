@@ -152,7 +152,7 @@ export default function ProjectSettingsPage() {
               <Select
                 value={config.literary_style}
                 onValueChange={(value) => {
-                  if (value === "literary_book" || value === "audio_story") {
+                  if (value === "literary_book") {
                     updateRenderConfig("literary_style", value);
                   }
                 }}
@@ -162,7 +162,6 @@ export default function ProjectSettingsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="literary_book">Sách văn chương</SelectItem>
-                  <SelectItem value="audio_story">Truyện audio</SelectItem>
                 </SelectContent>
               </Select>
             </div>

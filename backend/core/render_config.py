@@ -55,7 +55,7 @@ def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
     normalized["literary_style"] = (
         normalized["literary_style"]
         if isinstance(normalized["literary_style"], str)
-        and normalized["literary_style"] in {"literary_book", "audio_story"}
+        and normalized["literary_style"] == "literary_book"
         else DEFAULT_RENDER_CONFIG["literary_style"]
     )
     normalized["story_intro_enabled"] = bool(normalized["story_intro_enabled"])

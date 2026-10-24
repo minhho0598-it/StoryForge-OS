@@ -1,5 +1,5 @@
 export type RenderConfig = {
-  literary_style: "literary_book" | "audio_story";
+  literary_style: "literary_book";
   voice_id: string;
   render_mode: "full" | "simple";
   auto_split_parts: boolean;
@@ -85,6 +85,7 @@ export function normalizeRenderConfig(config?: LegacyRenderConfig | null): Rende
   const normalized: RenderConfig & { intro_video_path?: string } = {
     ...DEFAULT_RENDER_CONFIG,
     ...config,
+    literary_style: config?.literary_style === "literary_book" ? "literary_book" : DEFAULT_RENDER_CONFIG.literary_style,
     thumbnail: {
       ...DEFAULT_THUMBNAIL_CONFIG,
       ...thumbnail,
