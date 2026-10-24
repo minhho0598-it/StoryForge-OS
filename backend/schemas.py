@@ -108,12 +108,47 @@ class UpdateRenderConfigRequest(BaseModel):
     render_config: dict
 
 
+class ThumbnailBoxConfigPayload(BaseModel):
+    x: int = Field(ge=0)
+    y: int = Field(ge=0)
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+
+
+class ThumbnailRenderConfigPayload(BaseModel):
+    background_path: str = ""
+    character_path: str = ""
+    font_path: str = "assets/fonts/PaytoneOne-Regular.ttf"
+    genre: Literal[
+        "general", "romance", "healing", "youth", "drama", "mystery", "fantasy"
+    ] = "general"
+    color_mode: Literal["rules", "ai", "manual"] = "rules"
+    canvas_width: int = Field(default=1280, gt=0)
+    canvas_height: int = Field(default=720, gt=0)
+    character_box: ThumbnailBoxConfigPayload = Field(
+        default_factory=lambda: ThumbnailBoxConfigPayload(
+            x=28, y=54, width=590, height=590
+        )
+    )
+    title_box: ThumbnailBoxConfigPayload = Field(
+        default_factory=lambda: ThumbnailBoxConfigPayload(
+            x=660, y=165, width=550, height=340
+        )
+    )
+    subtitle_box: ThumbnailBoxConfigPayload = Field(
+        default_factory=lambda: ThumbnailBoxConfigPayload(
+            x=680, y=530, width=510, height=100
+        )
+    )
+
+
 class RenderConfigPayload(BaseModel):
     literary_style: Literal["literary_book", "audio_story"] = "literary_book"
     voice_id: str
     render_mode: Literal["full", "simple"]
     auto_split_parts: bool
     use_background_audio: bool
+    background_audio_volume: float = 0.45
     story_intro_enabled: bool = False
     story_intro_position: Literal["start", "end"] = "start"
     story_intro_pause_ms: int = 1000
@@ -124,6 +159,9 @@ class RenderConfigPayload(BaseModel):
     overlay_y: int
     overlay_w: int
     overlay_h: int
+    thumbnail: ThumbnailRenderConfigPayload = Field(
+        default_factory=ThumbnailRenderConfigPayload
+    )
 
 
 class UpdateGlobalRenderConfigRequest(BaseModel):

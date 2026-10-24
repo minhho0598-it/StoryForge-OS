@@ -15,6 +15,7 @@ Dự án áp dụng triết lý **Human-in-the-loop** (Người và máy đồng
   - Tự động cắt (Smart Segment) video thành nhiều tập ngắn (< 3 phút) dựa trên độ dài của Chương mà không làm đứt mạch lời thoại.
   - Tự động sinh Phụ đề (Subtitle) chính xác 100% không cần dùng Whisper.
 - **Youtube SEO Metadata:** AI tự động chiết xuất Tiêu đề, Hook, Mô tả và Chữ gắn lên Thumbnail.
+- **Tạo Thumbnail:** Backend ghép nhân vật và typography tiếng Việt lên background/template có sẵn; kiểm tra job, kết xuất PNG/SVG và trả báo cáo QA qua API.
 
 ## 🛠 Tech Stack
 
@@ -41,6 +42,14 @@ Khởi chạy Server:
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8765
 ```
+
+### Tạo thumbnail qua API
+
+Đặt template, ảnh nhân vật và font trong thư mục `backend/`, sau đó gửi cấu hình job JSON tới `POST /api/thumbnails/validate` để kiểm tra hoặc `POST /api/thumbnails/render` để kết xuất. Các trường đường dẫn phải là đường dẫn tương đối nằm trong `backend/`; API không nhận upload file. Thiết lập giá trị mặc định của thumbnail tại **Cài đặt → Cấu hình thumbnail mặc định**; chúng được lưu chung trong render config mặc định và tự nạp vào tab Metadata.
+
+Render trả các URL tải PNG, SVG và QA report trong response. File được lưu ở `backend/data/output/thumbnails/`. API hỗ trợ chọn màu theo quy tắc hoặc màu thủ công; chế độ AI dùng `OPENAI_API_KEY` (và tùy chọn `OPENAI_MODEL`) nhưng tự fallback về quy tắc khi không khả dụng.
+Nếu bật `character.remove_background`, cài thêm `rembg` trong virtual environment của backend.
+
 ### 3. Cấu hình Frontend (Next.js)
 ```bash
 cd frontend

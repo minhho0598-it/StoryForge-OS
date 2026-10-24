@@ -31,6 +31,7 @@ numpy==2.4.6
 onnxruntime==1.30.0
 openai==3.8.0
 packaging==26.3
+Pillow>=10.0.0
 postgrest==2.31.0
 propcache==0.5.2
 protobuf==7.36.1

@@ -4,6 +4,19 @@ from typing import Any, Mapping
 
 GLOBAL_RENDER_CONFIG_KEY = "default_render_config"
 
+DEFAULT_THUMBNAIL_CONFIG: dict[str, Any] = {
+    "background_path": "",
+    "character_path": "",
+    "font_path": "assets/fonts/PaytoneOne-Regular.ttf",
+    "genre": "general",
+    "color_mode": "rules",
+    "canvas_width": 1280,
+    "canvas_height": 720,
+    "character_box": {"x": 28, "y": 54, "width": 590, "height": 590},
+    "title_box": {"x": 660, "y": 165, "width": 550, "height": 340},
+    "subtitle_box": {"x": 680, "y": 530, "width": 510, "height": 100},
+}
+
 DEFAULT_RENDER_CONFIG: dict[str, Any] = {
     "literary_style": "literary_book",
     "voice_id": "Nguyệt Nga",
@@ -21,12 +34,24 @@ DEFAULT_RENDER_CONFIG: dict[str, Any] = {
     "overlay_y": 10,
     "overlay_w": 601,
     "overlay_h": 1060,
+    "thumbnail": DEFAULT_THUMBNAIL_CONFIG,
 }
 
 
 def normalize_render_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
     normalized = {**DEFAULT_RENDER_CONFIG, **(config or {})}
     normalized.pop("intro_video_path", None)
+    saved_thumbnail = normalized.get("thumbnail")
+    saved_thumbnail = saved_thumbnail if isinstance(saved_thumbnail, Mapping) else {}
+    thumbnail = {**DEFAULT_THUMBNAIL_CONFIG, **saved_thumbnail}
+    for box_key in ("character_box", "title_box", "subtitle_box"):
+        saved_box = thumbnail.get(box_key)
+        saved_box = saved_box if isinstance(saved_box, Mapping) else {}
+        thumbnail[box_key] = {
+            **DEFAULT_THUMBNAIL_CONFIG[box_key],
+            **saved_box,
+        }
+    normalized["thumbnail"] = thumbnail
     normalized["literary_style"] = (
         normalized["literary_style"]
         if isinstance(normalized["literary_style"], str)

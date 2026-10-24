@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,37 +13,142 @@ import { Loader2, Wand2, Save, Hash, Share2, Smartphone, Copy, Check, ImagePlus 
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
+import { getFrontendConfig } from "@/lib/frontend-config";
+import {
+  DEFAULT_THUMBNAIL_CONFIG,
+  normalizeRenderConfig,
+  type ThumbnailBoxConfig,
+  type ThumbnailConfig,
+} from "@/lib/render-config";
+
+type ThumbnailRenderResponse = {
+  success: boolean;
+  job_id: string;
+  status: "pass" | "needs_review";
+  render: {
+    font_name: string;
+  };
+  warnings: string[];
+  files: {
+    image: string;
+    svg: string;
+    qa: string;
+  };
+};
+
+type VideoMetadata = {
+  title: string;
+  hook: string;
+  overlay: string;
+  description: string;
+  type: string;
+  hashtag: string;
+  thumbnail_prompt: string;
+  story_intro: string;
+};
 
 export default function MetadataContent() {
   const params = useParams();
   const projectId = params.id as string;
 
-  const [metadata, setMetadata] = useState({
+  const [metadata, setMetadata] = useState<VideoMetadata>({
     title: "", hook: "", overlay: "", description: "", type: "", hashtag: "", thumbnail_prompt: "", story_intro: ""
   });
   const [selectedTone, setSelectedTone] = useState("Kịch tính / Giật tít");
   const [aiOptions, setAiOptions] = useState<Record<string, string[]>>({});
   const [loadingMeta, setLoadingMeta] = useState<Record<string, boolean>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [thumbnailConfig, setThumbnailConfig] = useState<ThumbnailConfig>(DEFAULT_THUMBNAIL_CONFIG);
+  const [thumbnailTitle, setThumbnailTitle] = useState("");
+  const [thumbnailSubtitle, setThumbnailSubtitle] = useState("");
+  const [isRenderingThumbnail, setIsRenderingThumbnail] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState("");
+  const [thumbnailResult, setThumbnailResult] = useState<{
+    imageUrl: string;
+    svgUrl: string;
+    qaUrl: string;
+    status: ThumbnailRenderResponse["status"];
+    fontName: string;
+    warnings: string[];
+    settingsFingerprint: string;
+  } | null>(null);
   
   // Trạng thái lưu field nào vừa được copy
   const [copiedField, setCopiedField] = useState("");
 
   useEffect(() => {
-    apiClient.get<any>(`/api/projects/${projectId}`)
+    apiClient.get<{ video_metadata?: Partial<VideoMetadata> }>(`/api/projects/${projectId}`)
       .then(data => {
         if (data.success) {
-          if (data.data.video_metadata) setMetadata(prev => ({...prev, ...data.data.video_metadata}));
+          if (data.data.video_metadata) {
+            const videoMetadata = data.data.video_metadata;
+            setMetadata(prev => ({...prev, ...videoMetadata}));
+          }
         }
       });
   }, [projectId]);
+
+  useEffect(() => {
+    apiClient
+      .get<{ render_config?: Parameters<typeof normalizeRenderConfig>[0] }>("/api/settings/render-config")
+      .then(response => {
+        if (response.render_config) {
+          setThumbnailConfig(normalizeRenderConfig(response.render_config).thumbnail);
+        }
+      })
+      .catch(error => {
+        setThumbnailError(
+          error instanceof Error
+            ? `Không tải được cấu hình thumbnail mặc định: ${error.message}`
+            : "Không tải được cấu hình thumbnail mặc định.",
+        );
+      });
+  }, []);
+
+  const effectiveThumbnailTitle =
+    thumbnailTitle.trim() || metadata.overlay.trim() || metadata.title.trim();
+  const effectiveThumbnailSubtitle = thumbnailSubtitle.trim() || metadata.hook.trim();
+  const safeProjectId = projectId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 60);
+  const thumbnailPayload = {
+    job_id: `thumbnail_${safeProjectId}`,
+    canvas: {
+      width: thumbnailConfig.canvas_width,
+      height: thumbnailConfig.canvas_height,
+    },
+    background: thumbnailConfig.background_path.trim(),
+    character: {
+      path: thumbnailConfig.character_path.trim(),
+      box: thumbnailConfig.character_box,
+    },
+    content: {
+      title: effectiveThumbnailTitle,
+      subtitle: effectiveThumbnailSubtitle,
+    },
+    style: {
+      genre: thumbnailConfig.genre,
+      color_mode: thumbnailConfig.color_mode,
+      font_path: thumbnailConfig.font_path.trim() || null,
+      title_box: thumbnailConfig.title_box,
+      subtitle_box: thumbnailConfig.subtitle_box,
+    },
+    output: {
+      width: thumbnailConfig.canvas_width,
+      height: thumbnailConfig.canvas_height,
+      format: "png",
+    },
+  };
+  const thumbnailSettingsFingerprint = JSON.stringify(thumbnailPayload);
+  const isThumbnailPreviewStale = Boolean(
+    thumbnailResult
+    && thumbnailResult.settingsFingerprint !== thumbnailSettingsFingerprint
+  );
 
   const generateMetadataItem = async (type: string) => {
     setLoadingMeta(prev => ({ ...prev, [type]: true }));
     setAiOptions(prev => ({ ...prev, [type]: [] })); 
     
     try {
-      const data = await apiClient.post<any>(`/api/projects/${projectId}/generate-metadata`, { target_type: type, tone: selectedTone });
+      const data = await apiClient.post<string[]>(`/api/projects/${projectId}/generate-metadata`, { target_type: type, tone: selectedTone });
       
       if (data.success && data.data.length > 0) {
         if (['title', 'hook', 'overlay'].includes(type)) {
@@ -51,7 +157,7 @@ export default function MetadataContent() {
           setMetadata(prev => ({ ...prev, [type]: data.data[0] }));
         }
       }
-    } catch (err) {
+    } catch {
       alert("Lỗi kết nối Backend.");
     } finally {
       setLoadingMeta(prev => ({ ...prev, [type]: false }));
@@ -63,11 +169,88 @@ export default function MetadataContent() {
     try {
       await apiClient.put(`/api/projects/${projectId}/update-video-metadata`, { video_metadata: metadata });
       alert("Đã lưu Metadata thành công!");
-    } catch (e) { 
-      alert("Lỗi khi lưu dữ liệu."); 
+    } catch {
+      alert("Lỗi khi lưu dữ liệu.");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleRenderThumbnail = async () => {
+    setThumbnailError("");
+    setThumbnailResult(null);
+    if (!thumbnailConfig.background_path.trim() || !thumbnailConfig.character_path.trim()) {
+      setThumbnailError("Vui lòng nhập đường dẫn ảnh nền và ảnh nhân vật có sẵn trong backend.");
+      return;
+    }
+    if (!effectiveThumbnailTitle) {
+      setThumbnailError("Vui lòng nhập tiêu đề thumbnail.");
+      return;
+    }
+
+    setIsRenderingThumbnail(true);
+    try {
+      const response = await apiClient.post<ThumbnailRenderResponse>(
+        "/api/thumbnails/render",
+        thumbnailPayload,
+      );
+      const files = response.files;
+      const render = response.render;
+      if (
+        !files
+        || typeof files !== "object"
+        || !("image" in files)
+        || !("svg" in files)
+        || !("qa" in files)
+        || typeof files.image !== "string"
+        || typeof files.svg !== "string"
+        || typeof files.qa !== "string"
+        || !render
+        || typeof render !== "object"
+        || !("font_name" in render)
+        || typeof render.font_name !== "string"
+        || (response.status !== "pass" && response.status !== "needs_review")
+      ) {
+        throw new Error("Backend trả về kết quả thumbnail không hợp lệ.");
+      }
+      const backendUrl = getFrontendConfig().backend_url.replace(/\/+$/, "");
+      const renderVersion = Date.now();
+      setThumbnailResult({
+        imageUrl: `${backendUrl}${files.image}?v=${renderVersion}`,
+        svgUrl: `${backendUrl}${files.svg}?v=${renderVersion}`,
+        qaUrl: `${backendUrl}${files.qa}?v=${renderVersion}`,
+        status: response.status,
+        fontName: render.font_name,
+        warnings: Array.isArray(response.warnings)
+          ? response.warnings.filter((warning): warning is string => typeof warning === "string")
+          : [],
+        settingsFingerprint: thumbnailSettingsFingerprint,
+      });
+    } catch (error) {
+      setThumbnailError(
+        error instanceof Error ? error.message : "Không thể tạo thumbnail. Vui lòng kiểm tra cấu hình backend."
+      );
+    } finally {
+      setIsRenderingThumbnail(false);
+    }
+  };
+
+  const updateThumbnailConfig = <K extends keyof ThumbnailConfig>(
+    key: K,
+    value: ThumbnailConfig[K],
+  ) => {
+    setThumbnailConfig(current => ({ ...current, [key]: value }));
+  };
+
+  const updateThumbnailBox = (
+    boxKey: "character_box" | "title_box" | "subtitle_box",
+    key: keyof ThumbnailBoxConfig,
+    value: number,
+  ) => {
+    setThumbnailConfig(current => ({
+      ...current,
+      [boxKey]: { ...current[boxKey], [key]: value },
+    }));
   };
 
   // HÀM: Copy từng field riêng lẻ
@@ -307,21 +490,251 @@ export default function MetadataContent() {
               </CardContent>
             </Card>
 
+            <Card className="shadow-sm border-indigo-200">
+              <CardHeader className="bg-indigo-50/70 border-b pb-3">
+                <CardTitle className="text-sm flex items-center gap-2 text-indigo-900">
+                  <ImagePlus className="h-4 w-4" /> Tạo ảnh Thumbnail
+                </CardTitle>
+                <CardDescription>
+                  Ghép ảnh nhân vật và chữ lên template có sẵn bằng API backend. Đường dẫn phải là đường dẫn tương đối bên trong thư mục backend.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 bg-white space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="thumbnail-background">Ảnh nền / template</Label>
+                    <Input
+                      id="thumbnail-background"
+                      value={thumbnailConfig.background_path}
+                      onChange={event => updateThumbnailConfig("background_path", event.target.value)}
+                      placeholder="assets/thumbnail/background.png"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="thumbnail-character">Ảnh nhân vật</Label>
+                    <Input
+                      id="thumbnail-character"
+                      value={thumbnailConfig.character_path}
+                      onChange={event => updateThumbnailConfig("character_path", event.target.value)}
+                      placeholder="assets/characters/character.png"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="thumbnail-font">Đường dẫn font TTF/OTF trong backend</Label>
+                    <Input
+                      id="thumbnail-font"
+                      value={thumbnailConfig.font_path}
+                      onChange={event => updateThumbnailConfig("font_path", event.target.value)}
+                      placeholder="assets/fonts/PaytoneOne-Regular.ttf"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Mặc định dùng Paytone One từ assets/fonts. Đổi đường dẫn nếu muốn dùng font khác.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="thumbnail-genre">Thể loại phối màu</Label>
+                    <Select
+                      value={thumbnailConfig.genre}
+                      onValueChange={value => {
+                        if (
+                          value === "general" || value === "romance" || value === "healing"
+                          || value === "youth" || value === "drama" || value === "mystery"
+                          || value === "fantasy"
+                        ) updateThumbnailConfig("genre", value);
+                      }}
+                    >
+                      <SelectTrigger id="thumbnail-genre" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">Chung</SelectItem>
+                        <SelectItem value="romance">Ngôn tình</SelectItem>
+                        <SelectItem value="healing">Chữa lành</SelectItem>
+                        <SelectItem value="youth">Tuổi trẻ</SelectItem>
+                        <SelectItem value="drama">Kịch tính</SelectItem>
+                        <SelectItem value="mystery">Bí ẩn</SelectItem>
+                        <SelectItem value="fantasy">Kỳ ảo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="thumbnail-color-mode">Cách chọn màu</Label>
+                    <Select
+                      value={thumbnailConfig.color_mode}
+                      onValueChange={value => {
+                        if (value === "rules" || value === "ai" || value === "manual") {
+                          updateThumbnailConfig("color_mode", value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="thumbnail-color-mode" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rules">Theo quy tắc (mặc định)</SelectItem>
+                        <SelectItem value="ai">AI (cần OPENAI_API_KEY)</SelectItem>
+                        <SelectItem value="manual">Thủ công</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="thumbnail-title">Chữ tiêu đề trên thumbnail</Label>
+                    <Input
+                      id="thumbnail-title"
+                      value={thumbnailTitle}
+                      onChange={event => setThumbnailTitle(event.target.value)}
+                      placeholder={metadata.overlay || metadata.title || "Nhập tiêu đề thumbnail"}
+                    />
+                    <p className="text-xs text-slate-500">
+                      Để trống sẽ tự lấy Overlay, hoặc Tên truyện nếu Overlay chưa có.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="thumbnail-subtitle">Phụ đề (không bắt buộc)</Label>
+                    <Input
+                      id="thumbnail-subtitle"
+                      value={thumbnailSubtitle}
+                      onChange={event => setThumbnailSubtitle(event.target.value)}
+                      placeholder={metadata.hook || "Mặc định không có phụ đề"}
+                    />
+                    <p className="text-xs text-slate-500">
+                      Để trống sẽ tự lấy Hook hiện tại; nhập nội dung để ghi đè.
+                    </p>
+                  </div>
+                </div>
+
+                <details className="rounded-md border border-slate-200 p-3">
+                  <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                    Tinh chỉnh vị trí ảnh và chữ (canvas {thumbnailConfig.canvas_width} × {thumbnailConfig.canvas_height})
+                  </summary>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    {([
+                      ["character_box", "Ảnh nhân vật"],
+                      ["title_box", "Tiêu đề"],
+                      ["subtitle_box", "Phụ đề"],
+                    ] as const).flatMap(([boxKey, label]) => (
+                      ([
+                        ["x", "X"],
+                        ["y", "Y"],
+                        ["width", "Rộng"],
+                        ["height", "Cao"],
+                      ] as const).map(([key, fieldLabel]) => (
+                        <div key={`${boxKey}-${key}`} className="space-y-1.5">
+                          <Label htmlFor={`thumbnail-${boxKey}-${key}`}>{label} — {fieldLabel}</Label>
+                          <Input
+                            id={`thumbnail-${boxKey}-${key}`}
+                            type="number"
+                            min={key === "x" || key === "y" ? 0 : 1}
+                            step={1}
+                            value={thumbnailConfig[boxKey][key]}
+                            onChange={event => {
+                              const minimum = key === "x" || key === "y" ? 0 : 1;
+                              updateThumbnailBox(
+                                boxKey,
+                                key,
+                                Math.max(minimum, Number(event.target.value) || minimum),
+                              );
+                            }}
+                          />
+                        </div>
+                      ))
+                    ))}
+                  </div>
+                </details>
+
+                {thumbnailError && (
+                  <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+                    {thumbnailError}
+                  </p>
+                )}
+
+                <Button
+                  onClick={handleRenderThumbnail}
+                  disabled={isRenderingThumbnail}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {isRenderingThumbnail
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <ImagePlus className="mr-2 h-4 w-4" />}
+                  {isRenderingThumbnail ? "Đang tạo thumbnail..." : "Tạo thumbnail"}
+                </Button>
+
+                {thumbnailResult && (
+                  <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Badge variant={thumbnailResult.status === "pass" ? "default" : "outline"}>
+                        {thumbnailResult.status === "pass" ? "Đã tạo" : "Cần xem lại bố cục"}
+                      </Badge>
+                      <div className="flex gap-3 text-sm">
+                        <a className="text-indigo-600 underline" href={thumbnailResult.imageUrl} target="_blank" rel="noreferrer">PNG</a>
+                        <a className="text-indigo-600 underline" href={thumbnailResult.svgUrl} target="_blank" rel="noreferrer">SVG</a>
+                        <a className="text-indigo-600 underline" href={thumbnailResult.qaUrl} target="_blank" rel="noreferrer">Báo cáo QA</a>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-600">Font thực tế: {thumbnailResult.fontName}</p>
+                    {isThumbnailPreviewStale && (
+                      <p role="status" className="rounded bg-amber-50 p-2 text-xs text-amber-800">
+                        Cấu hình đã thay đổi; ảnh này là bản render trước. Hãy tạo lại để cập nhật preview.
+                      </p>
+                    )}
+                    <Image
+                      src={thumbnailResult.imageUrl}
+                      alt="Thumbnail vừa tạo"
+                      width={1280}
+                      height={720}
+                      unoptimized
+                      className="h-auto max-h-[360px] w-full rounded border border-slate-200 bg-white object-contain"
+                    />
+                    {thumbnailResult.warnings.length > 0 && (
+                      <ul className="list-inside list-disc space-y-1 text-xs text-slate-500">
+                        {thumbnailResult.warnings.map(warning => <li key={warning}>{warning}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
           </div>
 
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Smartphone className="h-4 w-4" /> Xem Trước Trên ĐT
+                <Smartphone className="h-4 w-4" /> Preview bài đăng trên điện thoại
               </h3>
+              {isThumbnailPreviewStale && (
+                <p role="status" className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-800">
+                  Ảnh thumbnail đang xem chưa khớp với cấu hình hiện tại.
+                </p>
+              )}
               
               <div className="w-[280px] h-[580px] bg-slate-900 rounded-[2.5rem] border-[8px] border-slate-800 relative overflow-hidden shadow-2xl mx-auto">
                 <div className="absolute top-0 inset-x-0 h-6 bg-slate-800 rounded-b-xl w-32 mx-auto z-20"></div>
                 <div className="absolute inset-0 bg-gradient-to-b from-slate-700 to-slate-900 flex flex-col justify-between p-4 pb-16 z-10">
-                  <div className="flex-1 flex items-center justify-center">
-                    <h2 className="text-3xl font-black text-white text-center drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] leading-tight px-2">
-                      {metadata.overlay || <span className="text-slate-500 text-xl font-normal">Chữ Overlay sẽ hiện ở đây</span>}
-                    </h2>
+                  <div className="flex-1 flex items-center justify-center overflow-hidden rounded-xl bg-black/30">
+                    {thumbnailResult ? (
+                      <Image
+                        src={thumbnailResult.imageUrl}
+                        alt="Thumbnail đã render trong preview bài đăng"
+                        width={1280}
+                        height={720}
+                        unoptimized
+                        className="h-auto max-h-full w-full object-contain"
+                      />
+                    ) : (
+                      <h2 className="text-3xl font-black text-white text-center drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] leading-tight px-2">
+                        {effectiveThumbnailTitle || (
+                          <span className="text-slate-300 text-xl font-normal">
+                            Tạo thumbnail để xem ảnh thật
+                          </span>
+                        )}
+                      </h2>
+                    )}
                   </div>
                   <div className="space-y-2 mt-auto">
                     <h3 className="text-white font-bold text-sm drop-shadow-md">

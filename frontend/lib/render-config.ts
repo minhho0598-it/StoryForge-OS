@@ -15,6 +15,40 @@ export type RenderConfig = {
   overlay_y: number;
   overlay_w: number;
   overlay_h: number;
+  thumbnail: ThumbnailConfig;
+};
+
+export type ThumbnailBoxConfig = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type ThumbnailConfig = {
+  background_path: string;
+  character_path: string;
+  font_path: string;
+  genre: "general" | "romance" | "healing" | "youth" | "drama" | "mystery" | "fantasy";
+  color_mode: "rules" | "ai" | "manual";
+  canvas_width: number;
+  canvas_height: number;
+  character_box: ThumbnailBoxConfig;
+  title_box: ThumbnailBoxConfig;
+  subtitle_box: ThumbnailBoxConfig;
+};
+
+export const DEFAULT_THUMBNAIL_CONFIG: ThumbnailConfig = {
+  background_path: "",
+  character_path: "",
+  font_path: "assets/fonts/PaytoneOne-Regular.ttf",
+  genre: "general",
+  color_mode: "rules",
+  canvas_width: 1280,
+  canvas_height: 720,
+  character_box: { x: 28, y: 54, width: 590, height: 590 },
+  title_box: { x: 660, y: 165, width: 550, height: 340 },
+  subtitle_box: { x: 680, y: 530, width: 510, height: 100 },
 };
 
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
@@ -34,12 +68,40 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   overlay_y: 10,
   overlay_w: 601,
   overlay_h: 1060,
+  thumbnail: DEFAULT_THUMBNAIL_CONFIG,
 };
 
-type LegacyRenderConfig = Partial<RenderConfig> & { intro_video_path?: string };
+type LegacyRenderConfig = Omit<Partial<RenderConfig>, "thumbnail"> & {
+  thumbnail?: Partial<ThumbnailConfig> & {
+    character_box?: Partial<ThumbnailBoxConfig>;
+    title_box?: Partial<ThumbnailBoxConfig>;
+    subtitle_box?: Partial<ThumbnailBoxConfig>;
+  } | null;
+  intro_video_path?: string;
+};
 
 export function normalizeRenderConfig(config?: LegacyRenderConfig | null): RenderConfig {
-  const normalized = { ...DEFAULT_RENDER_CONFIG, ...config };
+  const thumbnail = config?.thumbnail;
+  const normalized: RenderConfig & { intro_video_path?: string } = {
+    ...DEFAULT_RENDER_CONFIG,
+    ...config,
+    thumbnail: {
+      ...DEFAULT_THUMBNAIL_CONFIG,
+      ...thumbnail,
+      character_box: {
+        ...DEFAULT_THUMBNAIL_CONFIG.character_box,
+        ...thumbnail?.character_box,
+      },
+      title_box: {
+        ...DEFAULT_THUMBNAIL_CONFIG.title_box,
+        ...thumbnail?.title_box,
+      },
+      subtitle_box: {
+        ...DEFAULT_THUMBNAIL_CONFIG.subtitle_box,
+        ...thumbnail?.subtitle_box,
+      },
+    },
+  };
   delete normalized.intro_video_path;
   return normalized;
 }

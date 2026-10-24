@@ -5,6 +5,7 @@ from routers.chapters import router as chapters_router
 from routers.projects import router as projects_router
 from routers.render import router as render_router
 from routers.settings import router as settings_router
+from routers.thumbnail import router as thumbnail_router
 
 app = FastAPI(title="Story Maker API")
 
@@ -21,3 +22,4 @@ app.include_router(chapters_router)
 app.include_router(beats_router)
 app.include_router(settings_router)
 app.include_router(render_router)
+app.include_router(thumbnail_router)
