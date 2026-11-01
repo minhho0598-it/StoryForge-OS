@@ -193,6 +193,8 @@ async def create_project(request: ProjectCreateRequest):
             "story_premise": request.story_premise,
             "situational_irony": request.situational_irony,
             "micro_conflict": request.micro_conflict,
+            "escalation": request.escalation,
+            "turning_point": request.turning_point,
             "heat_level": request.heat_level,
             "render_config": get_global_render_config(supabase),
             "status": "Idea Selected"
@@ -226,6 +228,8 @@ async def generate_story_bible(project_id: str):
                 "world_context",
                 "micro_conflict",
                 "situational_irony",
+                "escalation",
+                "turning_point",
                 "heat_level, render_config",
             )
             .eq("id", project_id)
@@ -243,7 +247,9 @@ async def generate_story_bible(project_id: str):
             "logline": project["logline"],
             "world_context": project["world_context"],
             "micro_conflict": project["micro_conflict"],
-            "situational_irony": project["situational_irony"]
+            "situational_irony": project["situational_irony"],
+            "escalation": project.get("escalation", ""),
+            "turning_point": project.get("turning_point", ""),
         }, ensure_ascii=False)
 
         # 2. Load Prompts

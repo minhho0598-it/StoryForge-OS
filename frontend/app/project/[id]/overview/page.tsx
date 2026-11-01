@@ -27,6 +27,8 @@ type ProjectDashboardData = {
   heat_level?: number;
   logline?: string;
   world_context?: string;
+  escalation?: string;
+  turning_point?: string;
   story_bible?: {
     characters?: DashboardCharacter[];
     conflict_system?: { central_conflict?: string };
@@ -114,6 +116,17 @@ export default function OverviewPage() {
                   <p className="text-slate-600 text-sm">
                     {bible.conflict_system?.central_conflict || "Chưa có dữ liệu."}
                   </p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold text-slate-800 mb-1">Leo thang</h4>
+                    <p className="text-slate-600 text-sm">{project.escalation || "Chưa có dữ liệu."}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-800 mb-1">Bước ngoặt giữa truyện</h4>
+                    <p className="text-slate-600 text-sm">{project.turning_point || "Chưa có dữ liệu."}</p>
+                  </div>
                 </div>
                 <Separator />
                 <div>

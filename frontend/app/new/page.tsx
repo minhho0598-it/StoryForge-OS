@@ -41,7 +41,7 @@ const SETTING_MODES = [
   { value: "open", label: "Tự do bối cảnh", description: "Tự do quốc gia, thời đại hoặc thế giới; tối đa 1–2 luật riêng." },
 ] as const;
 
-interface Idea { id: number; title: string; world_context: string; situational_irony: string; logline: string; micro_conflict: string; thematic_question: string; vibe: string; }
+interface Idea { id: number; title: string; world_context: string; situational_irony: string; logline: string; micro_conflict: string; thematic_question: string; escalation: string; turning_point: string; vibe: string; }
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -101,6 +101,8 @@ export default function NewProjectPage() {
           world_context: idea.world_context,
           situational_irony: idea.situational_irony,
           micro_conflict: idea.micro_conflict, 
+          escalation: idea.escalation,
+          turning_point: idea.turning_point,
           story_premise: premise, // Lưu lại bản gốc
           heat_level: ideasHeatLevel,
         });
@@ -287,6 +289,14 @@ export default function NewProjectPage() {
                           <span className="font-semibold text-slate-900 block mb-1">Sự trớ trêu: </span> 
                           {originalIdea.situational_irony}
                         </div>
+                        <div className="bg-white p-3 rounded-md border border-amber-100/50 shadow-sm">
+                          <span className="font-semibold text-slate-900 block mb-1">Leo thang: </span>
+                          {originalIdea.escalation}
+                        </div>
+                        <div className="bg-white p-3 rounded-md border border-amber-100/50 shadow-sm">
+                          <span className="font-semibold text-slate-900 block mb-1">Bước ngoặt giữa truyện: </span>
+                          {originalIdea.turning_point}
+                        </div>
                       </div>
                     </CardContent>
 
@@ -340,6 +350,14 @@ export default function NewProjectPage() {
                     <div className="bg-slate-50 p-3 rounded-md border border-slate-100 italic">
                       <span className="font-semibold text-slate-900 not-italic">Trớ trêu: </span> 
                       {idea.situational_irony}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-900">Leo thang: </span>
+                      {idea.escalation}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-900">Bước ngoặt giữa truyện: </span>
+                      {idea.turning_point}
                     </div>
                   </CardContent>
 

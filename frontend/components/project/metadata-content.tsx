@@ -345,7 +345,7 @@ export default function MetadataContent() {
                   <div className="flex justify-between items-end">
                     <Label className="font-bold text-slate-700">1. Tên truyện chính thức</Label>
                     <div className="flex items-center gap-2">
-                      {renderCharCount(metadata.title, 100, 80)}
+                      {renderCharCount(metadata.title, 65, 55)}
                       <Button variant="ghost" size="sm" onClick={() => copyToClipboard(metadata.title, 'title')} className="h-7 px-2 text-slate-500 hover:text-slate-900">
                         {copiedField === 'title' ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
                       </Button>

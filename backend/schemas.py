@@ -41,6 +41,8 @@ class ProjectCreateRequest(BaseModel):
     situational_irony: str
     micro_conflict: str
     story_premise: str
+    escalation: str = ""
+    turning_point: str = ""
     heat_level: int = Field(default=1, ge=1, le=5)
 
 # Schema dùng để update Story Bible hoặc Pacing do user tự sửa tay
